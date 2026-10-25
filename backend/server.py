@@ -226,6 +226,41 @@ def detune_endpoint(body: DetuneBody) -> dict[str, Any]:
     return {"design": d.model_dump(mode="json"), **_trace_and_verify(d)}
 
 
+# ── build kit: BOM + printable baseplate (optics/bom.py) ──
+@app.post("/api/bom")
+def bom_endpoint(body: DesignBody) -> dict[str, Any]:
+    from optics.bom import build_kit, design_hash
+
+    bom, _ = build_kit(body.design)
+    token = design_hash(body.design)
+    return {**bom, "token": token,
+            "stl_urls": {p["name"]: f"/api/stl/{token}/{p['name']}.stl" for p in bom["printed"]}}
+
+
+@app.post("/api/build_kit")
+def build_kit_endpoint(body: DesignBody):
+    from fastapi.responses import Response
+
+    from optics.bom import kit_zip
+
+    data = kit_zip(body.design)
+    fname = "".join(c if c.isalnum() or c in "-_" else "_" for c in body.design.name) or "design"
+    return Response(data, media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{fname}_kit.zip"'})
+
+
+@app.get("/api/stl/{token}/{name}.stl")
+def stl_endpoint(token: str, name: str):
+    from optics.bom import KIT_ROOT
+
+    if not token.isalnum() or not all(c.isalnum() or c in "-_" for c in name):
+        raise HTTPException(400, "bad path")
+    path = KIT_ROOT / token / "stl" / f"{name}.stl"
+    if not path.is_file():
+        raise HTTPException(404, "unknown kit/part (POST /api/bom first)")
+    return FileResponse(path, media_type="model/stl", filename=f"{name}.stl")
+
+
 # Serve the built web app (npm run build) from the same origin for the demo.
 if WEB_DIST.is_dir():
     app.mount("/assets", StaticFiles(directory=WEB_DIST / "assets"), name="assets")

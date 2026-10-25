@@ -10,6 +10,8 @@ dependencies = [
   "python-multipart>=0.0.9",
   "google-genai>=1.0",
   "sse-starlette>=2.1",
+  "manifold3d>=3.5.4",
+  "trimesh>=5.2.0",
 ]
 
 [dependency-groups]
