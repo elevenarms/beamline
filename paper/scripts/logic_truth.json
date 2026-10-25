@@ -1,0 +1,128 @@
+{
+ "half_adder": [
+  {
+   "inputs": {
+    "A": 0,
+    "B": 0
+   },
+   "outputs": {
+    "SUM": 0,
+    "CARRY": 0
+   },
+   "powers_mw": {
+    "SUM": 0.0,
+    "CARRY": 0.0
+   },
+   "passed": true,
+   "errors": []
+  },
+  {
+   "inputs": {
+    "A": 0,
+    "B": 1
+   },
+   "outputs": {
+    "SUM": 1,
+    "CARRY": 0
+   },
+   "powers_mw": {
+    "SUM": 150.0,
+    "CARRY": 0.0
+   },
+   "passed": true,
+   "errors": []
+  },
+  {
+   "inputs": {
+    "A": 1,
+    "B": 0
+   },
+   "outputs": {
+    "SUM": 1,
+    "CARRY": 0
+   },
+   "powers_mw": {
+    "SUM": 218.5,
+    "CARRY": 0.0
+   },
+   "passed": true,
+   "errors": []
+  },
+  {
+   "inputs": {
+    "A": 1,
+    "B": 1
+   },
+   "outputs": {
+    "SUM": 0,
+    "CARRY": 1
+   },
+   "powers_mw": {
+    "SUM": 21.09983518854534,
+    "CARRY": 347.40016481145466
+   },
+   "passed": true,
+   "errors": []
+  }
+ ],
+ "and_sfg": [
+  {
+   "inputs": {
+    "A": 0,
+    "B": 0
+   },
+   "outputs": {
+    "OUT": 0
+   },
+   "powers_mw": {
+    "OUT": 0.0
+   },
+   "passed": true,
+   "errors": []
+  },
+  {
+   "inputs": {
+    "A": 0,
+    "B": 1
+   },
+   "outputs": {
+    "OUT": 0
+   },
+   "powers_mw": {
+    "OUT": 0.0
+   },
+   "passed": true,
+   "errors": []
+  },
+  {
+   "inputs": {
+    "A": 1,
+    "B": 0
+   },
+   "outputs": {
+    "OUT": 0
+   },
+   "powers_mw": {
+    "OUT": 0.0
+   },
+   "passed": true,
+   "errors": []
+  },
+  {
+   "inputs": {
+    "A": 1,
+    "B": 1
+   },
+   "outputs": {
+    "OUT": 1
+   },
+   "powers_mw": {
+    "OUT": 35.29300564917449
+   },
+   "passed": true,
+   "errors": []
+  }
+ ],
+ "thr_ha": 40.0,
+ "thr_and": 0.5
+}

@@ -31,7 +31,7 @@
 - Tracer: 121-element apparatus traced + verified in **6.1 ms**; 104 backend tests.
 - Goal → verified design: **~45–85 s**, best-of-4 candidates, scores 97–98.
 - Figure → verified design: **41–92 s**, PASS 95–96, 14–16/16 components matched; reliability check after final fixes: **3/3 PASS (41–55 s, run concurrently)**.
-- Real-paper benchmark (8 open-access figures): 3/8 reproduce pass (incl. hard dual-trap optical tweezers, 22 parts), **4/4 goal designs pass**.
+- Real-paper benchmark (8 open-access figures): 4/8 reproductions pass verification, 3/8 physically faithful (Raman passes but sends the laser line to the detector; incl. hard dual-trap optical tweezers, 22 parts), **4/4 goal designs pass**.
 - argon grounding: PyOpticL API hallucination **95 % zero-shot → 0 %** grounded; read 15/15 components and 9/9 printed part numbers from paper figures.
 - Hierarchical: 6 modules in parallel, 96 optics, PASS 98.5, ~100 s; shared-laser power budget (3 W → 6 modules) balances exactly.
 - Paper URL → bench: tweezers (arXiv:2004.05246) PASS 95.4 in 73 s, 14/14 matched.
@@ -42,7 +42,7 @@
 ## Honest caveats (if asked)
 - Planar (2D) table model; Gaussian beams are round; thin lenses; no interference/coherence.
 - Nonlinear models are textbook steady-state (SOA gain saturation, χ(2) SFG with perfect phase matching, CW). The SOA NAND has ~5 dB contrast and isn't cascadable in our model; the half adder uses one PPLN crystal with optimistic η.
-- Reproduce succeeds on clean schematics; dense multi-panel figures can still fail (3/8 on the benchmark).
+- Reproduce succeeds on clean schematics; dense multi-panel figures can still fail (4/8 pass verification on the benchmark, 3/8 physically faithful).
 
 ## Credits
 PyOpticL (UMass Ion Trappers, Quantum 2026, CC-BY). Figures: arXiv CC-BY 4.0 / Wikimedia (see `demo/figures/catalog.json`). Model: Gemini `gemini-4-argon`.

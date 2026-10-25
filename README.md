@@ -30,7 +30,7 @@ Also: goal → design (best-of-N candidates), hierarchical design of whole appar
 | Goal → verified design | ~45–85 s, scores 93–98 |
 | 121-element apparatus trace + verify | ~6 ms |
 | argon PyOpticL-API hallucination, zero-shot → grounded | 95 % → 0 % |
-| 8-figure open-access benchmark | 3/8 reproduce pass, 4/4 goal designs pass |
+| 8-figure open-access benchmark | 4/8 reproduce pass verification (3/8 physically faithful), 4/4 goal designs pass |
 | Backend tests | 123 passing |
 
 Details and honest caveats: [`demo/DEMO.md`](demo/DEMO.md), [`demo/figures/RESULTS.md`](demo/figures/RESULTS.md).

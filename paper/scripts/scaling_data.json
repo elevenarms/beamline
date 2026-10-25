@@ -1,0 +1,215 @@
+{
+ "reps": 5,
+ "examples": [
+  {
+   "name": "alloptical_and_sfg",
+   "n_elements": 5,
+   "n_segments": 10,
+   "median_s": 0.0007221249979920685,
+   "min_s": 0.0003497500001685694,
+   "max_s": 0.0013960000069346279,
+   "passed": true
+  },
+  {
+   "name": "alloptical_half_adder",
+   "n_elements": 5,
+   "n_segments": 10,
+   "median_s": 0.0003670410078484565,
+   "min_s": 0.0003508749941829592,
+   "max_s": 0.0005497090023709461,
+   "passed": true
+  },
+  {
+   "name": "alloptical_nand",
+   "n_elements": 7,
+   "n_segments": 10,
+   "median_s": 0.0005129169876454398,
+   "min_s": 0.0004979170043952763,
+   "max_s": 0.0005502090061781928,
+   "passed": true
+  },
+  {
+   "name": "aom_doublepass",
+   "n_elements": 10,
+   "n_segments": 17,
+   "median_s": 0.0005851250025443733,
+   "min_s": 0.00040066600195132196,
+   "max_s": 0.001355041007627733,
+   "passed": false
+  },
+  {
+   "name": "aom_doublepass_fixed",
+   "n_elements": 11,
+   "n_segments": 16,
+   "median_s": 0.00042833299085032195,
+   "min_s": 0.00041383301140740514,
+   "max_s": 0.000618042002315633,
+   "passed": true
+  },
+  {
+   "name": "aom_singlepass_pickoff",
+   "n_elements": 10,
+   "n_segments": 10,
+   "median_s": 0.00021099999139551073,
+   "min_s": 0.00020545900042634457,
+   "max_s": 0.0002595830010250211,
+   "passed": true
+  },
+  {
+   "name": "fiber_coupling_telescope",
+   "n_elements": 6,
+   "n_segments": 6,
+   "median_s": 0.0001347090001218021,
+   "min_s": 0.00013195900828577578,
+   "max_s": 0.00014187500346451998,
+   "passed": true
+  },
+  {
+   "name": "mach_zehnder",
+   "n_elements": 6,
+   "n_segments": 9,
+   "median_s": 0.0001838750031311065,
+   "min_s": 0.00017766699602361768,
+   "max_s": 0.0008627919887658209,
+   "passed": true
+  },
+  {
+   "name": "optical_full_adder",
+   "n_elements": 28,
+   "n_segments": 18,
+   "median_s": 0.0008406249980907887,
+   "min_s": 0.0008149999921442941,
+   "max_s": 0.001228958004503511,
+   "passed": true
+  },
+  {
+   "name": "optical_half_adder",
+   "n_elements": 14,
+   "n_segments": 8,
+   "median_s": 0.00043783300498034805,
+   "min_s": 0.00031966700043994933,
+   "max_s": 0.0016433749988209456,
+   "passed": true
+  },
+  {
+   "name": "optical_nand",
+   "n_elements": 10,
+   "n_segments": 6,
+   "median_s": 0.0005229579983279109,
+   "min_s": 0.0002856250066542998,
+   "max_s": 0.0010197500087087974,
+   "passed": true
+  },
+  {
+   "name": "rb_sas",
+   "n_elements": 12,
+   "n_segments": 15,
+   "median_s": 0.0008255829889094457,
+   "min_s": 0.0003730000025825575,
+   "max_s": 0.0011780420027207583,
+   "passed": true
+  },
+  {
+   "name": "sr_ion_apparatus",
+   "n_elements": 121,
+   "n_segments": 134,
+   "median_s": 0.00959829099883791,
+   "min_s": 0.008653957993374206,
+   "max_s": 0.013428124992060475,
+   "passed": true
+  }
+ ],
+ "tiled": [
+  {
+   "copies": 1,
+   "n_elements": 11,
+   "n_segments": 16,
+   "median_s": 0.00037295800575520843,
+   "min_s": 0.0003699999942909926,
+   "max_s": 0.000442666991148144,
+   "passed": true,
+   "score": 97.94896758786984
+  },
+  {
+   "copies": 2,
+   "n_elements": 22,
+   "n_segments": 32,
+   "median_s": 0.0011123329895781353,
+   "min_s": 0.000992790999589488,
+   "max_s": 0.0027154170093126595,
+   "passed": true,
+   "score": 97.94896758786984
+  },
+  {
+   "copies": 3,
+   "n_elements": 33,
+   "n_segments": 48,
+   "median_s": 0.002981333003845066,
+   "min_s": 0.0017809169949032366,
+   "max_s": 0.005428000004030764,
+   "passed": true,
+   "score": 97.94896758786986
+  },
+  {
+   "copies": 5,
+   "n_elements": 55,
+   "n_segments": 80,
+   "median_s": 0.00505170899850782,
+   "min_s": 0.004058958002133295,
+   "max_s": 0.006585165989235975,
+   "passed": true,
+   "score": 97.94896758786984
+  },
+  {
+   "copies": 8,
+   "n_elements": 88,
+   "n_segments": 128,
+   "median_s": 0.00819587500882335,
+   "min_s": 0.007869000008213334,
+   "max_s": 0.011752250007702969,
+   "passed": true,
+   "score": 97.94896758786986
+  },
+  {
+   "copies": 12,
+   "n_elements": 132,
+   "n_segments": 192,
+   "median_s": 0.017754707994754426,
+   "min_s": 0.014568458005669527,
+   "max_s": 0.019299209001474082,
+   "passed": true,
+   "score": 97.94896758786986
+  },
+  {
+   "copies": 16,
+   "n_elements": 176,
+   "n_segments": 256,
+   "median_s": 0.02757141699839849,
+   "min_s": 0.026061374999699183,
+   "max_s": 0.037194250005995855,
+   "passed": true,
+   "score": 97.94896758786986
+  },
+  {
+   "copies": 24,
+   "n_elements": 264,
+   "n_segments": 384,
+   "median_s": 0.0569543750025332,
+   "min_s": 0.054826374995172955,
+   "max_s": 0.06819633299892303,
+   "passed": true,
+   "score": 97.94896758786986
+  },
+  {
+   "copies": 33,
+   "n_elements": 363,
+   "n_segments": 528,
+   "median_s": 0.10463700001128018,
+   "min_s": 0.08732004198827781,
+   "max_s": 0.11405279199243523,
+   "passed": true,
+   "score": 97.94896758786986
+  }
+ ],
+ "machine": "macOS-26.6.2-arm64-arm-64bit-Mach-O arm"
+}
