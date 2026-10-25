@@ -21,7 +21,7 @@ from optics.ir import Design, VerifyReport
 from optics.trace import trace
 from optics.verify import verify
 
-THRESHOLD = 0.25  # fraction of total source power
+THRESHOLD = 0.20  # fraction of total source power
 
 # Known example circuits: inputs, outputs and the Boolean function each output should compute.
 CIRCUITS: dict[str, dict] = {

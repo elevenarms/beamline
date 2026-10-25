@@ -1,0 +1,340 @@
+{
+  "name": "optical_full_adder",
+  "description": "Optical full adder (A + B + CIN) from polarization optics: three input half-wave plates (0 deg = 0, 45 deg = 1). The half-adder core sorts the rail into A AND B / exactly-one / neither paths; 50:50 splitters fan the paths in and out (each fan-in costs 3 dB, the price of linear optics), and a second 45-deg-mounted crossing plate CIN routes them to the SUM and COUT photodiodes. Default: 1 + 1 + 1 = 11 (both lit).",
+  "baseplate": {
+    "width_mm": 863.5999999999999,
+    "height_mm": 558.8,
+    "thickness_mm": 25.4,
+    "optical_height_mm": 12.7,
+    "grid_mm": 25.4
+  },
+  "sources": [
+    {
+      "id": "L1",
+      "label": "HeNe laser (logic rail)",
+      "part_number": "HNL050LB",
+      "position": [
+        76.19999999999999,
+        76.19999999999999
+      ],
+      "direction_deg": 0.0,
+      "wavelength_nm": 632.8,
+      "power_mw": 10.0,
+      "waist_mm": 0.4,
+      "polarization": "H"
+    }
+  ],
+  "elements": [
+    {
+      "id": "PICK",
+      "type": "sampler",
+      "label": "5% reference pickoff",
+      "part_number": "BSF10-A",
+      "beam": "L1",
+      "distance_mm": 50.8,
+      "split_ratio": 0.05,
+      "out_direction_deg": 270.0
+    },
+    {
+      "id": "REF",
+      "type": "photodiode",
+      "label": "REF PD (threshold reference)",
+      "part_number": "PDA36A2",
+      "beam": "L1.r",
+      "distance_mm": 50.8
+    },
+    {
+      "id": "A",
+      "type": "half_wave_plate",
+      "label": "A (HWP) input bit: 0 deg = 0, 45 deg = 1",
+      "part_number": "WPH10M-633",
+      "beam": "L1.t",
+      "distance_mm": 50.8,
+      "fast_axis_deg": 45.0
+    },
+    {
+      "id": "PBS_A",
+      "type": "pbs",
+      "label": "PBS A: H (A=0) passes, V (A=1) turns up",
+      "part_number": "PBS201",
+      "beam": "L1.t",
+      "distance_mm": 50.8,
+      "out_direction_deg": 90.0
+    },
+    {
+      "id": "M1",
+      "type": "mirror",
+      "label": "A=1 rail fold",
+      "part_number": "BB1-E02",
+      "beam": "L1.t.r",
+      "distance_mm": 76.19999999999999,
+      "out_direction_deg": 0.0
+    },
+    {
+      "id": "M0",
+      "type": "mirror",
+      "label": "A=0 rail fold",
+      "part_number": "BB1-E02",
+      "beam": "L1.t.t",
+      "distance_mm": 101.6,
+      "out_direction_deg": 90.0
+    },
+    {
+      "id": "B",
+      "type": "half_wave_plate",
+      "label": "B (HWP) input bit: 0 deg = 0, 45 deg = 1 (both A rails cross here)",
+      "part_number": "WPH10M-633",
+      "at": [
+        330.2,
+        152.39999999999998
+      ],
+      "angle_deg": 45.0,
+      "fast_axis_deg": 45.0
+    },
+    {
+      "id": "PBS_1",
+      "type": "pbs",
+      "label": "PBS 1 (A=1 rail): H -> A AND B, V -> exactly-one",
+      "part_number": "PBS201",
+      "at": [
+        406.4,
+        152.39999999999998
+      ],
+      "angle_deg": 0.0
+    },
+    {
+      "id": "PBS_0",
+      "type": "pbs",
+      "label": "PBS 0 (A=0 rail): V -> exactly-one, H -> neither",
+      "part_number": "PBS201",
+      "at": [
+        330.2,
+        228.6
+      ],
+      "angle_deg": 180.0
+    },
+    {
+      "id": "BS_M",
+      "type": "beamsplitter",
+      "label": "50:50 fan-in: A XOR B rail (S)",
+      "part_number": "BS010",
+      "at": [
+        406.4,
+        228.6
+      ],
+      "angle_deg": 180.0,
+      "split_ratio": 0.5
+    },
+    {
+      "id": "DUMP_M",
+      "type": "beam_dump",
+      "label": "fan-in loss dump",
+      "part_number": "LB1",
+      "at": [
+        406.4,
+        279.4
+      ],
+      "angle_deg": 90.0
+    },
+    {
+      "id": "BS_C",
+      "type": "beamsplitter",
+      "label": "50:50 fan-out of A AND B (to COUT and to the CIN gate)",
+      "part_number": "BS010",
+      "at": [
+        482.59999999999997,
+        152.39999999999998
+      ],
+      "angle_deg": 0.0,
+      "split_ratio": 0.5
+    },
+    {
+      "id": "M_Z",
+      "type": "mirror",
+      "label": "neither-rail fold",
+      "part_number": "BB1-E02",
+      "at": [
+        330.2,
+        355.59999999999997
+      ],
+      "out_direction_deg": 0.0
+    },
+    {
+      "id": "BS_Z",
+      "type": "beamsplitter",
+      "label": "50:50 fan-in: NOT(A XOR B) rail (Z)",
+      "part_number": "BS010",
+      "at": [
+        482.59999999999997,
+        355.59999999999997
+      ],
+      "angle_deg": 0.0,
+      "split_ratio": 0.5
+    },
+    {
+      "id": "DUMP_Z0",
+      "type": "beam_dump",
+      "label": "fan-in loss dump",
+      "part_number": "LB1",
+      "at": [
+        482.59999999999997,
+        406.4
+      ],
+      "angle_deg": 90.0
+    },
+    {
+      "id": "M_S",
+      "type": "mirror",
+      "label": "S rail fold",
+      "part_number": "BB1-E02",
+      "at": [
+        558.8,
+        228.6
+      ],
+      "out_direction_deg": 90.0
+    },
+    {
+      "id": "CIN",
+      "type": "half_wave_plate",
+      "label": "CIN (HWP) carry-in bit: 0 deg = 0, 45 deg = 1 (S and Z rails cross here)",
+      "part_number": "WPH10M-633",
+      "at": [
+        558.8,
+        355.59999999999997
+      ],
+      "angle_deg": 45.0,
+      "fast_axis_deg": 45.0
+    },
+    {
+      "id": "PBS_S",
+      "type": "pbs",
+      "label": "PBS S: V (CIN=0) -> SUM, H (CIN=1) -> COUT",
+      "part_number": "PBS201",
+      "at": [
+        558.8,
+        431.79999999999995
+      ],
+      "angle_deg": 0.0
+    },
+    {
+      "id": "PBS_Z",
+      "type": "pbs",
+      "label": "PBS Z: V (CIN=1) -> SUM, H (CIN=0) -> dump",
+      "part_number": "PBS201",
+      "at": [
+        635.0,
+        355.59999999999997
+      ],
+      "angle_deg": 0.0
+    },
+    {
+      "id": "DUMP_Z",
+      "type": "beam_dump",
+      "label": "Z AND NOT CIN dump",
+      "part_number": "LB1",
+      "at": [
+        685.8,
+        355.59999999999997
+      ],
+      "angle_deg": 0.0
+    },
+    {
+      "id": "HWP_FIX_S",
+      "type": "half_wave_plate",
+      "label": "fixed HWP 45 deg (V -> H for combining)",
+      "part_number": "WPH10M-633",
+      "at": [
+        596.9,
+        431.79999999999995
+      ],
+      "angle_deg": 0.0,
+      "fast_axis_deg": 45.0
+    },
+    {
+      "id": "PBS_SUM",
+      "type": "pbs",
+      "label": "PBS OR-combiner -> SUM",
+      "part_number": "PBS201",
+      "at": [
+        635.0,
+        431.79999999999995
+      ],
+      "angle_deg": 0.0
+    },
+    {
+      "id": "SUM",
+      "type": "photodiode",
+      "label": "SUM PD (A XOR B XOR CIN)",
+      "part_number": "PDA36A2",
+      "at": [
+        711.1999999999999,
+        431.79999999999995
+      ],
+      "angle_deg": 0.0
+    },
+    {
+      "id": "M_SC",
+      "type": "mirror",
+      "label": "S AND CIN fold",
+      "part_number": "BB1-E02",
+      "at": [
+        558.8,
+        508.0
+      ],
+      "out_direction_deg": 0.0
+    },
+    {
+      "id": "M_AB",
+      "type": "mirror",
+      "label": "A AND B fold",
+      "part_number": "BB1-E02",
+      "at": [
+        762.0,
+        152.39999999999998
+      ],
+      "out_direction_deg": 90.0
+    },
+    {
+      "id": "HWP_FIX_C",
+      "type": "half_wave_plate",
+      "label": "fixed HWP 45 deg (H -> V for combining)",
+      "part_number": "WPH10M-633",
+      "at": [
+        762.0,
+        254.0
+      ],
+      "angle_deg": 90.0,
+      "fast_axis_deg": 45.0
+    },
+    {
+      "id": "PBS_COUT",
+      "type": "pbs",
+      "label": "PBS OR-combiner -> COUT",
+      "part_number": "PBS201",
+      "at": [
+        762.0,
+        508.0
+      ],
+      "angle_deg": 0.0
+    },
+    {
+      "id": "COUT",
+      "type": "photodiode",
+      "label": "COUT PD (carry out = majority(A, B, CIN))",
+      "part_number": "PDA36A2",
+      "at": [
+        838.1999999999999,
+        508.0
+      ],
+      "angle_deg": 0.0
+    }
+  ],
+  "targets": [
+    {
+      "element_id": "REF",
+      "kind": "min_power_mw",
+      "value": 0.4
+    }
+  ],
+  "notes": "Logic inputs: A, B, CIN (half_wave_plate fast_axis_deg 0 or 45). Outputs: SUM, COUT photodiodes (1 = power > 20% of source power; lit levels are 2.4-9.5 mW, dark is 0). Run: uv run python -m logic examples/optical_full_adder.json"
+}
