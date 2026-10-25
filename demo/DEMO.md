@@ -7,21 +7,25 @@
 - Pre-load tabs: (1) app with `aom_doublepass`, (2) `demo/rb_sas_fig2a.png` open in Finder for drag-and-drop.
 - Fallbacks: **Recorded runs** buttons (Workflow tab) replay real captured runs offline. `?mock=1` = fully offline app.
 
-## Script (~4 min)
+## Script (~4 min) — headline flow: paper → bench → build
 
-**0:00 — Problem (20 s).** Building a laser-optics setup for atomic physics takes weeks of hand layout, and mistakes (a stray 3 mW beam, a clipped mount) are found on the table. PyOpticL (Quantum 2026, used at MIT/Stanford/Harvard) made optics code-to-CAD. We made it *agentic and verified*.
+**0:00 — Hook (15 s).** "Building a laser-optics bench for atomic physics takes weeks of layout by hand. Watch an AI read a paper and build it."
 
-**0:20 — Verified physics (40 s).** Load `aom_doublepass`. Top view. "Every beam is a Gaussian — waist, polarization, power, AOM frequency shift." Point at the verify panel: **FAIL — 3.2 mW unterminated beam leaves the table** (laser safety). Switch to `aom_doublepass_fixed` → PASS 98. Toggle Iso/Front/Side (keys 1–4).
+**0:15 — Find a paper (20 s).** Type `optical tweezers` in **1 · Find a paper** → Search (live arXiv). Point at setup-scored figure thumbnails + license chips. Click Gieseler et al. 2020, Fig. 5 (score 16) → caption preview → **Build this setup**. The paper PDF opens in the small viewer (bottom-right).
 
-**1:00 — Design from a goal (60 s).** Type: *"AOM double-pass at 780 nm on one baseplate, fiber in and fiber out, at least 5 mW into the output fiber"* → Design. Open the **Agent Console** (`): planner → 4 designer agents in parallel → verifier scores each → autofix adds beam dumps → repair agent with its rationale. ~45–85 s. Hit **Replay** on the iteration scrubber: parts glide into place as the agents converge.
+**0:35 — Fly-in (60–75 s, open Console with ` first).** The figure lies flat above the table; scan boxes find the 16 parts. Console: 3 vision agents in parallel → 2 synthesizers → verifier → autofix → repair (rationale shown). Parts drop from the drawing onto the bench in beam order; lasers switch on, beams grow and split. (Press **D** for Director mode.)
 
-**2:00 — Reproduce a published figure (60 s).** Drag `rb_sas_fig2a.png` (PyOpticL paper Fig. 2a, CC-BY). Three vision agents read it in parallel → synthesis → verify → repair. **Compare** view: original figure beside our layout, "Matched 16/16 components". ~55–90 s. (If slow: Recorded runs → Reproduce run.)
+**1:50 — Tuning tour (30 s).** Bench auto-detunes then aligns: camera visits each optic, knob turns, live power meter in mW climbs, "+x %" flags, before→after summary.
 
-**3:00 — Scale (30 s).** Load `sr_ion_apparatus`: full Sr⁺ trapped-ion laser system, 7 subsystems, 121 optics, traces + verifies in 6 ms. Outline tab, solo a module. (Live hierarchical run = ~100 s; mention: architect + 6 module agents in parallel, shared laser power budgets.)
+**2:20 — Verified physics (25 s).** Verify panel: PASS, every Gaussian beam's waist/power/polarization. Load `aom_doublepass` → FAIL: 3.2 mW stray beam (laser safety) → `aom_doublepass_fixed` PASS.
 
-**3:30 — Fun: light computes (30 s).** Load `alloptical_half_adder`: 1064 nm + 1550 nm in a PPLN crystal. Toggle A, B in the Logic I/O strip: SUM is leftover IR (XOR via pump depletion), CARRY is 631 nm red light from sum-frequency generation (AND). **1 + 1 = 10, computed by photons.**
+**2:45 — Build it for real (25 s).** **Build kit** → Parts (≈$4k BOM with part numbers) → 3D print: keyed baseplate tiles with beam-path grooves → Download zip (BOM.csv, STLs, PyOpticL/FreeCAD script, assembly README).
 
-**3:50 — Close.** Export PyOpticL → runnable FreeCAD script; back to real hardware.
+**3:10 — Scale (15 s).** Load `sr_ion_apparatus`: 7 subsystems, 121 optics, traced + verified in 6 ms (architect + parallel module agents, shared laser power budgets).
+
+**3:25 — Light computes (20 s).** `alloptical_half_adder`: toggle A/B in Logic I/O — CARRY = 631 nm red from sum-frequency generation, SUM = depleted IR. 1 + 1 = 10, computed by photons.
+
+**3:45 — Cover (15 s).** **Cover art** → Nano Banana 2 (faithful) + 2.1 (cinematic) journal-cover renders of the bench, BEAMLINE masthead. Close.
 
 ## Numbers to quote (measured today)
 - Tracer: 121-element apparatus traced + verified in **6.1 ms**; 104 backend tests.
@@ -29,7 +33,11 @@
 - Figure → verified design: **41–92 s**, PASS 95–96, 14–16/16 components matched; reliability check after final fixes: **3/3 PASS (41–55 s, run concurrently)**.
 - Real-paper benchmark (8 open-access figures): 3/8 reproduce pass (incl. hard dual-trap optical tweezers, 22 parts), **4/4 goal designs pass**.
 - argon grounding: PyOpticL API hallucination **95 % zero-shot → 0 %** grounded; read 15/15 components and 9/9 printed part numbers from paper figures.
-- Hierarchical: 6 modules in parallel, 96 optics, PASS 98.5, ~100 s.
+- Hierarchical: 6 modules in parallel, 96 optics, PASS 98.5, ~100 s; shared-laser power budget (3 W → 6 modules) balances exactly.
+- Paper URL → bench: tweezers (arXiv:2004.05246) PASS 95.4 in 73 s, 14/14 matched.
+- Alignment tuner: detuned double-pass recovers 102 % of fiber power in 75 steps / 35 ms.
+- Build kit: double-pass = 18 parts + 58 hardware, ≈$4.1k (est.), 2 watertight tiles, 38 h / 566 g PLA.
+- Cover art: ~10 s (faithful), ~15–30 s (cinematic).
 
 ## Honest caveats (if asked)
 - Planar (2D) table model; Gaussian beams are round; thin lenses; no interference/coherence.
