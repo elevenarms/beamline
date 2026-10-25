@@ -9,6 +9,41 @@ rendered, and exported as a build kit (bill of materials, printable keyed basepl
 
 Built in one day at a hackathon (2026-10-25). See [Provenance](#provenance-built-today-vs-pre-existing).
 
+**[Project page](https://elevenarms.github.io/beamline/) · [Paper (PDF)](paper/main.pdf) · [60 s demo video](demo/video/beamline_demo_60s.mp4)**
+
+<p align="center">
+  <img src="docs/assets/img/shot_flyin_figure.webp" width="49%" alt="A paper figure floats above the 3D optical table while vision agents box its components">
+  <img src="docs/assets/img/shot_tuning.webp" width="49%" alt="Tuning tour: the camera visits each optic while a live power meter climbs">
+</p>
+<p align="center"><sub>Left: a figure from a published paper floats above the bench while three vision agents box its parts. Right: after the parts fly in, the alignment tuner walks each knob back to optimum.</sub></p>
+
+## Gallery
+
+### The app
+
+| | |
+|---|---|
+| ![Lab-grade top-view schematic with inspector and verify report](docs/assets/img/shot_top_inspector.webp) | ![Agent console with per-agent colour-coded token streams](docs/assets/img/shot_token_streams.webp) |
+| **Verified layout** — Gaussian beams, polarization and power on a plan-view schematic; the verify report reads like an instrument self-test. | **Agent console** — every sub-agent (vision, synthesizers, repair…) streams its tokens live in its own colour. |
+| ![121-optic Sr+ trapped-ion apparatus across seven modules](docs/assets/img/shot_hierarchical_progress.webp) | ![All-optical half adder with Logic I/O strip](docs/assets/img/shot_half_adder.webp) |
+| **Scale** — an architect agent and parallel module agents lay out a whole trapped-ion laser table. | **Light computes** — a χ⁽²⁾ half adder: CARRY is 631 nm sum-frequency light, SUM the depleted infrared. |
+| ![Build kit: printable keyed baseplate tile preview](docs/assets/img/shot_build_kit_print.webp) | ![Build document PDF opened in the app](docs/assets/img/shot_build_document.webp) |
+| **Build kit** — BOM with part numbers and watertight, keyed, tiled baseplate STLs. | **Build document** — a Typst PDF with cover, plan view, BOM, assembly steps and laser-safety notes. |
+
+### Generated cover art (Nano Banana)
+
+Rendered from the live 3D view plus a description of the design — *faithful* (Nano Banana 2, `gemini-3.1-flash-image`) keeps the real layout; *cinematic* (Nano Banana 2.1) stages it in a lab.
+
+| Faithful — AOM double-pass | Faithful — all-optical half adder | Cinematic — all-optical half adder | Cinematic — AOM double-pass |
+|---|---|---|---|
+| ![Faithful render of an AOM double-pass bench](docs/assets/img/cover_gemini-3.1-flash-image_1.webp) | ![Faithful render of the PPLN half adder with orange sum-frequency beam](docs/assets/img/cover_half_adder_faithful.webp) | ![Cinematic render of the half adder in a hazy lab](docs/assets/img/cover_half_adder_cinematic.webp) | ![Cinematic render of an AOM double-pass bench](docs/assets/img/cover_gemini-nano-banana-2.1_1.webp) |
+
+### Build documents
+
+| | |
+|---|---|
+| ![Build document cover page](docs/assets/img/builddoc_dual_beam_optical_tweezers_p1.webp) | ![Build document overview page with plan view](docs/assets/img/builddoc_dual_beam_optical_tweezers_p2.webp) |
+
 ## What it does
 
 1. **Find a paper** — live arXiv search; figures are ranked by how much they look like an optical setup.
