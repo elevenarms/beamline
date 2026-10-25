@@ -36,12 +36,29 @@
 \date{}
 
 \begin{document}
-\maketitle
+% Compact title block with a full-width abstract (replaces \maketitle, whose default
+% two-column layout left a large gap above the abstract).
+% TODO(user): replace placeholder author/affiliation with the real team names before submission.
+\twocolumn[{%
+  \vspace*{-1.6em}
+  \begin{center}
+    {\Large\bfseries BEAMTEAM: Multi-Agent Design, Verification,\\[0.1em]
+     and Fabrication of Tabletop Optical Systems\\[0.1em]
+     from Natural Language and Published Figures\par}
+    \vspace{0.6em}
+    {\normalsize BEAMTEAM\par}
+    \vspace{0.1em}
+    {\small Hackathon submission, 25 October 2026\par}
+  \end{center}
+  \vspace{0.2em}
+  \begin{center}
+    \begin{minipage}{0.9\textwidth}\small
+      \noindent\textbf{Abstract.}\enspace Laying out a free-space laser-optics bench for atomic, molecular and optical (AMO) physics is slow, manual and error-prone: beams must be routed, split, frequency-shifted and coupled into fibers while every stray reflection is terminated for laser safety. We present \emph{BEAMTEAM}, a system built in a single hackathon day in which teams of large-language-model (LLM) agents propose optical layouts---from a natural-language goal, from a figure in a published paper, or from a goal so large that it must be decomposed into subsystems---and a deterministic physics core disposes of them. The core is a planar Gaussian-beam and Jones-calculus tracer (including acousto-optic diffraction orders, fiber mode overlap, and self-consistent nonlinear elements) coupled to a rule-based verifier that scores designs and emits machine-readable errors that drive repair. Verified designs are tuned by a deterministic alignment search and exported as a fabrication kit (bill of materials, keyed and tiled 3D-printable baseplates, a PyOpticL script) and a typeset build document. On the day we measured: grounding the model in real library code reduced API hallucination in generated layout code from 95--98\% to 0\%; figure-to-design reproduction of a saturated-absorption spectroscopy figure passed verification in 3/3 concurrent runs (\SIrange{41}{55}{\second}); on an eight-figure stress test of open-access papers 4/8 reproductions passed verification and 3/8 were physically faithful while the goal pipeline passed 4/4; a 121-element trapped-ion apparatus traces and verifies in 6--\SI{10}{\milli\second}; and in two live end-to-end runs, a paper search to a finished build document took 1:23--1:40 against a 3:00 budget. We report the failures in detail and discuss what they imply for multi-agent systems in complex optical design: decomposition that mirrors how laboratories modularize, parallel exploration against objective verifiers, consensus for perception, and deterministic tools as the ground truth that LLMs must answer to.
+    \end{minipage}
+  \end{center}
+  \vspace{0.9em}
+}]
 
-% ---------------------------------------------------------------------------
-\begin{abstract}
-Laying out a free-space laser-optics bench for atomic, molecular and optical (AMO) physics is slow, manual and error-prone: beams must be routed, split, frequency-shifted and coupled into fibers while every stray reflection is terminated for laser safety. We present \emph{BEAMTEAM}, a system built in a single hackathon day in which teams of large-language-model (LLM) agents propose optical layouts---from a natural-language goal, from a figure in a published paper, or from a goal so large that it must be decomposed into subsystems---and a deterministic physics core disposes of them. The core is a planar Gaussian-beam and Jones-calculus tracer (including acousto-optic diffraction orders, fiber mode overlap, and self-consistent nonlinear elements) coupled to a rule-based verifier that scores designs and emits machine-readable errors that drive repair. Verified designs are tuned by a deterministic alignment search and exported as a fabrication kit (bill of materials, keyed and tiled 3D-printable baseplates, a PyOpticL script) and a typeset build document. On the day we measured: grounding the model in real library code reduced API hallucination in generated layout code from 95--98\% to 0\%; figure-to-design reproduction of a saturated-absorption spectroscopy figure passed verification in 3/3 concurrent runs (\SIrange{41}{55}{\second}); on an eight-figure stress test of open-access papers 4/8 reproductions passed verification and 3/8 were physically faithful while the goal pipeline passed 4/4; a 121-element trapped-ion apparatus traces and verifies in 6--\SI{10}{\milli\second}; and in two live end-to-end runs, a paper search to a finished build document took 1:23--1:40 against a 3:00 budget. We report the failures in detail and discuss what they imply for multi-agent systems in complex optical design: decomposition that mirrors how laboratories modularize, parallel exploration against objective verifiers, consensus for perception, and deterministic tools as the ground truth that LLMs must answer to.
-\end{abstract}
 
 % ---------------------------------------------------------------------------
 \section{Introduction}
