@@ -3,3 +3,6 @@ __pycache__/
 node_modules/
 dist/
 *.pyc
+demo/figures/raw/
+*.part
+.DS_Store
