@@ -24,6 +24,10 @@ WEB_DIST = HERE.parent / "web" / "dist"
 app = FastAPI(title="Beamline")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+from agents.cover import router as cover_router  # noqa: E402  (Nano Banana cover renders)
+
+app.include_router(cover_router)
+
 
 class DesignBody(BaseModel):
     design: Design
@@ -156,6 +160,70 @@ async def reproduce_endpoint(image: UploadFile = File(...), notes: str = Form(""
         raise HTTPException(413, "image too large (max 20 MB)")
     mime = image.content_type or "image/png"
     return _stream(lambda emit: reproduce_from_image(data, mime, notes, emit))
+
+
+class ReproduceUrlBody(BaseModel):
+    image_url: str
+    notes: str = ""
+    citation: str = ""
+
+
+@app.get("/api/papers/search")
+async def papers_search(q: str, limit: int = 6) -> list[dict[str, Any]]:
+    from agents.papers import search_papers
+
+    if not q.strip():
+        raise HTTPException(400, "empty query")
+    try:
+        return await search_papers(q, limit)
+    except Exception as e:  # arXiv down / rate limited
+        raise HTTPException(502, f"paper search failed: {type(e).__name__}: {e}") from e
+
+
+@app.post("/api/reproduce_url")
+async def reproduce_url_endpoint(body: ReproduceUrlBody) -> EventSourceResponse:
+    from urllib.parse import urlparse
+
+    from agents.papers import ALLOWED_HOSTS, fetch_image
+    from agents.reproduce import reproduce_from_image
+
+    u = urlparse(body.image_url)
+    if u.scheme != "https" or (u.hostname or "").lower() not in ALLOWED_HOSTS:
+        raise HTTPException(400, f"image_url must be https on one of: {', '.join(sorted(ALLOWED_HOSTS))}")
+
+    async def run(emit: Emit) -> Any:
+        await emit({"type": "figure", "url": body.image_url, "citation": body.citation})
+        data, mime = await fetch_image(body.image_url)
+        return await reproduce_from_image(data, mime, body.notes, emit)
+
+    return _stream(run)
+
+
+# ── alignment / tuning (optics/tune.py) ──
+class TuneBody(BaseModel):
+    design: Design
+    objective: str = "auto"
+    pace_ms: float = 0.0
+
+
+class DetuneBody(BaseModel):
+    design: Design
+    seed: int = 0
+
+
+@app.post("/api/tune")
+async def tune_endpoint(body: TuneBody) -> EventSourceResponse:
+    from optics.tune import tune
+
+    return _stream(lambda emit: tune(body.design, emit, objective=body.objective, pace_ms=body.pace_ms))
+
+
+@app.post("/api/detune")
+def detune_endpoint(body: DetuneBody) -> dict[str, Any]:
+    from optics.tune import detune
+
+    d = detune(body.design, body.seed)
+    return {"design": d.model_dump(mode="json"), **_trace_and_verify(d)}
 
 
 # Serve the built web app (npm run build) from the same origin for the demo.
