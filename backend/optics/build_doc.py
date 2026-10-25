@@ -388,13 +388,13 @@ TEMPLATE = r'''
   #let ink = if d.has_cover { white } else { black }
   #place(top + center, dy: 14mm, block(width: 86%)[
     #set align(center)
-    #text(font: serif, size: 64pt, tracking: 6pt, fill: ink)[BEAMLINE]
+    #text(font: serif, size: 64pt, tracking: 6pt, fill: ink)[BEAMTEAM]
     #v(-30pt)
     #line(length: 100%, stroke: 0.8pt + ink)
     #v(-6pt)
     #grid(columns: (1fr, 1fr), align: (left, right),
       text(size: 8.5pt, fill: ink, tracking: 1pt)[BUILD DOCUMENT · #upper(d.date)],
-      text(size: 8.5pt, fill: ink, tracking: 1pt)[#if d.citation != "" [GENERATED FROM #upper(d.citation)] else [DESIGNED IN BEAMLINE]])
+      text(size: 8.5pt, fill: ink, tracking: 1pt)[#if d.citation != "" [GENERATED FROM #upper(d.citation)] else [DESIGNED IN BEAMTEAM]])
   ])
   #place(bottom + left, dx: 14mm, dy: -16mm, block(width: 80%, fill: if d.has_cover { black.transparentize(45%) } else { none }, inset: 8pt)[
     #text(font: serif, size: d.title_size * 1pt, fill: ink)[#d.title]
@@ -403,7 +403,7 @@ TEMPLATE = r'''
 
 #set page(header: context { if counter(page).get().first() > 1 [
   #set text(size: 7.5pt, fill: luma(110))
-  BEAMLINE · #d.title #h(1fr) #d.date
+  BEAMTEAM · #d.title #h(1fr) #d.date
 ] }, footer: context [#set text(size: 7.5pt, fill: luma(110)); #h(1fr) #counter(page).display() #h(1fr)])
 
 = Overview
@@ -428,7 +428,7 @@ TEMPLATE = r'''
 #pagebreak(weak: true)
 = Verification
 #text(size: 14pt, weight: "bold", fill: if d.passed { rgb("#2f6b3a") } else { rgb("#9b2c2c") })[#if d.passed [PASS] else [FAIL]]
-#h(8pt) score #d.score / 100 (Beamline tracer: 2D ray + Gaussian beam + Jones polarization)
+#h(8pt) score #d.score / 100 (BEAMTEAM tracer: 2D ray + Gaussian beam + Jones polarization)
 
 #if d.targets.len() > 0 [
   == Targets
@@ -494,7 +494,7 @@ Align in beam order with an iris and an IR card; adjust one knob at a time and k
 = Credits
 - Layout concept and "paint by numbers" baseplates: PyOpticL (code-to-CAD optics).
 #if d.citation != "" [- Source paper: #d.citation#if d.license != "" [ — license: #d.license]]
-- Designed by Gemini `gemini-4-argon` agents, verified by the Beamline tracer.
+- Designed by Gemini `gemini-4-argon` agents, verified by the BEAMTEAM tracer.
 - Prices are list-price estimates; part numbers should be checked against current vendor catalogs.
 '''
 

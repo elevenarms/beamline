@@ -628,7 +628,7 @@ def _readme(design: Design, bom: dict) -> str:
         if e:
             lines.append(f"   {i:2d}. {eid} — {e.type}{' (' + e.label + ')' if e.label else ''}")
     lines += ["",
-              "6. Align: walk the beam in order with irises/cards; the Beamline tuner (`/api/tune`) gives "
+              "6. Align: walk the beam in order with irises/cards; the BEAMTEAM tuner (`/api/tune`) gives "
               "suggested waveplate angles, lens positions and mirror tweaks for each element.",
               "7. Terminate every beam before turning up the power (the verifier flags stray beams).", "",
               "`pyopticl_design.py` regenerates the layout in PyOpticL / FreeCAD for CAD-quality mounts.", ""]

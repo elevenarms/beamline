@@ -1,4 +1,4 @@
-# Beamline — demo runbook (4:00 pm)
+# BEAMTEAM — demo runbook (4:00 pm)
 
 ## Setup (by 3:30)
 - Backend **without reload**: `cd backend && uv run uvicorn server:app --port 8001` (never demo on a `--reload` server — file saves kill in-flight runs).
@@ -25,7 +25,7 @@
 
 **3:25 — Light computes (20 s).** `alloptical_half_adder`: toggle A/B in Logic I/O — CARRY = 631 nm red from sum-frequency generation, SUM = depleted IR. 1 + 1 = 10, computed by photons.
 
-**3:45 — Cover (15 s).** **Cover art** → Nano Banana 2 (faithful) + 2.1 (cinematic) journal-cover renders of the bench, BEAMLINE masthead. Close.
+**3:45 — Cover (15 s).** **Cover art** → Nano Banana 2 (faithful) + 2.1 (cinematic) journal-cover renders of the bench, BEAMTEAM masthead. Close.
 
 ## Numbers to quote (measured today)
 - Tracer: 121-element apparatus traced + verified in **6.1 ms**; 104 backend tests.

@@ -1,4 +1,4 @@
-"""Beamline API server.  Run:  cd backend && uv run uvicorn server:app --reload --port 8000"""
+"""BEAMTEAM API server.  Run:  cd backend && uv run uvicorn server:app --reload --port 8000"""
 from __future__ import annotations
 
 import asyncio
@@ -21,7 +21,7 @@ HERE = Path(__file__).resolve().parent
 EXAMPLES = HERE / "examples"
 WEB_DIST = HERE.parent / "web" / "dist"
 
-app = FastAPI(title="Beamline")
+app = FastAPI(title="BEAMTEAM")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 from agents.cover import router as cover_router  # noqa: E402  (Nano Banana cover renders)

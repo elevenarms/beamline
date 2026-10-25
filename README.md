@@ -1,8 +1,8 @@
-# Beamline
+# BEAMTEAM
 
 **From a published figure to a buildable, verified laser-optics bench — in under three minutes.**
 
-Beamline is a multi-agent system (Google Gemini `gemini-4-argon`) that designs tabletop optical setups for
+BEAMTEAM is a multi-agent system (Google Gemini `gemini-4-argon`) that designs tabletop optical setups for
 atomic/quantum physics labs from a natural-language goal, or reproduces them from a figure in a paper. Every
 design is checked by a deterministic physics tracer — the LLMs propose, the physics disposes — then aligned,
 rendered, and exported as a build kit (bill of materials, printable keyed baseplate, assembly PDF).

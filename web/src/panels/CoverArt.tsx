@@ -40,7 +40,7 @@ const issueLine = (name: string) =>
 function Masthead({ name }: { name: string }) {
   return (
     <div className="masthead">
-      <div className="mh-title">BEAMLINE</div>
+      <div className="mh-title">BEAMTEAM</div>
       <div className="mh-issue">{issueLine(name)}</div>
     </div>
   );
@@ -65,7 +65,7 @@ async function composite(r: Result, withMast: boolean, name: string): Promise<st
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "center";
     ctx.font = `700 ${Math.round(W * 0.15)}px "Times New Roman", Georgia, serif`;
-    ctx.fillText("BEAMLINE", W / 2, W * 0.17);
+    ctx.fillText("BEAMTEAM", W / 2, W * 0.17);
     ctx.font = `400 ${Math.round(W * 0.026)}px "IBM Plex Sans", sans-serif`;
     ctx.fillText(issueLine(name).toUpperCase(), W / 2, W * 0.215);
     ctx.fillRect(W * 0.08, W * 0.235, W * 0.84, Math.max(1, W * 0.002));

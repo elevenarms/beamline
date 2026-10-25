@@ -72,7 +72,7 @@ export default function PaperPip() {
           </span>
         ) : null}
         <span className="pip-title" title={label}>{showDocTab ? `Build document · ${docName}` : label}</span>
-        {showDocTab && docUrl && <a className="btn small" href={docUrl} download={`${docName || "beamline"}_build.pdf`} title="Download PDF"><Download size={12} /> PDF</a>}
+        {showDocTab && docUrl && <a className="btn small" href={docUrl} download={`${docName || "beamteam"}_build.pdf`} title="Download PDF"><Download size={12} /> PDF</a>}
         {paper && <a className="icon-btn" href={paper.abs_url} target="_blank" rel="noreferrer" title="Open on arXiv" aria-label="Open on arXiv"><ExternalLink size={13} /></a>}
         <button className="icon-btn" onClick={() => setMode("min")} title="Minimize" aria-label="Minimize"><Minus size={13} /></button>
         <button className="icon-btn" onClick={() => setMode(mode === "max" ? "normal" : "max")} title={mode === "max" ? "Restore" : "Expand"} aria-label="Expand">
