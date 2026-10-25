@@ -687,3 +687,24 @@ table.bom tfoot td { border-top: 1px solid var(--line-2); border-bottom: 0; padd
 
 .verify-head.pending { border-color: var(--line-2); background: var(--panel-2); color: var(--text-2); }
 .verify-head.pending .vh-title { color: var(--text); letter-spacing: 0.02em; }
+
+/* run clock */
+.run-clock { top: 140px; right: 10px; width: 236px; padding: 6px 8px; }
+.rc-top { display: flex; align-items: baseline; gap: 6px; }
+.rc-time { font-size: 20px; font-variant-numeric: tabular-nums; }
+.rc-top .icon-btn { margin-left: auto; width: 18px; height: 18px; }
+.rc-done { color: var(--ok); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.rc-track { position: relative; height: 6px; margin: 4px 0; background: var(--panel-2); border: 1px solid var(--line); border-radius: 1px; }
+.rc-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); opacity: 0.6; }
+.run-clock.late .rc-fill { background: var(--warn); }
+.run-clock.late .rc-time { color: var(--warn); }
+.run-clock.done .rc-fill { background: var(--ok); }
+.run-clock.done .rc-time { color: var(--ok); }
+.rc-tick { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--text-2); }
+.rc-stages { display: flex; flex-wrap: wrap; gap: 2px 6px; font-size: 10px; color: var(--muted); }
+.rc-stages .on { color: var(--text); }
+.rc-stages .on::before { content: "✓ "; color: var(--ok); }
+.pip-tabs { display: inline-flex; gap: 2px; margin-right: 4px; }
+.pip-tab { height: 22px; padding: 0 7px; border: 1px solid var(--line-2); background: var(--panel); border-radius: 2px; font-size: 11px; cursor: pointer; color: var(--text-2); }
+.pip-tab.active { background: var(--inverse); color: var(--on-inverse); border-color: var(--inverse); }
+.pip-head .btn.small { height: 22px; text-decoration: none; }

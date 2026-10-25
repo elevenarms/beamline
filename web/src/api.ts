@@ -213,7 +213,7 @@ export async function* replayRecorded(file: string, signal?: AbortSignal): Async
     let ev: AgentEvent;
     try { ev = JSON.parse(raw) as AgentEvent; } catch { continue; }
     yield ev;
-    const pace: Record<string, number> = { iteration: 1100, candidate: 500, llm_call: 450, agent: 220, thought: 350, tool: 250, status: 300, module_done: 900, modules: 800 };
+    const pace: Record<string, number> = { tokens: 12, iteration: 1100, candidate: 500, llm_call: 450, agent: 220, thought: 350, tool: 250, status: 300, module_done: 900, modules: 800 };
     await wait(pace[ev.type] ?? 200);
   }
 }

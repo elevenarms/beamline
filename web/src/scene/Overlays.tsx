@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Box, ChevronDown, Clapperboard, Columns2, FastForward, Gauge, ChevronUp, Maximize2, Orbit, RectangleHorizontal, RectangleVertical, Square, X } from "lucide-react";
 import { useStore } from "../store";
 import { useDemo } from "../demoStore";
+import { CLOCK_STAGES, usePipeline } from "../pipeline";
 import { domRefs, useView, type Preset } from "./viewStore";
 import { bandName } from "../lib/color";
 import { useWlColor } from "../lib/theme";
@@ -346,6 +347,46 @@ export function PowerMeter() {
       </div>
       <div className="pm-bar"><span style={{ width: `${Math.min(100, (delivered / tgt) * 100)}%` }} /></div>
       <div className="pm-foot mono"><span>{powerTargets.length ? `target ${Math.max(...powerTargets).toFixed(2)} mW` : `start ${(tune.baseDelivered ?? 0).toFixed(2)} mW`}</span><span>{tune.field ? `${tune.field.replace(/_(deg|mm)$/, "")} ${tune.value?.toFixed(2)}` : ""}</span></div>
+    </div>
+  );
+}
+
+const mmss = (ms: number) => { const t = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
+
+/** run clock: elapsed vs the 3:00 budget with stage ticks */
+export function RunClock() {
+  const P = usePipeline();
+  const [, tick] = useState(0);
+  const live = P.clockT0 != null && P.clockEnd == null;
+  useEffect(() => {
+    if (!live) return;
+    const t = setInterval(() => tick((x) => x + 1), 250);
+    return () => clearInterval(t);
+  }, [live]);
+  if (P.clockT0 == null) return null;
+  const now = P.clockEnd ?? performance.now();
+  let el = now - P.clockT0;
+  // trust the backend's own budget clock when it is ahead (e.g. queueing before the first event)
+  if (P.backendElapsed && P.clockEnd == null) el = Math.max(el, P.backendElapsed.s * 1000 + (performance.now() - P.backendElapsed.at));
+  const budget = P.budgetS * 1000;
+  const state = P.clockEnd != null ? "done" : el > budget * (150 / 180) ? "late" : "";
+  return (
+    <div className={`run-clock panel-float ${state}`} aria-label="Run clock">
+      <div className="rc-top mono">
+        <span className="rc-time">{mmss(el)}</span>
+        <span className="muted">/ {mmss(budget)}</span>
+        {P.clockEnd != null && <span className="rc-done">done</span>}
+        <button className="icon-btn" onClick={() => usePipeline.setState({ clockT0: null })} aria-label="Hide run clock"><X size={12} /></button>
+      </div>
+      <div className="rc-track">
+        <span className="rc-fill" style={{ width: `${Math.min(100, (el / budget) * 100)}%` }} />
+        {CLOCK_STAGES.map((s) => P.marks[s.id] != null && (
+          <i key={s.id} className="rc-tick" style={{ left: `${Math.min(100, (P.marks[s.id]! / budget) * 100)}%` }} title={`${s.label} @ ${mmss(P.marks[s.id]!)}`} />
+        ))}
+      </div>
+      <div className="rc-stages">
+        {CLOCK_STAGES.map((s) => <span key={s.id} className={P.marks[s.id] != null ? "on" : ""}>{s.label}</span>)}
+      </div>
     </div>
   );
 }

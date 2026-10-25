@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Braces, FileCode2, ListTree, LoaderCircle, Moon, Package, Sparkles, SquareTerminal, Sun, Workflow } from "lucide-react";
+import { Braces, FileCode2, FileText, ListTree, LoaderCircle, Moon, Package, Sparkles, SquareTerminal, Sun, Workflow } from "lucide-react";
 import CoverArt from "./panels/CoverArt";
 import BuildKit from "./panels/BuildKit";
 import PaperPip from "./panels/PaperPip";
@@ -9,7 +9,8 @@ import { useStore } from "./store";
 import * as api from "./api";
 import type { ExampleInfo } from "./types";
 import Viewer from "./scene/Viewer";
-import { BeamTooltip, FigureThumb, Legend, LogicStrip, PowerMeter, ScaleAndCursor, ViewToolbar } from "./scene/Overlays";
+import { BeamTooltip, FigureThumb, Legend, LogicStrip, PowerMeter, RunClock, ScaleAndCursor, ViewToolbar } from "./scene/Overlays";
+import { usePipeline } from "./pipeline";
 import { useDemo } from "./demoStore";
 import AgentPanel from "./panels/AgentPanel";
 import Inspector from "./panels/Inspector";
@@ -42,6 +43,7 @@ function exampleValue(examples: ExampleInfo[], name: string | undefined) {
 function TopBar({ examples, onPick }: { examples: ExampleInfo[]; onPick: (n: string) => void }) {
   const [coverOpen, setCoverOpen] = useState(false);
   const [kitOpen, setKitOpen] = useState(false);
+  const docBusy = usePipeline((p) => p.docBusy);
   const design = useStore((s) => s.design);
   const mock = useStore((s) => s.mock);
   const setExportOpen = useStore((s) => s.setExportOpen);
@@ -64,6 +66,7 @@ function TopBar({ examples, onPick }: { examples: ExampleInfo[]; onPick: (n: str
       </span>
       <button className="btn" onClick={() => setExportOpen(true)} disabled={!design}><FileCode2 size={14} /> Export PyOpticL</button>
       <button className="btn" onClick={() => setKitOpen(true)} disabled={!design}><Package size={14} /> Build kit</button>
+      <button className="btn" onClick={() => usePipeline.getState().buildDoc(true)} disabled={!design || docBusy} title="Generate the build document (PDF)">{docBusy ? <LoaderCircle size={14} className="spin" /> : <FileText size={14} />} Build document</button>
       <button className="btn" onClick={() => setCoverOpen(true)} disabled={!design}><Sparkles size={14} /> Cover art</button>
       <BuildKit open={kitOpen} onClose={() => setKitOpen(false)} />
       <ThemeToggle />
@@ -201,6 +204,7 @@ export default function App() {
           <ScaleAndCursor />
           <LogicStrip />
           <PowerMeter />
+          <RunClock />
           {!showCompare && <FigureThumb />}
           {!design && <div className="canvas-empty">Loading…</div>}
           {traceError && <div className="trace-err">Trace failed: {traceError}</div>}

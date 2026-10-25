@@ -16,7 +16,7 @@ const STYLES: { id: Style; title: string; model: string }[] = [
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** iso view, overlays hidden, grab the WebGL canvas, downscale to ≤ 1600 px long side */
-async function captureCanvas(): Promise<string> {
+export async function captureCanvas(): Promise<string> {
   useView.getState().setPreset("iso");
   useDemo.setState({ capturing: true });
   await sleep(900);

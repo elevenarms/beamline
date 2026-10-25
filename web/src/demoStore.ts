@@ -6,6 +6,7 @@ import { useView } from "./scene/viewStore";
 import { useConsole } from "./consoleStore";
 import * as api from "./api";
 import { usePip } from "./panels/PaperPip";
+import { usePipeline } from "./pipeline";
 
 // Choreography for the headline demo: figure → fly-in → beams light up → tuning tour.
 
@@ -121,6 +122,14 @@ export const useDemo = create<DemoState>((set, get) => ({
   },
 
   onEvent: (ev) => {
+    const P = usePipeline.getState();
+    if (ev.type === "status") {
+      const st = ev as unknown as { stage: string; elapsed_s?: number; deadline_s?: number };
+      if (st.stage === "budget" && st.elapsed_s != null) P.budget(st.elapsed_s, st.deadline_s);
+      if (st.stage === "design" || st.stage === "synth") P.mark("synth");
+    }
+    if (ev.type === "figure") { P.mark("figure"); if (ev.citation) usePipeline.setState({ citation: ev.citation, figureUrl: ev.url }); }
+    if ((ev.type === "candidate" || ev.type === "iteration") && ev.report?.passed) P.mark("verified");
     switch (ev.type) {
       case "figure": {
         set({ figure: { url: ev.url, citation: ev.citation ?? "", aspect: 0.6 }, boxes: [], boxesAt: null, figFadeAt: null, flyAt: null, growAt: null });
@@ -137,7 +146,7 @@ export const useDemo = create<DemoState>((set, get) => ({
         {
           const m = /arxiv\.org\/(?:html|abs|pdf)\/(\d{4}\.\d{4,5})/i.exec(ev.url) ?? /arXiv:(\d{4}\.\d{4,5})/i.exec(ev.citation ?? "");
           if (m && usePip.getState().paper?.arxiv_id !== m[1]) {
-            const title = (ev.citation ?? "").split(",").slice(1).join(",").replace(/,?\s*arXiv:.*$/i, "").trim() || `arXiv:${m[1]}`;
+            const title = (ev.citation ?? "").split(",").slice(1).join(",").replace(/,?\s*arXiv:.*$/i, "").trim() || (ev.citation ?? "").replace(/,?\s*arXiv:.*$/i, "").trim() || `arXiv:${m[1]}`;
             usePip.getState().open({ arxiv_id: m[1], title, abs_url: `https://arxiv.org/abs/${m[1]}` });
           }
         }
@@ -191,6 +200,8 @@ export const useDemo = create<DemoState>((set, get) => ({
     const t0 = now() + 250;
     const flyEnd = t0 + (order.length * 75 + 950) / sp;
     set({ flyAt: t0, flyOrder: order, flyStart: start, flyEnd, figFadeAt: flyEnd, flying: true });
+    usePipeline.getState().mark("verified");
+    usePipeline.getState().mark("flyin");
     setTimeout(() => set({ flying: false }), flyEnd - now() + 80);
     get().lightUp(flyEnd - now() + 350 / sp);
   },
@@ -201,7 +212,11 @@ export const useDemo = create<DemoState>((set, get) => ({
     const total = Math.max(300, ...segs.map((s) => s.length_mm)) * 3;
     set({ growAt: t, growEnd: t + total / (GROW_MM_PER_MS * get().speed) + 200 });
     setTimeout(() => {
-      if (get().autoAlign) { set({ autoAlign: false }); get().align(); }
+      if (get().autoAlign) {
+        set({ autoAlign: false });
+        // capture the lit bench for the cover first (iso, labels hidden), then tune while the cover renders
+        usePipeline.getState().startCover(() => get().align());
+      }
     }, Math.max(0, t - now()) + total / (GROW_MM_PER_MS * get().speed) + 900);
   },
 
@@ -222,6 +237,7 @@ export const useDemo = create<DemoState>((set, get) => ({
     const detuned = await api.detune(d);
     st.replaceDesign(detuned);
     useConsole.getState().ingest({ type: "status", stage: "tune", message: "Bench detuned; starting alignment pass" });
+    usePipeline.getState().mark("tuning");
     set({ tune: { ...emptyTune, active: true } });
     await new Promise((r) => setTimeout(r, 600));
     try {
@@ -248,7 +264,7 @@ function pump() {
   const ev = tuneQueue.shift();
   if (!ev) return;
   const D = useDemo;
-  const sp = D.getState().speed;
+  const sp = D.getState().speed * 2; // tuning tour plays at 2x by default (fits the 3:00 budget)
   const tune = D.getState().tune;
   const con = useConsole.getState();
   let wait = 0;
@@ -282,6 +298,7 @@ function pump() {
     case "tune_done": {
       const e = ev as TuneDone;
       D.setState({ tune: { ...tune, flags: { ...tune.flags, [e.element_id]: e.gain } } });
+      usePipeline.getState().onTuneDone(e);
       con.ingest({ type: "tool", agent_id: "tuner", name: "tune", summary: `done ${e.element_id} ${e.field} ${e.from.toFixed(2)} → ${e.to.toFixed(2)}  gain ${(e.gain * 100).toFixed(1)} %`, elapsed_ms: 0 });
       wait = 380;
       break;
@@ -294,6 +311,7 @@ function pump() {
       con.ingest({ type: "final", design: ev.design, trace: ev.trace, report: ev.report });
       useView.getState().fit();
       skipping = false;
+      usePipeline.getState().onTuneFinal((ev.summary as Record<string, unknown> | undefined) ?? null);
       break;
     }
     case "error":

@@ -5,6 +5,7 @@ import * as api from "./api";
 import { useView } from "./scene/viewStore";
 import { useConsole } from "./consoleStore";
 import { useDemo } from "./demoStore";
+import { usePipeline } from "./pipeline";
 
 export type Selection = { kind: "element" | "source" | "segment"; id: string } | null;
 
@@ -77,7 +78,7 @@ interface State {
   runReproduce: (file: File, notes: string) => Promise<void>;
   stopAgent: () => void;
   runRecorded: (file: string, kind: "design" | "reproduce", figure?: string) => Promise<void>;
-  runReproduceUrl: (url: string, notes: string, citation: string) => Promise<void>;
+  runReproduceUrl: (url: string, notes: string, citation: string, license?: string | null) => Promise<void>;
   runRecordedPaper: (file: string) => Promise<void>;
   loadCandidate: (index: number) => void;
 }
@@ -121,7 +122,7 @@ export const useStore = create<State>((set, get) => {
   const afterBuild = () => {
     if (!get().design || agentAbort?.signal.aborted) return;
     const D = useDemo.getState();
-    if (D.growEnd != null && performance.now() > D.growEnd) setTimeout(() => useDemo.getState().align(), 900);
+    if (D.growEnd != null && performance.now() > D.growEnd) setTimeout(() => usePipeline.getState().startCover(() => useDemo.getState().align()), 900);
     else useDemo.setState({ autoAlign: true });
   };
 
@@ -276,13 +277,15 @@ export const useStore = create<State>((set, get) => {
       agentAbort?.abort();
       agentAbort = new AbortController();
       set({ compare: false });
+      usePipeline.getState().startClock("", null);
       await consume("reproduce", api.replayRecorded(file, agentAbort.signal), null, true);
       afterBuild();
     },
-    runReproduceUrl: async (url, notes, citation) => {
+    runReproduceUrl: async (url, notes, citation, license) => {
       agentAbort?.abort();
       agentAbort = new AbortController();
       set({ compare: false });
+      usePipeline.getState().startClock(citation, url, license ?? null);
       await consume("reproduce", api.reproduceUrlStream(url, notes, citation, agentAbort.signal), url, true);
       afterBuild();
     },

@@ -31,7 +31,7 @@ export default function PaperSearch() {
     const citation = `${paper.authors.slice(0, 3).join(", ")}${paper.authors.length > 3 ? " et al." : ""}, "${paper.title}"${paper.year ? ` (${paper.year})` : ""}${paper.arxiv_id && !paper.abs_url.includes("wikimedia") ? `, arXiv:${paper.arxiv_id}` : ""}`;
     setPick(null);
     usePip.getState().open({ arxiv_id: paper.arxiv_id, title: paper.title, abs_url: paper.abs_url });
-    useStore.getState().runReproduceUrl(fig.url, fig.caption, citation);
+    useStore.getState().runReproduceUrl(fig.url, fig.caption, citation, paper.license);
   };
 
   return (
