@@ -68,3 +68,23 @@ All agent pipelines also emit these fine-grained events (in addition to status/c
   Every intermediate design (each candidate, each repair round, each merged module) in run order, so the UI can replay tuning.
   `Change` = `{"op":"add"|"remove"|"move"|"rotate"|"param"|"retarget","element_id":str,"field":str|null,"from":any,"to":any,"note":str|null}`
   computed deterministically by `optics/diff.py: diff_designs(a, b) -> list[Change]` (moves = distance_mm/at changes, rotate = angle/out_direction changes, param = other fields, retarget = beam changes).
+
+## Paper search → fly-in → tuning (added 12:32)
+
+| Method | Path | Body | Response |
+|---|---|---|---|
+| GET | /api/papers/search?q=&limit=6 | – | `[{"arxiv_id","title","authors":[str],"year","abs_url","license":str|null,"figures":[{"id","url","caption","setup_score":float}]}]` |
+| POST | /api/reproduce_url | `{"image_url": str, "notes": str, "citation": str}` | SSE, same events as /api/reproduce (+ `{"type":"figure","url":str,"citation":str}` first) |
+| POST | /api/tune | `{"design": Design, "objective": "auto"}` | SSE of tune events below, then `{"type":"final",...}` with the tuned design |
+
+- Search uses the arXiv API + arXiv HTML (`arxiv.org/html/<id>`) figures; `setup_score` ranks captions that look like optical setups.
+- `reproduce_url` only fetches from an allowlist: `arxiv.org`, `export.arxiv.org`, `upload.wikimedia.org`.
+
+Tune events (deterministic alignment pass, `optics/tune.py`):
+- `{"type":"tune_start","order":[element_id...],"objective":str,"baseline":{"objective":float,"delivered_mw":float,"score":float}}`
+- `{"type":"tune_step","element_id":str,"field":str,"value":float,"objective":float,"metrics":{"delivered_mw":float,"coupling":float|null,"score":float},"best_so_far":bool,"patch":{element field patch}}`
+  (each step = one knob setting tried; web applies `patch`, re-traces, animates the knob + live meter)
+- `{"type":"tune_done","element_id":str,"field":str,"from":float,"to":float,"gain":float}`
+- `{"type":"final","design":Design,"trace":TraceResult,"report":VerifyReport,"summary":{"objective_before","objective_after","steps"}}`
+
+Extraction event components carry `box_2d` ([ymin,xmin,ymax,xmax] in 0–1000 of the figure) — the web uses them as fly-in start positions.
