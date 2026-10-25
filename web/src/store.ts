@@ -213,6 +213,8 @@ export const useStore = create<State>((set, get) => {
       if ((e as Error).name !== "AbortError") pushLog({ stage: "error", message: (e as Error).message, level: "error" });
     } finally {
       useConsole.getState().finish();
+      // a run that ended without a flyable design still has to reveal whatever was produced
+      { const D = useDemo.getState(); if (D.figure && D.flyAt == null) D.skip(); }
       set((s) => ({ agent: { ...s.agent, running: false } }));
     }
   };

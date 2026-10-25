@@ -266,3 +266,33 @@ export function tuneStream(design: Design, reference: Design | undefined, signal
     signal,
   );
 }
+
+// ───────── build kit ─────────
+import { mockBom } from "./mock/bom";
+import type { Bom } from "./types";
+
+export async function bom(design: Design): Promise<{ bom: Bom; mock: boolean }> {
+  if (!isMock()) {
+    try {
+      const r = await fetch("/api/bom", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ design }) });
+      if (r.ok) return { bom: (await r.json()) as Bom, mock: false };
+      if (r.status < 404 || r.status > 405) throw new HttpError(r.status, (await r.text()).slice(0, 300));
+    } catch (e) {
+      if (e instanceof HttpError) throw e;
+    }
+  }
+  return { bom: mockBom(design), mock: true };
+}
+
+/** returns a Blob (zip from the backend, or BOM.csv offline) and a filename */
+export async function buildKit(design: Design, b: Bom): Promise<{ blob: Blob; name: string }> {
+  const base = design.name.replace(/\W+/g, "_");
+  try {
+    const r = await fetch("/api/build_kit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ design }) });
+    if (r.ok) return { blob: await r.blob(), name: `${base}_build_kit.zip` };
+  } catch { /* offline */ }
+  const rows = [["section", "part_number", "description", "vendor", "qty", "unit_price_usd", "element_ids"]];
+  for (const [sec, list] of [["purchased", b.purchased], ["hardware", b.hardware]] as const) for (const r of list) rows.push([sec, r.part_number, r.description, r.vendor, String(r.qty), r.unit_price_usd == null ? "" : String(r.unit_price_usd), r.element_ids.join(" ")]);
+  const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+  return { blob: new Blob([csv], { type: "text/csv" }), name: `${base}_BOM.csv` };
+}

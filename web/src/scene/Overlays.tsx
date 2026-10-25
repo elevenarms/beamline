@@ -307,21 +307,16 @@ function DemoControls() {
   );
 }
 
-/** live power meter during the tuning tour, then a before/after summary */
+/** live power meter during the tuning tour (delivered power from the re-trace), then a before/after summary */
 export function PowerMeter() {
   const tune = useDemo((d) => d.tune);
   const design = useStore((s) => s.design);
+  const report = useStore((s) => s.report);
+  const trace = useStore((s) => s.trace);
   if (!tune.active && !tune.summary) return null;
-  const h = tune.history;
-  const cur = h.at(-1) ?? tune.baseline?.delivered_mw ?? 0;
-  const tgt = Math.max(...(design?.targets ?? []).filter((t) => t.kind === "min_power_mw").map((t) => Number(t.value)), ...h, tune.baseline?.delivered_mw ?? 0, 1e-6);
-  const best = Math.max(...h, 0);
-  const W = 220, H = 44;
-  const max = Math.max(tgt, ...h, 1e-6);
-  const pts = h.map((v, i) => `${(i / Math.max(1, h.length - 1)) * W},${H - (v / max) * (H - 4) - 2}`).join(" ");
+  const pc = (v: number | null | undefined) => (v == null ? "—" : `${(v * 100).toFixed(0)} %`);
   if (!tune.active && tune.summary) {
     const s = tune.summary;
-    const pc = (v: number | null) => (v == null ? "—" : `${(v * 100).toFixed(0)} %`);
     return (
       <div className="pmeter panel-float summary">
         <div className="pm-title">Alignment complete</div>
@@ -330,18 +325,27 @@ export function PowerMeter() {
       </div>
     );
   }
+  const delivered = report?.metrics.delivered_mw ?? 0;
+  const fc = trace?.elements.find((e) => e.type === "fiber_coupler" && e.coupling_efficiency != null);
+  const hasFiberTarget = (design?.targets ?? []).some((t) => t.kind === "min_coupling" || (design?.elements ?? []).find((e) => e.id === t.element_id)?.type === "fiber_coupler");
+  const powerTargets = (design?.targets ?? []).filter((t) => t.kind === "min_power_mw").map((t) => Number(t.value));
+  const tgt = Math.max(powerTargets.length ? Math.max(...powerTargets) : 0, tune.baseDelivered ?? 0, delivered, 1e-6);
+  const h = tune.history;
+  const W = 200, H = 40;
+  const lo = Math.min(...h, 0), hi = Math.max(...h, 1e-9);
+  const pts = h.map((v, i) => `${(i / Math.max(1, h.length - 1)) * W},${H - ((v - lo) / (hi - lo || 1)) * (H - 4) - 2}`).join(" ");
   return (
     <div className="pmeter panel-float">
-      <div className="pm-title">Delivered power {tune.current && <span className="mono muted">· {tune.current}</span>}</div>
+      <div className="pm-title">Delivered power {tune.current && <span className="mono muted">· tuning {tune.current}</span>}</div>
       <div className="pm-row">
-        <div className="pm-value mono">{cur.toFixed(cur < 10 ? 3 : 2)}<small> mW</small></div>
-        <svg width={W} height={H} className="pm-spark" aria-hidden>
-          <line x1={0} x2={W} y1={H - (tgt / max) * (H - 4) - 2} y2={H - (tgt / max) * (H - 4) - 2} className="pm-target" />
-          {h.length > 1 && <polyline points={pts} className="pm-line" />}
-        </svg>
+        <div className="pm-value mono">{delivered.toFixed(delivered < 10 ? 2 : 1)}<small> mW</small>{(hasFiberTarget || fc) && fc?.coupling_efficiency != null && <div className="pm-coupling">coupling <b>{pc(fc.coupling_efficiency)}</b></div>}</div>
+        <div className="pm-spark-wrap">
+          <svg width={W} height={H} className="pm-spark" aria-hidden>{h.length > 1 && <polyline points={pts} className="pm-line" />}</svg>
+          <div className="pm-spark-label">alignment score · {h.length} steps</div>
+        </div>
       </div>
-      <div className="pm-bar"><span style={{ width: `${Math.min(100, (cur / tgt) * 100)}%` }} /><i style={{ left: `${Math.min(100, (best / tgt) * 100)}%` }} /></div>
-      <div className="pm-foot mono"><span>target {tgt.toFixed(2)} mW</span>{tune.coupling != null && <span>η {(tune.coupling * 100).toFixed(1)} %</span>}<span>{h.length} steps</span></div>
+      <div className="pm-bar"><span style={{ width: `${Math.min(100, (delivered / tgt) * 100)}%` }} /></div>
+      <div className="pm-foot mono"><span>{powerTargets.length ? `target ${Math.max(...powerTargets).toFixed(2)} mW` : `start ${(tune.baseDelivered ?? 0).toFixed(2)} mW`}</span><span>{tune.field ? `${tune.field.replace(/_(deg|mm)$/, "")} ${tune.value?.toFixed(2)}` : ""}</span></div>
     </div>
   );
 }

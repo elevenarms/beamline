@@ -20,13 +20,14 @@ export interface TuneState {
   field: string | null;
   value: number | null;
   values: number[]; // values tried on the current knob (slider range)
-  history: number[]; // objective per step
+  history: number[]; // tuner objective per step ("alignment score")
+  baseDelivered: number | null; // delivered power before the pass (re-trace)
   coupling: number | null;
   flags: Record<string, number>; // element → relative gain
   summary: { before: number; after: number; cBefore: number | null; cAfter: number | null } | null;
 }
 
-const emptyTune: TuneState = { active: false, order: [], baseline: null, current: null, field: null, value: null, values: [], history: [], coupling: null, flags: {}, summary: null };
+const emptyTune: TuneState = { active: false, order: [], baseline: null, current: null, field: null, value: null, values: [], history: [], baseDelivered: null, coupling: null, flags: {}, summary: null };
 
 interface DemoState {
   speed: number;
@@ -128,7 +129,8 @@ export const useDemo = create<DemoState>((set, get) => ({
       case "candidate":
       case "iteration":
       case "final":
-        if (get().figure && get().boxesAt != null && get().flyAt == null) get().startFly(ev.design, ev.trace);
+        // only fly in a design worth showing: the first passing one, else the final
+        if (get().figure && get().boxesAt != null && get().flyAt == null && (ev.report?.passed || ev.type === "final")) get().startFly(ev.design, ev.trace);
         break;
       default:
         break;
@@ -179,7 +181,7 @@ export const useDemo = create<DemoState>((set, get) => ({
   },
 
   skip: () => {
-    set({ flyAt: null, flying: false, growAt: null, growEnd: null, figFadeAt: get().figure ? now() - 10000 : null });
+    set({ flyAt: get().figure ? 0 : null, flyStart: {}, flyEnd: 0, flying: false, growAt: null, growEnd: null, figFadeAt: get().figure ? now() - 10000 : null });
     if (get().tune.active) { skipping = true; pump(); }
   },
 
@@ -228,7 +230,7 @@ function pump() {
   switch (ev.type) {
     case "tune_start": {
       const e = ev as TuneStart;
-      D.setState({ tune: { ...tune, active: true, order: e.order, baseline: e.baseline, coupling: couplingOf(useStore.getState().trace) } });
+      D.setState({ tune: { ...tune, active: true, order: e.order, baseline: e.baseline, baseDelivered: useStore.getState().report?.metrics.delivered_mw ?? e.baseline.delivered_mw, coupling: couplingOf(useStore.getState().trace) } });
       con.ingest({ type: "tool", agent_id: "tuner", name: "tune", summary: `start  ${e.order.length} knobs  objective ${e.objective}  baseline ${e.baseline.delivered_mw.toFixed(2)} mW`, elapsed_ms: 0 });
       wait = 400;
       break;
@@ -260,8 +262,8 @@ function pump() {
       break;
     }
     case "final": {
-      const before = tune.baseline?.delivered_mw ?? tune.history[0] ?? 0;
-      const after = ev.report.metrics.delivered_mw ?? ev.summary?.objective_after ?? 0;
+      const before = tune.baseDelivered ?? tune.baseline?.delivered_mw ?? 0;
+      const after = ev.report.metrics.delivered_mw ?? 0;
       useStore.getState().showDesign(ev.design, { trace: ev.trace, report: ev.report });
       D.setState({ tune: { ...tune, active: false, current: null, summary: { before, after, cBefore: firstCoupling, cAfter: couplingOf(ev.trace) } } });
       con.ingest({ type: "final", design: ev.design, trace: ev.trace, report: ev.report });

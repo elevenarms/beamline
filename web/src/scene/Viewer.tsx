@@ -637,6 +637,7 @@ function FigurePlane() {
   const fig = useDemo((d) => d.figure);
   const boxes = useDemo((d) => d.boxes);
   const boxesAt = useDemo((d) => d.boxesAt);
+  const waitingFly = useDemo((d) => d.flyAt == null && d.figure != null);
   const design = useStore((s) => s.design);
   const P = usePalette();
   const tex = useMemo(() => {
@@ -667,7 +668,10 @@ function FigurePlane() {
       const per = 90 / D.speed;
       const n = Math.min(boxes.length, Math.floor((t - D.boxesAt) / per) + 1);
       if (n !== shown) setShown(n);
-      const sweepK = (t - D.boxesAt) / (boxes.length * per);
+      const period = boxes.length * per;
+      const waiting = D.flyAt == null;
+      // keep scanning while the agents synthesize (no dead air)
+      const sweepK = waiting && t - D.boxesAt > period ? ((t - D.boxesAt) % (period + 400)) / period : (t - D.boxesAt) / period;
       if (sweepRef.current) {
         sweepRef.current.visible = sweepK >= 0 && sweepK <= 1;
         sweepRef.current.position.x = r.x0 + r.w * Math.min(1, Math.max(0, sweepK));
@@ -686,6 +690,11 @@ function FigurePlane() {
         <planeGeometry args={[1.2, r.h]} />
         <meshBasicMaterial color={P.sel} transparent opacity={0.9} depthWrite={false} />
       </mesh>
+      {boxesAt != null && waitingFly && (
+        <Html position={toW(r.x0, r.y0 + r.h, FIG_H + 1)} zIndexRange={[7, 0]} style={{ transform: "translate(0, -130%)" }}>
+          <div className="synth-label">synthesizing layout…</div>
+        </Html>
+      )}
       {boxesAt != null && boxes.slice(0, shown).map((b, i) => {
         const [ymin, xmin, ymax, xmax] = b.box;
         const x0 = r.x0 + (xmin / 1000) * r.w, x1 = r.x0 + (xmax / 1000) * r.w;
@@ -856,7 +865,8 @@ export default function Viewer() {
 
   const bp = { ...DEFAULT_BASEPLATE, ...(design?.baseplate ?? {}) };
   const oh = bp.optical_height_mm;
-  const items = useMemo(() => (design ? buildItems(design, trace) : []), [design, trace]);
+  const awaitingFly = useDemo((d) => d.figure != null && d.boxesAt != null && d.flyAt == null);
+  const items = useMemo(() => (design && !awaitingFly ? buildItems(design, trace) : []), [design, trace, awaitingFly]);
   const labels = useMemo(() => placeLabels(items, trace?.segments ?? []), [items, trace]);
   const warnBy = useMemo(() => {
     const m = new Map<string, "error" | "warning">();
@@ -872,7 +882,7 @@ export default function Viewer() {
   const flying = useDemo((d) => d.flying);
   const capturing = useDemo((d) => d.capturing);
   const labelsOn = !flying && (plan ? zoomOk || items.length <= 40 : items.length <= 60);
-  const segs = trace?.segments ?? EMPTY_SEGS;
+  const segs = awaitingFly ? EMPTY_SEGS : trace?.segments ?? EMPTY_SEGS;
   const dimSet = useMemo(() => {
     if (!solo || !design) return null;
     const srcGroup = new Map(design.sources.map((x) => [x.id, x.group ?? null]));

@@ -287,3 +287,19 @@ export interface MatchRow {
   design_id: string | null;
   status: "matched" | "missing" | "extra";
 }
+
+// ───────── build kit (BOM + printed baseplate) ─────────
+export interface BomRow {
+  part_number: string; description: string; vendor: string; qty: number; unit_price_usd: number | null;
+  url: string | null; element_ids: string[]; price_note?: string;
+}
+export interface PrintedPart { name: string; file: string; volume_cm3: number; est_print_h: number; est_filament_g: number; notes: string }
+export interface Bom {
+  design?: string;
+  purchased: BomRow[];
+  hardware: BomRow[];
+  printed: PrintedPart[];
+  plate?: { width_mm: number; height_mm: number; thickness_mm: number; table_holes: number; element_sites: number; pin_holes: number; tiles: number };
+  totals: { purchased_parts: number; hardware_parts: number; printed_parts: number; est_cost_usd: number; est_print_h: number; est_filament_g: number; price_note: string };
+  stl_urls?: Record<string, string>;
+}

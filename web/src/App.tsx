@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Braces, FileCode2, ListTree, LoaderCircle, Moon, Sparkles, SquareTerminal, Sun, Workflow } from "lucide-react";
+import { Braces, FileCode2, ListTree, LoaderCircle, Moon, Package, Sparkles, SquareTerminal, Sun, Workflow } from "lucide-react";
 import CoverArt from "./panels/CoverArt";
+import BuildKit from "./panels/BuildKit";
 import { useTheme } from "./lib/theme";
 import "./styles.css";
 import { useStore } from "./store";
@@ -39,6 +40,7 @@ function exampleValue(examples: ExampleInfo[], name: string | undefined) {
 
 function TopBar({ examples, onPick }: { examples: ExampleInfo[]; onPick: (n: string) => void }) {
   const [coverOpen, setCoverOpen] = useState(false);
+  const [kitOpen, setKitOpen] = useState(false);
   const design = useStore((s) => s.design);
   const mock = useStore((s) => s.mock);
   const setExportOpen = useStore((s) => s.setExportOpen);
@@ -60,7 +62,9 @@ function TopBar({ examples, onPick }: { examples: ExampleInfo[]; onPick: (n: str
         <span className="dot" /> {mock ? "Offline mock" : "Backend"}
       </span>
       <button className="btn" onClick={() => setExportOpen(true)} disabled={!design}><FileCode2 size={14} /> Export PyOpticL</button>
+      <button className="btn" onClick={() => setKitOpen(true)} disabled={!design}><Package size={14} /> Build kit</button>
       <button className="btn" onClick={() => setCoverOpen(true)} disabled={!design}><Sparkles size={14} /> Cover art</button>
+      <BuildKit open={kitOpen} onClose={() => setKitOpen(false)} />
       <ThemeToggle />
       <CoverArt open={coverOpen} onClose={() => setCoverOpen(false)} />
     </header>
