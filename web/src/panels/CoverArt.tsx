@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Download, Sparkles, X } from "lucide-react";
 import { useStore } from "../store";
 import { useView } from "../scene/viewStore";
@@ -37,10 +37,34 @@ export async function captureCanvas(): Promise<string> {
 const issueLine = (name: string) =>
   `Vol. 1 · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })} · ${name.replace(/_/g, " ")}`;
 
+const MAST = "BEAMTEAM";
+const MAST_FONT = (px: number) => `700 ${px}px "Times New Roman", Georgia, serif`;
+const MAST_SPACING = 0.04; // em
+let measureCtx: CanvasRenderingContext2D | null = null;
+/** font size (px) at which the masthead (with its letter-spacing) spans `frac` of `width` */
+function fitMastSize(width: number, frac = 0.88): number {
+  measureCtx ??= document.createElement("canvas").getContext("2d");
+  if (!measureCtx) return width * 0.13;
+  measureCtx.font = MAST_FONT(100);
+  const w100 = measureCtx.measureText(MAST).width + MAST.length * MAST_SPACING * 100;
+  return (frac * width * 100) / w100;
+}
+
 function Masthead({ name }: { name: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [fs, setFs] = useState(48);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => setFs(fitMastSize(el.clientWidth));
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   return (
-    <div className="masthead">
-      <div className="mh-title">BEAMTEAM</div>
+    <div className="masthead" ref={ref}>
+      <div className="mh-title" style={{ fontSize: fs, letterSpacing: `${MAST_SPACING}em`, marginRight: `-${MAST_SPACING}em` }}>{MAST}</div>
       <div className="mh-issue">{issueLine(name)}</div>
     </div>
   );
@@ -64,8 +88,17 @@ async function composite(r: Result, withMast: boolean, name: string): Promise<st
     ctx.fillRect(0, 0, W, W * 0.32);
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "center";
-    ctx.font = `700 ${Math.round(W * 0.15)}px "Times New Roman", Georgia, serif`;
-    ctx.fillText("BEAMTEAM", W / 2, W * 0.17);
+    const fs = fitMastSize(W);
+    ctx.font = MAST_FONT(fs);
+    const ls = MAST_SPACING * fs;
+    const c2 = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+    if ("letterSpacing" in c2) {
+      c2.letterSpacing = `${ls}px`;
+      ctx.fillText(MAST, W / 2 + ls / 2, W * 0.06 + fs * 0.8); // trailing spacing compensated
+      c2.letterSpacing = "0px";
+    } else {
+      ctx.fillText(MAST, W / 2, W * 0.06 + fs * 0.8);
+    }
     ctx.font = `400 ${Math.round(W * 0.026)}px "IBM Plex Sans", sans-serif`;
     ctx.fillText(issueLine(name).toUpperCase(), W / 2, W * 0.215);
     ctx.fillRect(W * 0.08, W * 0.235, W * 0.84, Math.max(1, W * 0.002));
