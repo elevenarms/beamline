@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Braces, FileCode2, ListTree, LoaderCircle, Moon, Package, Sparkles, SquareTerminal, Sun, Workflow } from "lucide-react";
 import CoverArt from "./panels/CoverArt";
 import BuildKit from "./panels/BuildKit";
+import PaperPip from "./panels/PaperPip";
 import { useTheme } from "./lib/theme";
 import "./styles.css";
 import { useStore } from "./store";
@@ -204,6 +205,7 @@ export default function App() {
       <Console />
       <StatusBar />
       <BeamTooltip />
+      <PaperPip />
       <ExportModal />
     </div>
   );

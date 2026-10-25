@@ -8,7 +8,6 @@ import * as api from "./api";
 
 // Choreography for the headline demo: figure → fly-in → beams light up → tuning tour.
 
-export const FIG_H = 150; // mm above the beam plane
 
 export interface FigBox { id?: string; label: string; type: string; box: [number, number, number, number] }
 
@@ -62,12 +61,29 @@ let tuneTimer: ReturnType<typeof setTimeout> | null = null;
 let tuneAbort: AbortController | null = null;
 let skipping = false;
 
-/** figure-plane rectangle in table coordinates (centred over the plate) */
-export function figureRect(aspect: number): { x0: number; y0: number; w: number; h: number } {
+/**
+ * Figure-plane placement: flat, image-up = table +y, scaled to the plate footprint, raised ~0.8x the
+ * plate depth and nudged toward +y. The height is then increased until, in the Iso preset, the projected
+ * plane sits entirely above the projected table (no screen-space overlap).
+ */
+export function figureRect(aspect: number): { x0: number; y0: number; w: number; h: number; z: number } {
   const bp = { ...DEFAULT_BASEPLATE, ...(useStore.getState().design?.baseplate ?? {}) };
-  let w = bp.width_mm, h = w * aspect;
-  if (h > bp.height_mm * 1.4) { h = bp.height_mm * 1.4; w = h / aspect; }
-  return { x0: bp.width_mm / 2 - w / 2, y0: bp.height_mm / 2 - h / 2, w, h };
+  const W = bp.width_mm, H = bp.height_mm;
+  let w = W, h = W * aspect;
+  if (h > H) { h = H; w = H / aspect; }
+  const x0 = W / 2 - w / 2, y0 = H / 2 - h / 2 + 0.15 * H;
+  // iso screen-up vector (camera-controls spherical: az = 45°, polar = acos(1/√3))
+  const th = Math.PI / 4, ph = Math.acos(1 / Math.sqrt(3));
+  const o = [Math.sin(ph) * Math.sin(th), Math.cos(ph), Math.sin(ph) * Math.cos(th)];
+  const r = [Math.cos(th), 0, -Math.sin(th)];
+  const u = [o[1] * r[2] - o[2] * r[1], o[2] * r[0] - o[0] * r[2], o[0] * r[1] - o[1] * r[0]];
+  const up = (x: number, y: number, z: number) => x * u[0] + z * u[1] + -y * u[2]; // world = (x, z, -y)
+  let tableTop = -Infinity;
+  for (const x of [0, W]) for (const y of [0, H]) tableTop = Math.max(tableTop, up(x, y, 45));
+  let z = 0.8 * H;
+  const figBottom = (zz: number) => Math.min(...[x0, x0 + w].flatMap((x) => [y0, y0 + h].map((y) => up(x, y, zz))));
+  for (let i = 0; i < 200 && figBottom(z) < tableTop + 0.04 * H; i++) z += 0.02 * H;
+  return { x0, y0, w, h, z };
 }
 
 export function boxCenter(b: FigBox, aspect: number): [number, number] {

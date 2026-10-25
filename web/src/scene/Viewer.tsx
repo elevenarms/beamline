@@ -9,7 +9,7 @@ import { Part, partCenterX, partRadius } from "./parts";
 import { beamRadius, powerOpacity, zAlong } from "../lib/beam";
 import { wavelengthToColor } from "../lib/color";
 import { usePalette } from "../lib/theme";
-import { FIG_H, GROW_MM_PER_MS, figureRect, boxCenter, useDemo } from "../demoStore";
+import { GROW_MM_PER_MS, figureRect, boxCenter, useDemo } from "../demoStore";
 import type { Baseplate, Design, Element, PlacedElement, Segment, TraceResult, Vec2 } from "../types";
 import { DEFAULT_BASEPLATE, TERMINATING } from "../types";
 
@@ -335,8 +335,9 @@ const ElementNode = memo(function ElementNode({ it, oh, selected, warn, label: l
       const idx = Math.max(0, D.flyOrder.indexOf(it.id));
       const k = (performance.now() - D.flyAt! - (idx * 75) / D.speed) / (950 / D.speed);
       flying.current = true;
+      const FZ = D.figure ? figureRect(D.figure.aspect).z : 150;
       if (k <= 0) {
-        g.position.set(st[0], FIG_H + 2, -st[1]);
+        g.position.set(st[0], FZ + 2, -st[1]);
         g.rotation.set(0, 0, 0);
         g.scale.setScalar(0.5);
         return;
@@ -344,7 +345,8 @@ const ElementNode = memo(function ElementNode({ it, oh, selected, warn, label: l
       if (k < 1) {
         const e = 1 - (1 - k) ** 3;
         const x = st[0] + (it.pos[0] - st[0]) * e, y = st[1] + (it.pos[1] - st[1]) * e;
-        g.position.set(x, (FIG_H + 2) * (1 - e) + Math.sin(Math.PI * e) * 28, -y);
+        // mostly a vertical drop from the drawing onto the bench, with a slight arc
+        g.position.set(x, (FZ + 2) * (1 - e) + Math.sin(Math.PI * e) * 12, -y);
         g.rotation.set(0, it.angle * D2R * e, 0);
         g.scale.setScalar(0.5 + 0.5 * e);
         return;
@@ -429,8 +431,8 @@ function fitBox(bp: Baseplate, trace: TraceResult | null, sources: Design["sourc
   const D = useDemo.getState();
   if (D.figure && D.figFadeAt == null) {
     const r = figureRect(D.figure.aspect);
-    b.expandByPoint(new THREE.Vector3(...toW(r.x0, r.y0, FIG_H + 10)));
-    b.expandByPoint(new THREE.Vector3(...toW(r.x0 + r.w, r.y0 + r.h, FIG_H + 10)));
+    b.expandByPoint(new THREE.Vector3(...toW(r.x0, r.y0, r.z + 10)));
+    b.expandByPoint(new THREE.Vector3(...toW(r.x0 + r.w, r.y0 + r.h, r.z + 10)));
   }
   b.expandByVector(new THREE.Vector3(10, 2, 10));
   return b;
@@ -638,6 +640,7 @@ function FigurePlane() {
   const boxes = useDemo((d) => d.boxes);
   const boxesAt = useDemo((d) => d.boxesAt);
   const waitingFly = useDemo((d) => d.flyAt == null && d.figure != null);
+  const planView = useView((v) => v.preset === "top" && v.projection === "ortho");
   const design = useStore((s) => s.design);
   const P = usePalette();
   const tex = useMemo(() => {
@@ -661,8 +664,8 @@ function FigurePlane() {
     // fade back after the fly-in
     const k = D.figFadeAt != null ? Math.max(0, Math.min(1, (t - D.figFadeAt) / (800 / D.speed))) : 0;
     const e = k * k * (3 - 2 * k);
-    g.position.set(0, 30 * e, -0.35 * r.h * e);
-    if (mref.current) mref.current.opacity = 0.95 - 0.8 * e;
+    g.position.set(0, 0, 0); // stays flat overhead
+    if (mref.current) mref.current.opacity = 0.95 - 0.83 * e;
     // scan sweep across the figure while boxes appear
     if (D.boxesAt != null && boxes.length) {
       const per = 90 / D.speed;
@@ -678,20 +681,20 @@ function FigurePlane() {
       }
     }
   });
-  if (!fig || !r || !design) return null;
+  if (!fig || !r || !design || planView) return null;
   return (
     <group ref={gref}>
-      <mesh position={[r.x0 + r.w / 2, FIG_H, -(r.y0 + r.h / 2)]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null} renderOrder={1}>
+      <mesh position={[r.x0 + r.w / 2, r.z, -(r.y0 + r.h / 2)]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null} renderOrder={1}>
         <planeGeometry args={[r.w, r.h]} />
         <meshBasicMaterial ref={mref} map={tex ?? undefined} transparent opacity={0.95} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
       </mesh>
-      <Line points={[toW(r.x0, r.y0, FIG_H), toW(r.x0 + r.w, r.y0, FIG_H), toW(r.x0 + r.w, r.y0 + r.h, FIG_H), toW(r.x0, r.y0 + r.h, FIG_H), toW(r.x0, r.y0, FIG_H)]} color={P.outline} lineWidth={1} />
-      <mesh ref={sweepRef} position={[r.x0, FIG_H + 0.6, -(r.y0 + r.h / 2)]} rotation={[-Math.PI / 2, 0, 0]} visible={false} raycast={() => null}>
+      <Line points={[toW(r.x0, r.y0, r.z), toW(r.x0 + r.w, r.y0, r.z), toW(r.x0 + r.w, r.y0 + r.h, r.z), toW(r.x0, r.y0 + r.h, r.z), toW(r.x0, r.y0, r.z)]} color={P.outline} lineWidth={1} />
+      <mesh ref={sweepRef} position={[r.x0, r.z + 0.6, -(r.y0 + r.h / 2)]} rotation={[-Math.PI / 2, 0, 0]} visible={false} raycast={() => null}>
         <planeGeometry args={[1.2, r.h]} />
         <meshBasicMaterial color={P.sel} transparent opacity={0.9} depthWrite={false} />
       </mesh>
       {boxesAt != null && waitingFly && (
-        <Html position={toW(r.x0, r.y0 + r.h, FIG_H + 1)} zIndexRange={[7, 0]} style={{ transform: "translate(0, -130%)" }}>
+        <Html position={toW(r.x0, r.y0 + r.h, r.z + 1)} zIndexRange={[7, 0]} style={{ transform: "translate(0, -130%)" }}>
           <div className="synth-label">synthesizing layout…</div>
         </Html>
       )}
@@ -700,7 +703,7 @@ function FigurePlane() {
         const x0 = r.x0 + (xmin / 1000) * r.w, x1 = r.x0 + (xmax / 1000) * r.w;
         const y1 = r.y0 + r.h - (ymin / 1000) * r.h, y0 = r.y0 + r.h - (ymax / 1000) * r.h;
         const c = boxCenter(b, fig.aspect);
-        const hh = FIG_H + 0.8;
+        const hh = r.z + 0.8;
         return (
           <group key={i}>
             <Line points={[toW(x0, y0, hh), toW(x1, y0, hh), toW(x1, y1, hh), toW(x0, y1, hh), toW(x0, y0, hh)]} color={P.sel} lineWidth={1.2} />

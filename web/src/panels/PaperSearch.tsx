@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ExternalLink, Hammer, LoaderCircle, Search, X } from "lucide-react";
+import { ExternalLink, FileText, Hammer, LoaderCircle, Search, X } from "lucide-react";
+import { usePip } from "./PaperPip";
 import { useStore } from "../store";
 import * as api from "../api";
 import type { Paper, PaperFigure } from "../types";
@@ -29,6 +30,7 @@ export default function PaperSearch() {
     const { paper, fig } = pick;
     const citation = `${paper.authors.slice(0, 3).join(", ")}${paper.authors.length > 3 ? " et al." : ""}, "${paper.title}"${paper.year ? ` (${paper.year})` : ""}${paper.arxiv_id && !paper.abs_url.includes("wikimedia") ? `, arXiv:${paper.arxiv_id}` : ""}`;
     setPick(null);
+    usePip.getState().open({ arxiv_id: paper.arxiv_id, title: paper.title, abs_url: paper.abs_url });
     useStore.getState().runReproduceUrl(fig.url, fig.caption, citation);
   };
 
@@ -54,6 +56,7 @@ export default function PaperSearch() {
                 <span className="paper-authors" title={p.authors.join(", ")}>{p.authors.slice(0, 3).join(", ")}{p.authors.length > 3 ? " et al." : ""}</span>
                 {p.year && <span className="mono">{p.year}</span>}
                 {p.license && <span className="lic">{p.license}</span>}
+                <button className="btn small" onClick={() => usePip.getState().open({ arxiv_id: p.arxiv_id, title: p.title, abs_url: p.abs_url })} title="View paper"><FileText size={12} /> View paper</button>
                 <a href={p.abs_url} target="_blank" rel="noreferrer" className="icon-btn" aria-label="Open source page" title="Open source page"><ExternalLink size={12} /></a>
               </div>
               {p.figures.length > 0 && (
