@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Braces, FileCode2, FileText, ListTree, LoaderCircle, Moon, Package, Sparkles, SquareTerminal, Sun, Workflow } from "lucide-react";
+import { Bot, Braces, FileCode2, FileText, ListTree, LoaderCircle, Moon, Package, Sparkles, SquareTerminal, Sun, Workflow } from "lucide-react";
 import CoverArt from "./panels/CoverArt";
 import BuildKit from "./panels/BuildKit";
 import PaperPip from "./panels/PaperPip";
@@ -22,6 +22,8 @@ import Console from "./panels/Console";
 import { useConsole } from "./consoleStore";
 import ExportModal from "./panels/ExportModal";
 import { mW } from "./lib/format";
+import RoboLabPanel from "./panels/RoboLabPanel";
+import { useLab } from "./labStore";
 
 function BrandMark() {
   return (
@@ -47,6 +49,9 @@ function TopBar({ examples, onPick }: { examples: ExampleInfo[]; onPick: (n: str
   const design = useStore((s) => s.design);
   const mock = useStore((s) => s.mock);
   const setExportOpen = useStore((s) => s.setExportOpen);
+  const labEnabled = useLab((l) => l.enabled);
+  const setLabEnabled = useLab((l) => l.setEnabled);
+  const setLeftTab = useStore((s) => s.setLeftTab);
   return (
     <header className="topbar">
       <div className="brand"><BrandMark /> BEAMTEAM <small>optical layout design &amp; verification</small></div>
@@ -64,6 +69,23 @@ function TopBar({ examples, onPick }: { examples: ExampleInfo[]; onPick: (n: str
       <span className={`pill${mock ? " warn" : ""}`} title={mock ? "Backend unreachable or ?mock=1: using the in-browser tracer and mock agent" : "Connected to the BEAMTEAM backend"}>
         <span className="dot" /> {mock ? "Offline mock" : "Backend"}
       </span>
+      <button
+        className={`btn${labEnabled ? " active" : ""}`}
+        onClick={() => {
+          const next = !labEnabled;
+          setLabEnabled(next);
+          if (next) {
+            setLeftTab("lab");
+            if (design?.name !== "sr_ion_apparatus" && examples.some((x) => x.name === "sr_ion_apparatus")) {
+              onPick("sr_ion_apparatus");
+            }
+          }
+        }}
+        disabled={!design}
+        title="Toggle Autonomous Robotics Lab (MuJoCo WASM + 6-DOF Arm + X/Y Crib Stage + 0x23/MicroManipulatorStepper)"
+      >
+        <Bot size={14} /> Robotics Lab
+      </button>
       <button className="btn" onClick={() => setExportOpen(true)} disabled={!design}><FileCode2 size={14} /> Export PyOpticL</button>
       <button className="btn" onClick={() => setKitOpen(true)} disabled={!design}><Package size={14} /> Build kit</button>
       <button className="btn" onClick={() => usePipeline.getState().buildDoc(true)} disabled={!design || docBusy} title="Generate the build document (PDF)">{docBusy ? <LoaderCircle size={14} className="spin" /> : <FileText size={14} />} Build document</button>
@@ -178,7 +200,9 @@ export default function App() {
     api.listExamples().then((ex) => {
       setExamples(ex);
       if (!useStore.getState().design) {
-        const first = ex.find((x) => !x.name.startsWith("mock:")) ?? ex[0];
+        const wantLab = new URLSearchParams(window.location.search).get("lab") === "1";
+        const preferred = wantLab ? ex.find((x) => x.name === "sr_ion_apparatus") : undefined;
+        const first = preferred ?? ex.find((x) => !x.name.startsWith("mock:")) ?? ex[0];
         if (first) pick(first.name);
       }
     });
@@ -191,10 +215,11 @@ export default function App() {
       <aside className="side left">
         <div className="tabs" role="tablist">
           <button className={`tab${leftTab === "workflow" ? " active" : ""}`} onClick={() => setLeftTab("workflow")}><Workflow size={14} /> Workflow</button>
+          <button className={`tab${leftTab === "lab" ? " active" : ""}`} onClick={() => { setLeftTab("lab"); if (!useLab.getState().enabled) useLab.getState().setEnabled(true); }}><Bot size={14} /> Lab</button>
           <button className={`tab${leftTab === "outline" ? " active" : ""}`} onClick={() => setLeftTab("outline")}><ListTree size={14} /> Outline</button>
           <button className={`tab${leftTab === "json" ? " active" : ""}`} onClick={() => setLeftTab("json")}><Braces size={14} /> JSON</button>
         </div>
-        <div className="scroll">{leftTab === "workflow" ? <AgentPanel /> : leftTab === "outline" ? <OutlinePanel /> : <JsonPanel />}</div>
+        <div className="scroll">{leftTab === "workflow" ? <AgentPanel /> : leftTab === "lab" ? <RoboLabPanel /> : leftTab === "outline" ? <OutlinePanel /> : <JsonPanel />}</div>
       </aside>
       <main className="center">
         {/* always mounted so the canvas never re-parents (avoids WebGL/Html portal teardown) */}

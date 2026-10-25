@@ -33,6 +33,9 @@ app.include_router(paper_pdf_router)
 from optics.build_doc_api import router as build_doc_router  # noqa: E402  (build document PDF)
 
 app.include_router(build_doc_router)
+from agents.robo_lab import router as robo_lab_router  # noqa: E402  (MuJoCo + MicroManipulatorStepper lab)
+
+app.include_router(robo_lab_router)
 
 
 class DesignBody(BaseModel):

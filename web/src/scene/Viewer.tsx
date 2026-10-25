@@ -12,6 +12,8 @@ import { usePalette } from "../lib/theme";
 import { GROW_MM_PER_MS, figureRect, boxCenter, useDemo } from "../demoStore";
 import type { Baseplate, Design, Element, PlacedElement, Segment, TraceResult, Vec2 } from "../types";
 import { DEFAULT_BASEPLATE, TERMINATING } from "../types";
+import MujocoLabWorkcell from "./MujocoLab";
+import { useLab } from "../labStore";
 
 const D2R = Math.PI / 180;
 const MIN_R = 0.3;
@@ -433,6 +435,10 @@ function fitBox(bp: Baseplate, trace: TraceResult | null, sources: Design["sourc
     const r = figureRect(D.figure.aspect);
     b.expandByPoint(new THREE.Vector3(...toW(r.x0, r.y0, r.z + 10)));
     b.expandByPoint(new THREE.Vector3(...toW(r.x0 + r.w, r.y0 + r.h, r.z + 10)));
+  }
+  if (useLab.getState().enabled) {
+    b.expandByPoint(new THREE.Vector3(...toW(-320, -65, -40)));
+    b.expandByPoint(new THREE.Vector3(...toW(bp.width_mm + 80, Math.max(bp.height_mm + 65, 240), 450)));
   }
   b.expandByVector(new THREE.Vector3(10, 2, 10));
   return b;
@@ -901,7 +907,8 @@ export default function Viewer() {
     }
     return m;
   }, [segs]);
-  const designKey = design ? `${fitNonce}|${bp.width_mm}|${bp.height_mm}` : "";
+  const labEnabled = useLab((l) => l.enabled);
+  const designKey = design ? `${fitNonce}|${bp.width_mm}|${bp.height_mm}|${labEnabled ? "lab" : "std"}` : "";
   const highlight = useView((v) => v.highlight);
   const selSeg = selected?.kind === "segment" ? selected.id : null;
   const selBranch = selSeg ? trace?.segments.find((s) => s.id === selSeg)?.branch : null;
@@ -936,6 +943,7 @@ export default function Viewer() {
       <FigurePlane />
       <TuneWidgets />
       <CoreLines segs={segs} dimSet={dimSet} />
+      <MujocoLabWorkcell oh={oh} />
       {items.map((it) => (
         <ElementNode
           key={it.id}

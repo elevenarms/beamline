@@ -51,7 +51,7 @@ interface State {
   view: "2d" | "3d";
   exaggeration: number;
   mock: boolean;
-  leftTab: "workflow" | "outline" | "json";
+  leftTab: "workflow" | "outline" | "json" | "lab";
   showFigure: boolean;
   compare: boolean;
   setCompare: (v: boolean) => void;
@@ -71,7 +71,7 @@ interface State {
   setHoverSeg: (id: string | null) => void;
   setView: (v: "2d" | "3d") => void;
   setExaggeration: (v: number) => void;
-  setLeftTab: (t: "workflow" | "outline" | "json") => void;
+  setLeftTab: (t: "workflow" | "outline" | "json" | "lab") => void;
   setShowFigure: (v: boolean) => void;
   setExportOpen: (v: boolean) => void;
   runDesign: (goal: string) => Promise<void>;
@@ -223,7 +223,7 @@ export const useStore = create<State>((set, get) => {
 
   return {
     design: null, trace: null, report: null, traceMs: null, tracing: false, traceError: null,
-    selected: null, hoverSeg: null, view: "2d", exaggeration: 3, mock: api.isMock(), leftTab: "workflow",
+    selected: null, hoverSeg: null, view: "2d", exaggeration: 3, mock: api.isMock(), leftTab: typeof window !== "undefined" && new URLSearchParams(window.location.search).get("lab") === "1" ? "lab" : "workflow",
     showFigure: true, compare: false, agent: emptyAgent, exportOpen: false,
     setCompare: (v) => { if (v) useView.setState({ legendOpen: false }); set({ compare: v }); },
     soloModule: null,
