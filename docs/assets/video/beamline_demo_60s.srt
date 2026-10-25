@@ -1,0 +1,35 @@
+1
+00:00:00,650 --> 00:00:06,020
+Laying out a laser-optics bench by hand takes weeks. Beamline does it in minutes.
+
+2
+00:00:06,770 --> 00:00:11,580
+Search arXiv for optical tweezers, pick a real setup figure, and press build.
+
+3
+00:00:12,340 --> 00:00:19,700
+Three Gemini vision agents read the figure in parallel, while synthesizer, verifier and repair agents stream their reasoning live.
+
+4
+00:00:20,360 --> 00:00:26,990
+Every design is checked with real physics: Gaussian beams, polarization, and stray-beam laser safety.
+
+5
+00:00:27,670 --> 00:00:32,370
+Then the parts fly off the drawing onto the bench, and the lasers switch on.
+
+6
+00:00:33,330 --> 00:00:38,630
+The bench starts misaligned, and the tuner walks each mirror until the power meter climbs back.
+
+7
+00:00:39,540 --> 00:00:44,860
+You get a cover render and a build document, with a bill of materials and a printable, keyed baseplate.
+
+8
+00:00:45,890 --> 00:00:51,950
+And it scales: a trapped-ion apparatus with a hundred twenty-one optics, traced in milliseconds.
+
+9
+00:00:52,940 --> 00:00:57,050
+Beamline. From paper to buildable bench in under three minutes.

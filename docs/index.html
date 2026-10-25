@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beamline: Paper Figure to Verified Optics Bench</title>
+<meta name="description" content="Beamline is a multi-agent Gemini system that reproduces laser-optics setups from paper figures (or designs them from a goal), verifies them with a deterministic physics tracer, and exports a build kit.">
+<meta property="og:title" content="Beamline: from a published figure to a buildable, verified laser-optics bench">
+<meta property="og:description" content="LLMs propose, the physics disposes. Paper search to build-document PDF in 1:37.">
+<meta property="og:image" content="assets/img/cover_gemini-nano-banana-2.1_1.webp">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2316181d'/%3E%3Cpath d='M4 22 L14 12 L28 12' stroke='%23ff4a3d' stroke-width='3' fill='none'/%3E%3Ccircle cx='14' cy='12' r='3' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="hero wrap">
+  <div class="venue">Hackathon project &middot; 25 October 2026</div>
+  <h1 class="title"><span class="name">Beamline</span>From a Published Figure to a Buildable, Verified Laser-Optics Bench</h1>
+  <p class="subtitle">Gemini agents read the paper; a deterministic physics tracer checks every beam. The LLMs propose, the physics disposes.</p>
+
+  <!-- EDIT ME: replace "Beamline Team" with the author list, e.g.
+       <a href="https://...">First Author</a><sup>1</sup>, <a href="https://...">Second Author</a><sup>1</sup>
+       and fill in the affiliation line below. -->
+  <p class="authors">Beamline Team</p>
+  <p class="affil">Built in one day at a hackathon &middot; code written with Claude Code under the team's direction</p>
+
+  <nav class="pills" aria-label="Project links">
+    <a class="pill disabled" data-paper href="#abstract" aria-disabled="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+      Paper (PDF) <small>soon</small></a>
+    <a class="pill" href="https://github.com/elevenarms/beamline">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>
+      Code</a>
+    <a class="pill disabled" data-video href="#teaser" aria-disabled="true">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+      Video <small>soon</small></a>
+    <a class="pill ghost" href="https://github.com/elevenarms/beamline#run-it">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+      Demo (run locally)</a>
+  </nav>
+
+  <nav class="toc" aria-label="Sections">
+    <a href="#abstract">Abstract</a><a href="#method">How it works</a><a href="#results">Results</a>
+    <a href="#gallery">Gallery</a><a href="#provenance">Provenance</a><a href="#citation">BibTeX</a>
+  </nav>
+</header>
+
+<figure class="teaser" id="teaser">
+  <div class="teaser-frame">
+    <img id="teaser-poster" class="poster" width="1600" height="900" src="assets/img/video_poster.webp" alt="Frame from the Beamline demo video">
+    <video id="teaser-video" hidden muted autoplay loop playsinline preload="metadata" poster="assets/img/video_poster.webp" aria-label="Muted teaser loop of the Beamline demo"></video>
+    <div class="badge">
+      <button type="button" data-video class="disabled" aria-disabled="true">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+        Watch with narration &middot; 60 s</button>
+      <span id="soon">Demo video coming soon</span>
+    </div>
+  </div>
+  <figcaption>Muted loop of the 60-second Beamline demo. Press <b>Watch with narration</b> for the full version with sound and captions (narration by Gemini TTS). Before the video loads, the poster is a frame taken at 30 s.</figcaption>
+</figure>
+
+<main class="wrap">
+
+<p class="tldr"><b>TL;DR</b>&nbsp; Type a topic, pick a figure from an arXiv paper, and Beamline turns it into a laser-optics bench in under three minutes. Vision and synthesizer agents (Gemini <code>gemini-4-argon</code>) propose the layout. A deterministic Gaussian-beam/Jones tracer verifies every beam. The output is aligned, rendered and exported as a build kit: BOM, printable keyed baseplate and an assembly PDF.</p>
+
+<section id="abstract" class="abstract">
+  <h2>Abstract</h2>
+  <p>Laying out a tabletop laser-optics bench for an atomic or quantum physics experiment is weeks of careful manual work, and the designs that labs publish are usually just schematic figures. <b>Beamline</b> is a multi-agent system that designs these setups from a natural-language goal, or reproduces them from a figure in a paper. Three vision agents read the figure in parallel. A consensus vote with millimetre scaling turns their readings into a component/beam graph. Two synthesizer agents then build a design in a JSON intermediate representation.</p>
+  <p>Every design is checked by a deterministic physics tracer. It models Gaussian beams (ABCD/<i>q</i>), Jones polarization, power, AOM orders, fiber mode overlap and clipping. A verifier flags stray beams (laser safety), collisions, unplaced parts and unmet targets. A deterministic autofix and an LLM repair agent close the loop under a hard deadline. Verified designs are aligned by a deterministic tuner, rendered as journal covers and published as a Typst build document and build kit. The kit includes a bill of materials with part numbers, watertight keyed baseplate STLs, and a script for the <a href="https://github.com/UMassIonTrappers/PyOpticL">PyOpticL</a> code-to-CAD library.</p>
+  <p>Live, paper search to build-document PDF took <b>1:37</b> against a 3:00 budget. Three live figure-to-design runs on optical tweezers took 55–74 s and all passed. Grounding the model in real PyOpticL designs cut hallucinated API references from <b>95 % to 0 %</b>. A 121-optic apparatus traces and verifies in about 6 ms. We also report where it fails: on 8 open-access figures, 4/8 reproductions pass verification but only 3/8 are physically faithful.</p>
+</section>
+
+<section id="method">
+  <h2>How it works</h2>
+  <p class="callout">The LLMs <em>propose</em>, the physics <em>disposes</em>.</p>
+  <figure class="paperfig">
+    <img width="1600" height="930" src="assets/fig/architecture.webp" alt="Architecture diagram: three entry paths (reproduce from a paper figure, goal to design, hierarchical apparatus) feed a shared verify and repair loop, then a tuner, cover artist, publisher and build-kit generator." loading="lazy" data-zoom>
+    <figcaption><b>Figure 1. Architecture.</b> Gemini LLM agents are blue rounded boxes and deterministic code is grey; stacked boxes are parallel instances. There are three entry paths. Reproduce: paper search, figure fetch, 3 parallel vision agents, consensus merge with mm scaling and 2 parallel synthesizers. Goal to design: a planner and <i>N</i>&nbsp;=&nbsp;4 parallel designers (best-of-<i>N</i>). Hierarchical: an architect, <i>M</i> parallel module agents and a merge under a shared laser power budget. The reproduce and goal paths share a verify–repair loop: deterministic trace/verify/autofix plus an LLM repair agent (at most 3 rounds). The verified design then goes to a deterministic tuner, an image-model cover artist, a Typst publisher and a build-kit generator.</figcaption>
+  </figure>
+
+  <ol class="steps">
+    <li><b>Find a paper</b>Live arXiv search ranks each paper's figures by how much they look like an optical setup.</li>
+    <li><b>Read the figure</b>Three vision agents read it in parallel. A consensus vote and millimetre scaling turn their readings into a component/beam graph.</li>
+    <li><b>Synthesize &amp; verify</b>Two synthesizers emit the JSON IR. The tracer checks every beam; the verifier flags stray beams, collisions and unmet targets. Autofix adds validated beam dumps and a repair agent fixes the rest, under a hard 115&nbsp;s deadline.</li>
+    <li><b>Fly-in &amp; align</b>Parts drop from the drawing onto the 3D bench and the beams switch on. The bench is misaligned "as built", then a tuner walks every knob back to optimum.</li>
+    <li><b>Publish</b>A journal-cover render (Nano Banana 2) and a Typst build-document PDF: plan view, verification, BOM, 3D-print list, assembly, alignment and laser-safety notes.</li>
+    <li><b>Build kit</b><code>BOM.csv</code>, tiled baseplate STLs with keyed alignment-pin holes and beam-path grooves, a PyOpticL/FreeCAD script and an assembly README.</li>
+  </ol>
+  <p>It also supports goal-to-design with best-of-<i>N</i> candidates and hierarchical design of whole apparatus: an architect plus parallel module agents with shared laser power budgets, e.g. a 121-optic Sr<sup>+</sup> trapped-ion laser system. Other features are an agent console with colour-coded token streams per agent, and all-optical logic (SOA NAND, χ<sup>(2)</sup> sum-frequency half adder).</p>
+
+  <figure class="paperfig">
+    <img width="1600" height="998" src="assets/fig/timeline_tweezers.webp" alt="Per-agent timelines of two live reproduce runs on the dual-trap optical tweezers figure." loading="lazy" data-zoom>
+    <figcaption><b>Figure 2. Two live runs, agent by agent.</b> Reproduce-from-figure on the dual-trap optical-tweezers figure (Gieseler et al., arXiv:2004.05246, Fig. 5), using <code>gemini-4-argon</code> throughout. <b>(a)</b> Three parallel vision passes (23.3–28.1 s) agree 3/3 on 16 parts. The two synthesizers score 0 and 86, and one repair round raises the score to 96. Total time is 89.2 s with 14/14 figure components matched. <b>(b)</b> Deterministic autofix lifts synthesizer 2 from 35 to 80. Both repair rounds regress to 45 and are rejected, so the best design (80, PASS) is kept at 118.4 s. Light segments show time to first token; ticks mark deterministic trace/verify/autofix calls, each under 4 ms.</figcaption>
+  </figure>
+</section>
+
+<section id="results">
+  <h2>Key results</h2>
+  <p class="lead">Measured on 25 October 2026 on live Gemini calls. Raw runs are in <a href="https://github.com/elevenarms/beamline/tree/main/demo"><code>demo/</code></a>.</p>
+
+  <div class="metrics" role="list">
+    <div class="metric" role="listitem"><div class="v">1:37</div><div class="k">paper search → build-document PDF, live, end to end (budget 3:00)</div></div>
+    <div class="metric" role="listitem"><div class="v">3/3</div><div class="k">live tweezers figure → verified design, 55 / 67 / 74 s, all PASS</div></div>
+    <div class="metric" role="listitem"><div class="v">95%<small>→</small>0%</div><div class="k">PyOpticL API hallucination, zero-shot → grounded</div></div>
+    <div class="metric" role="listitem"><div class="v">~6<small> ms</small></div><div class="k">trace + verify of a 121-optic apparatus</div></div>
+    <div class="metric" role="listitem"><div class="v">4/8 <small>&middot;</small> 4/4</div><div class="k">figure benchmark passes verify (3/8 physically faithful) &middot; goal designs pass</div></div>
+  </div>
+
+  <div class="table-scroll">
+    <table class="kv">
+      <tbody>
+        <tr><td>Paper search → PDF, live, end to end</td><td>1:37 (budget 3:00)</td></tr>
+        <tr><td>Figure → verified design (tweezers, 3 live runs)</td><td>55 / 67 / 74 s, all PASS</td></tr>
+        <tr><td>Demo-figure reproduction reliability</td><td>3/3 PASS, 41–55 s (concurrent)</td></tr>
+        <tr><td>Goal → verified design</td><td>~45–85 s, scores 93–98</td></tr>
+        <tr><td>Paper URL → bench (tweezers, arXiv:2004.05246)</td><td>PASS 95.4 in 73 s, 14/14 matched</td></tr>
+        <tr><td>Hierarchical: 6 modules in parallel</td><td>96 optics, PASS 98.5, ~100 s</td></tr>
+        <tr><td>Alignment tuner, detuned AOM double-pass</td><td>102 % of fiber power, 75 steps / 35 ms</td></tr>
+        <tr><td>Build kit, AOM double-pass</td><td>18 parts + 58 hardware, ≈ $4.1k (est.), 2 tiles</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Reproducing published figures: an 8-figure stress test</h3>
+  <div class="fig-pair">
+    <figure class="paperfig">
+      <img width="1600" height="1185" src="assets/fig/benchmark.webp" alt="Bar chart of wall time and verifier score for reproduce and design modes on 8 open-access figures." loading="lazy" data-zoom>
+      <figcaption><b>Figure 3. Benchmark.</b> Bars show wall time; labels give the verifier score (green PASS, red FAIL). <b>Reproduce: 4/8 PASS</b>: Raman 96 (46 s), pump–probe 100 (55 s), PDH lock 95 (41 s), and the 22-element dual-trap tweezers 96 (80 s). Raman passes verification, but its physics is wrong: the 532 nm line reaches the CCD. That leaves <b>3/8 physically faithful</b>. Sr<sup>+</sup>, MOT/LCVR and HOM fail; dense Yb<sup>+</sup> hit the 60 s vision deadline twice. <b>Goal design: 4/4 completed runs PASS.</b> One MOT design run was aborted by a dev-server reload and is not counted.</figcaption>
+    </figure>
+    <div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Figure</th><th>Diff.</th><th class="num">Reproduce</th><th class="num">Design</th></tr></thead>
+          <tbody>
+            <tr><td>Raman backscatter</td><td>easy</td><td class="num"><span class="ok">96</span> · 46 s<sup>†</sup></td><td class="num">–</td></tr>
+            <tr><td>Pump–probe delay</td><td>easy</td><td class="num"><span class="ok">100</span> · 55 s</td><td class="num">–</td></tr>
+            <tr><td>PDH thin-disk lock</td><td>med.</td><td class="num"><span class="ok">95</span> · 41 s</td><td class="num"><span class="ok">100</span> · 52 s</td></tr>
+            <tr><td>Sr<sup>+</sup> ion-trap lasers</td><td>med.</td><td class="num"><span class="bad">0</span> · 104 s</td><td class="num"><span class="ok">75</span> · 68 s</td></tr>
+            <tr><td>MOT / LCVR laser system</td><td>med.</td><td class="num"><span class="bad">0</span> · 90 s</td><td class="num">aborted (infra)</td></tr>
+            <tr><td>Dual-trap tweezers</td><td>hard</td><td class="num"><span class="ok">96</span> · 80 s</td><td class="num"><span class="ok">99.5</span> · 84 s</td></tr>
+            <tr><td>HOM tomography (3D)</td><td>hard</td><td class="num"><span class="bad">18</span> · 119 s</td><td class="num">–</td></tr>
+            <tr><td>Yb<sup>+</sup> clock laser (dense)</td><td>hard</td><td class="num"><span class="bad">error ×2</span></td><td class="num">–</td></tr>
+            <tr><td>MALDI (goal only)</td><td>med.</td><td class="num">–</td><td class="num"><span class="ok">99</span> · 50 s</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="caption">Score (0–100) · wall time; green = PASS. <sup>†</sup>Passes verify, but the long-pass filter is modelled as a dichroic that lets the 532 nm line through to the CCD. Source: <a href="https://github.com/elevenarms/beamline/blob/main/demo/figures/RESULTS.md"><code>demo/figures/RESULTS.md</code></a>, which also lists failure patterns and fixes.</p>
+    </div>
+  </div>
+
+  <h3>Grounding removes API hallucination</h3>
+  <div class="fig-pair">
+    <figure class="paperfig">
+      <img width="1600" height="792" src="assets/fig/grounding.webp" alt="Bar chart: hallucinated PyOpticL API references drop from about 95 to 98 percent zero-shot to 0 percent with grounding." loading="lazy" data-zoom>
+      <figcaption><b>Figure 4. Grounding.</b> Share of PyOpticL API references in <code>gemini-4-argon</code> goal→code output that do not exist. Zero-shot: 94.7 % (AOM, low thinking), 98.1 % (AOM, high), 97.7 % (SAS, low). Grounded with ~17k tokens of real designs plus a signature digest: <b>0 %</b> in all 4 runs (135/0, 140/0, 130/0, 129/0 valid/invalid refs).</figcaption>
+    </figure>
+    <figure class="paperfig">
+      <img width="1600" height="1157" src="assets/fig/scaling.webp" alt="Log-log plot of trace plus verify wall time against number of elements in the design." loading="lazy" data-zoom>
+      <figcaption><b>Figure 5. Physics is cheap.</b> Deterministic trace + verify time against design size (median of 5; bars min–max). Blue: an 11-element AOM double-pass tiled 1–33× (11–363 elements), all PASS, 0.4–104.6 ms, log–log slope about 1.6. Orange: the 13 example designs; the 121-element Sr<sup>+</sup> apparatus took 9.6 ms here under load. On an idle machine it took 6.1 ms. Absolute times carry about ±2× load noise.</figcaption>
+    </figure>
+  </div>
+
+  <h3>Whole apparatus, and light that computes</h3>
+  <figure class="paperfig">
+    <img width="1600" height="1012" src="assets/fig/planview_apparatus.webp" alt="Plan view of a 121-element Sr+ ion-trap laser apparatus split into 7 module regions, beams coloured by wavelength." loading="lazy" data-zoom>
+    <figcaption><b>Figure 6. A 121-optic apparatus, designed hierarchically.</b> Plan view of the Sr<sup>+</sup> ion-trap laser apparatus, drawn directly from the deterministic trace. It has 121 elements, 11 sources, 134 beam segments and 6 wavelengths (405–1091.8 nm) across 7 module regions on a 1200 × 900 mm table. Beam colour shows wavelength and line width scales with √power. The design passes verification (99.2), with 236.9 of 280.0 mW input delivered.</figcaption>
+  </figure>
+  <div class="fig-pair">
+    <figure class="paperfig">
+      <img width="1600" height="986" src="assets/fig/logic_truth.webp" alt="Truth tables of an all-optical half adder and a sum-frequency AND gate." loading="lazy" data-zoom>
+      <figcaption><b>Figure 7. 1 + 1 = 10, computed by photons.</b> (a) All-optical half adder on one PPLN crystal: CARRY (631 nm sum-frequency light) is 347.4 mW only for input 11. SUM (residual IR) is correct at a 40 mW threshold. (b) A sum-frequency AND gate outputs 35.3 mW only for input 11. Textbook steady-state models with optimistic conversion efficiency.</figcaption>
+    </figure>
+    <figure class="paperfig">
+      <img width="1600" height="852" src="assets/img/shot_tuning.webp" alt="Screenshot of the alignment tuning tour: camera at an optic with a live power meter." loading="lazy" data-zoom>
+      <figcaption><b>Alignment tour.</b> The bench is detuned "as built", then the deterministic tuner walks every knob back. On the AOM double-pass, delivered fiber power goes from 32 % to 102 % of design in 75 trials.</figcaption>
+    </figure>
+  </div>
+
+  <div class="limits">
+    <h3>Limitations (honest caveats)</h3>
+    <ul>
+      <li><b>Simplified physics.</b> The table model is planar (2D). Gaussian beams are round, lenses are thin, and there is no interference or coherence.</li>
+      <li><b>Nonlinear elements are textbook steady-state models:</b> SOA gain saturation and χ<sup>(2)</sup> SFG with perfect phase matching, CW only. The SOA NAND has about 5 dB contrast and is not cascadable in our model. The half adder uses one PPLN crystal with optimistic η.</li>
+      <li><b>Reproduction works on clean schematics only.</b> Dense multi-panel and 3D figures still fail (Yb<sup>+</sup>, HOM, MOT). A verifier PASS is not proof of correct physics: the Raman design passes while sending the laser line to the CCD. There is no "sample" or retro-scatter primitive.</li>
+      <li><b>Notes are not always respected.</b> Focal lengths and laser power given in the notes were sometimes replaced with "convenient" values. Hierarchical designs can come out as disconnected modules with one source each.</li>
+      <li><b>Generated BOMs are estimates.</b> Prices need checking with vendors, and nothing here replaces a laser-safety review.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="gallery">
+  <h2>Gallery</h2>
+  <p class="lead">Screenshots from the web app (Vite + React + three.js), renders by the cover-artist agent, and pages of generated build documents. Click to enlarge.</p>
+
+  <figure class="paperfig">
+    <img width="1600" height="785" src="assets/fig/gallery.webp" alt="Six-panel overview: a paper figure, the fly-in, the traced apparatus, the agent console, cover renders and printable baseplate tiles." loading="lazy" data-zoom>
+    <figcaption><b>Figure 8. Beamline outputs.</b> (a) An open-access setup figure: dual-trap optical tweezers, Ashraf &amp; Pullarkat, arXiv:2411.16256, CC BY 4.0. (b) The fly-in. (c) The 121-element, 7-module Sr<sup>+</sup> apparatus traced (134 beam segments, verify 99.2, PASS). (d) The agent console streaming tokens from parallel agents. (e) Journal-cover renders: faithful (gemini-3.1-flash-image) and cinematic (gemini-nano-banana-2.1). (f) The build kit's printable keyed baseplate tiles.</figcaption>
+  </figure>
+
+  <p class="gallery-h">In the app</p>
+  <div class="gallery">
+    <figure class="wide"><button type="button"><img width="1600" height="852" src="assets/img/shot_flyin_mid.webp" alt="Fly-in: parts drop from the figure onto the 3D bench" loading="lazy"></button><figcaption>Fly-in: parts drop from the paper figure onto the bench in beam order.</figcaption></figure>
+    <figure><button type="button"><img width="1600" height="852" src="assets/img/shot_token_streams.webp" alt="Agent console with colour-coded token streams" loading="lazy"></button><figcaption>Agent console: colour-coded token streams from parallel agents.</figcaption></figure>
+    <figure><button type="button"><img width="1600" height="852" src="assets/img/shot_live_reproduce.webp" alt="Live reproduce run" loading="lazy"></button><figcaption>A live reproduce-from-figure run.</figcaption></figure>
+    <figure><button type="button"><img width="1600" height="852" src="assets/img/shot_top_inspector.webp" alt="Top view with element inspector" loading="lazy"></button><figcaption>Top view with the element inspector: waist, power and polarization of each beam.</figcaption></figure>
+    <figure><button type="button"><img width="1600" height="852" src="assets/img/shot_hierarchical_progress.webp" alt="Hierarchical design progress" loading="lazy"></button><figcaption>Hierarchical design: architect plus parallel module agents.</figcaption></figure>
+    <figure><button type="button"><img width="1600" height="852" src="assets/img/shot_build_kit_print.webp" alt="Build kit 3D print view" loading="lazy"></button><figcaption>Build kit: keyed baseplate tiles with beam-path grooves.</figcaption></figure>
+    <figure><button type="button"><img width="1600" height="852" src="assets/img/shot_half_adder.webp" alt="All-optical half adder in the app" loading="lazy"></button><figcaption>All-optical half adder with Logic I/O toggles.</figcaption></figure>
+    <figure><button type="button"><img width="1600" height="852" src="assets/img/shot_compare_light.webp" alt="Figure and design compare view" loading="lazy"></button><figcaption>Compare view: the source figure next to the design.</figcaption></figure>
+  </div>
+
+  <p class="gallery-h">Cover renders (Nano Banana 2 / 2.1)</p>
+  <div class="gallery">
+    <figure><button type="button"><img width="896" height="1200" src="assets/img/cover_gemini-3.1-flash-image_1.webp" alt="Faithful cover render of an AOM bench" loading="lazy"></button><figcaption>Faithful render (<code>gemini-3.1-flash-image</code>).</figcaption></figure>
+    <figure><button type="button"><img width="896" height="1200" src="assets/img/cover_gemini-nano-banana-2.1_1.webp" alt="Cinematic cover render of the same bench" loading="lazy"></button><figcaption>Cinematic render (<code>gemini-nano-banana-2.1</code>).</figcaption></figure>
+    <figure><button type="button"><img width="896" height="1200" src="assets/img/cover_gemini-3.1-flash-image_2.webp" alt="Annotated render showing a FAIL verdict and a stray beam" loading="lazy"></button><figcaption>Annotated render: the verifier flags a 3.2 mW stray beam (FAIL).</figcaption></figure>
+    <figure><button type="button"><img width="896" height="1200" src="assets/img/cover_half_adder_faithful.webp" alt="Faithful render of the all-optical half adder" loading="lazy"></button><figcaption>Half adder, faithful.</figcaption></figure>
+    <figure><button type="button"><img width="896" height="1200" src="assets/img/cover_half_adder_cinematic.webp" alt="Cinematic render of the all-optical half adder" loading="lazy"></button><figcaption>Half adder, cinematic.</figcaption></figure>
+    <figure><button type="button"><img width="1600" height="852" src="assets/img/shot_cover_art.webp" alt="Cover art panel in the app" loading="lazy"></button><figcaption>Cover-art panel with the BEAMLINE masthead.</figcaption></figure>
+  </div>
+
+  <p class="gallery-h">Generated build documents (Typst PDF)</p>
+  <div class="gallery">
+    <figure><button type="button"><img class="contain" width="1400" height="1980" src="assets/img/builddoc_dual_beam_optical_tweezers_p1.webp" alt="Build document cover page: dual-beam optical tweezers" loading="lazy"></button><figcaption>Dual-beam optical tweezers, p. 1.</figcaption></figure>
+    <figure><button type="button"><img class="contain" width="1400" height="1980" src="assets/img/builddoc_dual_beam_optical_tweezers_p2.webp" alt="Build document page 2: dual-beam optical tweezers" loading="lazy"></button><figcaption>Dual-beam optical tweezers, p. 2.</figcaption></figure>
+    <figure><button type="button"><img class="contain" width="1400" height="1980" src="assets/img/builddoc_aom_doublepass_fixed_p2.webp" alt="Build document page 2: AOM double-pass" loading="lazy"></button><figcaption>AOM double-pass, p. 2.</figcaption></figure>
+    <figure><button type="button"><img class="contain" width="1400" height="1980" src="assets/img/builddoc_sr_ion_apparatus_p2.webp" alt="Build document page 2: Sr+ ion apparatus" loading="lazy"></button><figcaption>Sr<sup>+</sup> ion apparatus (121 optics), p. 2.</figcaption></figure>
+    <figure><button type="button"><img class="contain" width="1400" height="1980" src="assets/img/builddoc_alloptical_half_adder_p1.webp" alt="Build document cover: all-optical half adder" loading="lazy"></button><figcaption>All-optical half adder, p. 1.</figcaption></figure>
+    <figure><button type="button"><img class="contain" width="1400" height="1980" src="assets/img/builddoc_alloptical_half_adder_p2.webp" alt="Build document page 2: all-optical half adder" loading="lazy"></button><figcaption>All-optical half adder, p. 2.</figcaption></figure>
+  </div>
+</section>
+
+<section id="inputs">
+  <h2>Built on PyOpticL &amp; open figures</h2>
+  <div class="credit-box">
+    <img width="1040" height="395" src="assets/img/rb_sas_fig2a.webp" alt="PyOpticL paper Figure 2a: Rb saturated absorption spectroscopy layout" loading="lazy" data-zoom>
+    <p><b><a href="https://github.com/UMassIonTrappers/PyOpticL">PyOpticL</a></b> (Myers et al., <i>Quantum</i> 2026; UMass Ion Trappers) is the code-to-CAD optics concept and library that Beamline's exporter targets, and our examples are modelled on its designs. It is referenced, not vendored. Left: PyOpticL paper Fig. 2a (Rb saturated absorption spectroscopy, CC BY 4.0), which we used as a test input. Thank you to the PyOpticL authors. Beamline would not exist without their work.</p>
+  </div>
+
+  <p>The benchmark inputs are open-access published figures, credited below as listed in <a href="https://github.com/elevenarms/beamline/blob/main/demo/figures/catalog.json"><code>demo/figures/catalog.json</code></a>. They keep their original licenses. Figures from other arXiv papers, such as Gieseler et al., arXiv:2004.05246, are fetched live at runtime and are not redistributed.</p>
+  <div class="table-scroll">
+    <table class="catalog">
+      <thead><tr><th>Figure</th><th>Source</th><th>License</th></tr></thead>
+      <tbody>
+        <tr><td>Raman backscatter</td><td>Toommm (Wikimedia Commons), adapted from T. Schmid &amp; P. Dariz, <i>Heritage</i> 2(2), 1662–1683 (2019) · <a href="https://commons.wikimedia.org/wiki/File:Setup_Raman_Spectroscopy_adapted_from_Thomas_Schmid_and_Petra_Dariz_in_Heritage_2(2)_(2019)_1662-1683.png">source</a></td><td>CC BY 4.0</td></tr>
+        <tr><td>Pump–probe delay</td><td>Joachim Terschluesen, "Pump probe setup.svg", Wikimedia Commons · <a href="https://commons.wikimedia.org/wiki/File:Pump_probe_setup.svg">source</a></td><td>CC0 1.0</td></tr>
+        <tr><td>PDH thin-disk lock</td><td>M. Zeyen, L. Affolter, M. A. Ahmed, et al., <i>Rev. Sci. Instrum.</i> (2023) · <a href="https://arxiv.org/abs/2210.05501">arXiv:2210.05501</a></td><td>CC BY 4.0</td></tr>
+        <tr><td>Sr<sup>+</sup> / Th<sup>3+</sup> ion-trap lasers</td><td>G. Zitzer, J. Tiedau, M. V. Okhapkin, et al., <i>Phys. Rev. A</i> 109, 033116 (2024), Fig. 2 · <a href="https://arxiv.org/abs/2312.05106">arXiv:2312.05106</a></td><td>CC BY 4.0</td></tr>
+        <tr><td>MOT / LCVR laser system</td><td>B. Piest, V. Vollenkemper, J. Böhm, et al. · <a href="https://arxiv.org/abs/2109.14277">arXiv:2109.14277</a></td><td>CC BY 4.0</td></tr>
+        <tr><td>Dual-trap optical tweezers</td><td>M. A. Ashraf &amp; P. Pullarkat · <a href="https://arxiv.org/abs/2411.16256">arXiv:2411.16256</a></td><td>CC BY 4.0</td></tr>
+        <tr><td>Yb<sup>+</sup> clock laser</td><td>Y. Zuo, S. Cao, S. Dai, et al. · <a href="https://arxiv.org/abs/2303.00361">arXiv:2303.00361</a></td><td>CC BY 4.0</td></tr>
+        <tr><td>HOM tomography</td><td>Y. Tsujimoto, R. Ikuta, K. Wakui, et al., <i>Phys. Rev. Applied</i> 19 · <a href="https://arxiv.org/abs/2205.11160">arXiv:2205.11160</a></td><td>CC BY 4.0</td></tr>
+        <tr><td>Rb SAS (Fig. 2a)</td><td>PyOpticL paper, Myers et al., <i>Quantum</i> 2026 · <a href="https://github.com/UMassIonTrappers/PyOpticL">PyOpticL</a></td><td>CC BY 4.0</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="provenance">
+  <h2>What was built at the hackathon vs. what existed</h2>
+  <p class="lead">Reproduced from the repository's <a href="https://github.com/elevenarms/beamline#provenance-built-today-vs-pre-existing">Provenance</a> section.</p>
+  <div class="prov">
+    <div class="built">
+      <span class="tag">Built during the hackathon</span>
+      <h3>2026-10-25, 11:23 → present (see <code>git log</code>)</h3>
+      <p>Everything in this repository:</p>
+      <ul>
+        <li>the design IR and API contract;</li>
+        <li>the planar Gaussian-beam/Jones tracer, including nonlinear elements (SOA, SFG, saturable absorber);</li>
+        <li>the verifier, autofix, alignment tuner and module merge;</li>
+        <li>all agent pipelines: goal → design, figure → design, hierarchical, paper search, cover renders, console events and token streaming;</li>
+        <li>the PyOpticL exporter;</li>
+        <li>the BOM, tiled STL baseplates and the Typst build document;</li>
+        <li>the web application;</li>
+        <li>all examples, benchmarks, recorded runs and figures, the paper and the demo video.</li>
+      </ul>
+      <p>The code was written by an AI coding assistant (<b>Claude Code</b>) and its sub-agents, under the team's direction, during the event.</p>
+    </div>
+    <div class="pre">
+      <span class="tag">Pre-existing, used but not built by us</span>
+      <ul>
+        <li><a href="https://github.com/UMassIonTrappers/PyOpticL"><b>PyOpticL</b></a> (Myers et al., <i>Quantum</i> 2026): the code-to-CAD optics concept and library that our exporter targets and our examples are modelled on. Not vendored; referenced only.</li>
+        <li><b>Google Gemini models</b> via API: <code>gemini-4-argon</code> (agents); Nano Banana 2 / 2.1 (<code>gemini-3.1-flash-image</code>, <code>gemini-nano-banana-2.1</code>) for renders; Gemini TTS (demo narration).</li>
+        <li><b>Open-source libraries:</b> three.js, React, @react-three/fiber, @react-three/drei, zustand, lucide-react, Vite, TypeScript; FastAPI, Pydantic, NumPy, google-genai, httpx, sse-starlette, uvicorn, manifold3d, trimesh, Pillow; Typst; ffmpeg.</li>
+        <li><b>Published figures used as test inputs:</b> open-access CC BY / CC0 figures with attribution in <a href="https://github.com/elevenarms/beamline/blob/main/demo/figures/catalog.json"><code>demo/figures/catalog.json</code></a>, plus the PyOpticL paper Fig. 2a (CC BY 4.0). Figures from other arXiv papers (e.g. Gieseler et al., arXiv:2004.05246) are fetched live at runtime and not redistributed.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="citation">
+  <h2>BibTeX</h2>
+  <div class="bib">
+    <button type="button" id="copy-bib">Copy</button>
+<pre id="bibtex">@misc{beamline2026,
+  title        = {Beamline: From a Published Figure to a Buildable,
+                  Verified Laser-Optics Bench},
+  author       = {{Beamline Team}},
+  year         = {2026},
+  howpublished = {\url{https://github.com/elevenarms/beamline}},
+  note         = {Hackathon project}
+}</pre>
+  </div>
+</section>
+
+<section id="ack" class="ack">
+  <h2>Acknowledgements</h2>
+  <p>We thank the authors of <a href="https://github.com/UMassIonTrappers/PyOpticL">PyOpticL</a> (UMass Ion Trappers) for the code-to-CAD optics library and paper that inspired this project. We also thank the authors of every open-access figure listed above for licensing their work so others can build on it.</p>
+  <ul>
+    <li><b>Models:</b> Google Gemini <code>gemini-4-argon</code> for all agents; Nano Banana 2 / 2.1 (<code>gemini-3.1-flash-image</code>, <code>gemini-nano-banana-2.1</code>) for cover renders; Gemini TTS for the demo narration.</li>
+    <li><b>Code:</b> written with <b>Claude Code</b> (Anthropic) and its sub-agents, under the team's direction, during the hackathon.</li>
+    <li><b>Libraries:</b> three.js, React, @react-three/fiber, @react-three/drei, zustand, lucide-react, Vite, TypeScript, FastAPI, Pydantic, NumPy, google-genai, httpx, sse-starlette, uvicorn, manifold3d, trimesh, Pillow, Typst and ffmpeg.</li>
+  </ul>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Beamline &middot; MIT-licensed code: <a href="https://github.com/elevenarms/beamline">github.com/elevenarms/beamline</a>. Third-party figures keep their original licenses.</p>
+    <p>Prices in generated BOMs are estimates. This is not a substitute for a laser-safety review.</p>
+    <p>Page layout inspired by classic academic project pages.</p>
+  </div>
+</footer>
+
+<div class="lb" id="lightbox" role="dialog" aria-label="Enlarged image"><div><img id="lb-img" alt=""><p class="lb-cap" id="lb-cap"></p></div></div>
+<div class="modal" id="video-modal" role="dialog" aria-label="Demo video with narration">
+  <div class="box">
+    <button type="button" class="close" id="video-close">Close ✕</button>
+    <video id="full-video" controls playsinline preload="none" poster="assets/img/video_poster.webp"></video>
+  </div>
+</div>
+
+<script src="assets/site.js" defer></script>
+</body>
+</html>
