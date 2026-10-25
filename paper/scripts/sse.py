@@ -1,4 +1,4 @@
-"""Minimal SSE reader for Beamline event streams."""
+"""Minimal SSE reader for BEAMTEAM event streams."""
 import json
 
 def read(path):

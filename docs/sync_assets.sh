@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copy / convert the latest Beamline assets into docs/assets/ for GitHub Pages.
+# Copy / convert the latest BEAMTEAM assets into docs/assets/ for GitHub Pages.
 # Re-run whenever the paper, video or figures change:  bash docs/sync_assets.sh
 # Needs: uv (for pymupdf + pillow), ffmpeg (optional, for the muted teaser loop).
 set -euo pipefail

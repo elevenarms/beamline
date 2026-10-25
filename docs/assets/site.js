@@ -1,4 +1,4 @@
-// Beamline project page: manifest-driven video/paper wiring, lightbox, BibTeX copy.
+// BEAMTEAM project page: manifest-driven video/paper wiring, lightbox, BibTeX copy.
 (function () {
   "use strict";
   var $ = function (s, r) { return (r || document).querySelector(s); };

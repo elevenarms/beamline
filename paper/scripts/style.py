@@ -1,4 +1,4 @@
-"""Shared figure style for the Beamline paper."""
+"""Shared figure style for the BEAMTEAM paper."""
 import os
 import matplotlib
 matplotlib.use("Agg")

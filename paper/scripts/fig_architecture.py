@@ -1,4 +1,4 @@
-"""Fig. 1: Beamline system architecture (LLM agents vs deterministic code).
+"""Fig. 1: BEAMTEAM system architecture (LLM agents vs deterministic code).
 Agent roles/names follow CONTRACT.md and backend/agents/*.py (reproduce.py, design.py, hierarchical.py, cover.py)."""
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))

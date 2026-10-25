@@ -1,4 +1,4 @@
-# Beamline paper figures
+# BEAMTEAM paper figures
 
 All figures are vector PDFs and share one style (`paper/scripts/style.py`: sans-serif, muted palette, beams coloured by wavelength). Column width is 3.4 in and full width is 7.0 in.
 
@@ -14,7 +14,7 @@ Every number below is read from a project artifact or measured by running the ba
 
 ## 1. `architecture.pdf` (full width), from `fig_architecture.py`
 
-**Caption.** Beamline architecture. Gemini LLM agents are blue rounded boxes and deterministic code is grey; stacked boxes are parallel instances. There are three entry paths:
+**Caption.** BEAMTEAM architecture. Gemini LLM agents are blue rounded boxes and deterministic code is grey; stacked boxes are parallel instances. There are three entry paths:
 - **Reproduce from a paper figure:** paper search and figure fetch, then 3 parallel vision agents, a consensus merge with mm scaling, and 2 parallel synthesizers.
 - **Goal to design:** a planner, then $N{=}4$ parallel designers (best-of-$N$).
 - **Hierarchical:** an architect, then $M$ parallel module agents, then a merge under a shared laser power budget.
@@ -116,7 +116,7 @@ For `rb_sas`, the misalignment degraded only the target and polarization terms, 
 
 ## 9. `gallery.pdf` (full width), from `fig_gallery.py`
 
-**Caption.** Artifacts produced by Beamline:
+**Caption.** Artifacts produced by BEAMTEAM:
 - **(a)** An open-access setup figure: dual-trap optical tweezers, arXiv:2411.16256, CC BY 4.0.
 - **(b)** The fly-in, where the figure floats above the bench as its parts are placed.
 - **(c)** The 121-element, 7-module Sr$^+$ ion-trap apparatus traced by the deterministic tracer (134 beam segments, verify score 99.2, PASS).
