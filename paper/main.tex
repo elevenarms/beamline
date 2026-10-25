@@ -1,0 +1,375 @@
+% Beamline -- hackathon paper. Compile with:  tectonic main.tex
+% All quantitative claims trace to files in this repository (see "Data and code availability").
+\documentclass[10pt,twocolumn,letterpaper]{article}
+\usepackage[margin=0.75in,columnsep=0.25in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{siunitx}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\usepackage{url}
+\usepackage{enumitem}
+\setlist{itemsep=1pt,topsep=3pt,parsep=0pt}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+
+\sisetup{detect-all}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\figpath}{figures}
+% Guarded figure include: draws a framed placeholder if the PDF does not exist yet.
+\newcommand{\beamfig}[2][\linewidth]{%
+  \IfFileExists{\figpath/#2.pdf}%
+    {\includegraphics[width=#1]{\figpath/#2.pdf}}%
+    {\fbox{\parbox[c][0.35\linewidth][c]{0.95#1}{\centering\small\ttfamily [figure pending: #2.pdf]}}}}
+
+% ---------------------------------------------------------------------------
+\title{\textbf{Beamline: Multi-Agent Design, Verification, and Fabrication of Tabletop Optical Systems from Natural Language and Published Figures}}
+% TODO(user): replace placeholder author/affiliation with the real team names before submission.
+\author{Beamline Team\\ \small Hackathon submission, 25 October 2026}
+\date{}
+
+\begin{document}
+\maketitle
+
+% ---------------------------------------------------------------------------
+\begin{abstract}
+Laying out a free-space laser-optics bench for atomic, molecular and optical (AMO) physics is slow, manual and error-prone: beams must be routed, split, frequency-shifted and coupled into fibers while every stray reflection is terminated for laser safety. We present \emph{Beamline}, a system built in a single hackathon day in which teams of large-language-model (LLM) agents propose optical layouts---from a natural-language goal, from a figure in a published paper, or from a goal so large that it must be decomposed into subsystems---and a deterministic physics core disposes of them. The core is a planar Gaussian-beam and Jones-calculus tracer (including acousto-optic diffraction orders, fiber mode overlap, and self-consistent nonlinear elements) coupled to a rule-based verifier that scores designs and emits machine-readable errors that drive repair. Verified designs are tuned by a deterministic alignment search and exported as a fabrication kit (bill of materials, keyed and tiled 3D-printable baseplates, a PyOpticL script) and a typeset build document. On the day we measured: grounding the model in real library code reduced API hallucination in generated layout code from 95--98\% to 0\%; figure-to-design reproduction of a saturated-absorption spectroscopy figure passed verification in 3/3 concurrent runs (\SIrange{41}{55}{\second}); on an eight-figure stress test of open-access papers 4/8 reproductions passed verification and 3/8 were physically faithful while the goal pipeline passed 4/4; a 121-element trapped-ion apparatus traces and verifies in 6--\SI{10}{\milli\second}. We report the failures in detail and discuss what they imply for multi-agent systems in complex optical design: decomposition that mirrors how laboratories modularize, parallel exploration against objective verifiers, consensus for perception, and deterministic tools as the ground truth that LLMs must answer to.
+\end{abstract}
+
+% ---------------------------------------------------------------------------
+\section{Introduction}
+An AMO experiment such as a trapped-ion quantum processor~\cite{bruzewicz2019} or an optical tweezer~\cite{ashkin1986,gieseler2021} sits on top of one or more optical tables carrying tens to hundreds of mirrors, lenses, waveplates, polarizing beam splitters (PBS), acousto-optic modulators (AOMs) and fiber couplers. Standard building blocks recur---double-pass AOMs~\cite{donley2005}, Doppler-free saturated absorption spectroscopy (SAS)~\cite{preston1996}, Pound--Drever--Hall (PDH) locks~\cite{black2001}---but every laboratory re-derives the layout by hand. Mistakes are found late, on the table: a beam clipped on a mount, a reflected order that leaves the table carrying milliwatts, a waveplate set so that a PBS sends the power to the wrong port, a fiber coupler that is mode-mismatched. Code-to-CAD tools such as PyOpticL~\cite{pyopticl} have shown that describing an optical layout as a program that places optics \emph{along simulated beam paths} makes designs reproducible, modular and directly fabricable as 3D-printed, ``paint by numbers'' baseplates. Writing that program, however, still requires an expert.
+
+LLMs can now read figures, write code and follow long technical instructions, and agentic systems have begun to plan and run experiments in chemistry~\cite{coscientist2023,chemcrow2024} and to write papers~\cite{aiscientist2024}. Free-space optics is an attractive but unforgiving target: a design is either physically consistent or it is not, and plausible-looking prose or code is cheap. Our working principle is therefore \emph{LLMs propose, deterministic physics disposes}: every model output is a candidate that must survive a tracer and a verifier, whose diagnostics are fed back for repair.
+
+\paragraph{Contributions.} In one hackathon day (Section~\ref{sec:provenance}) we built and evaluated:
+\begin{enumerate}
+\item A compact JSON design intermediate representation (IR) for planar tabletop optics with beam-relative placement and deterministic branch naming (Section~\ref{sec:ir}).
+\item A fast planar Gaussian/Jones tracer with AOM orders, fiber mode-overlap coupling, clipping and self-consistent nonlinear elements (semiconductor optical amplifier, sum-frequency generation, saturable absorber), and a verifier that produces a score and actionable errors (Sections~\ref{sec:tracer}--\ref{sec:verify}).
+\item Three multi-agent pipelines on top of Gemini (\code{gemini-4-argon})~\cite{gemini2023}: goal$\to$design with best-of-$N$ candidates and verifier-in-the-loop repair; figure$\to$design with three parallel vision agents, consensus and mm scaling; and a hierarchical architect with parallel module agents and a deterministic laser power budget (Section~\ref{sec:agents}).
+\item A deterministic stray-beam autofix, an alignment tuner, and a fabrication path to a bill of materials, watertight keyed baseplate STL tiles, a PyOpticL export and a typeset build document (Sections~\ref{sec:autofix}--\ref{sec:build}).
+\item An honest evaluation: a grounding study, reliability runs, an eight-figure benchmark including failures, scaling, tuning recovery, and optical-logic truth tables (Section~\ref{sec:results}), followed by a discussion of the potential and pitfalls of multi-agent systems for optical design (Section~\ref{sec:discussion}).
+\end{enumerate}
+
+\begin{figure*}[t]
+\centering
+\beamfig[0.92\textwidth]{architecture}
+\caption{Beamline architecture. Gemini agents (blue) propose designs; deterministic code (grey) evaluates, repairs and fabricates them; stacked boxes are parallel instances. Three entry paths (figure reproduction with 3 vision agents, consensus merge and 2 synthesizers; goal$\to$design with $N{=}4$ designers; hierarchical architect with $M$ module agents under a shared power budget) feed a verify--repair loop, then the tuner, cover artist, Typst publisher and build-kit generator. Every agent state change, model call, streamed token batch, tool run and intermediate design is emitted as a server-sent event and rendered in a live console.}
+\label{fig:architecture}
+\end{figure*}
+
+% ---------------------------------------------------------------------------
+\section{Related work}
+\label{sec:related}
+\paragraph{Code-to-CAD optics and simulation.} PyOpticL~\cite{pyopticl} places optics along simulated, branching beam paths in Python and generates modular CAD for printed or machined baseplates with pre-aligned mounts; Beamline adopts its beam-relative placement idea, targets it through an exporter, and reproduces a figure from its paper. Interferometer simulators such as Finesse~\cite{finesse} model coherent fields in detail; our tracer is deliberately simpler (incoherent, planar) and optimized for millisecond feedback to agents. Our schematic rendering vocabulary follows the ComponentLibrary convention common in optics figures~\cite{franzen}.
+
+\paragraph{Computer-designed experiments.} MELVIN~\cite{krenn2016melvin}, active-learning agents~\cite{melnikov2018} and PyTheus~\cite{pytheus2023} search over representations of quantum-optics experiments, raising the question of what scientific understanding such systems provide~\cite{krenn2022understanding}; recently, the LLM agent AI-Mandel was given access to such tools~\cite{llmpytheus2025}. These systems target abstract quantum-state generation; Beamline targets the physical layout of classical beam-delivery optics that every AMO laboratory builds.
+
+\paragraph{LLM agents for optical design.} Uddin et al.'s AI-driven robotics platform for optics~\cite{optomate2025} uses generative AI to turn goals into free-space optical configurations that a robotic arm assembles, aligns and measures; Anubuddhi~\cite{anubuddhi2025} is a multi-agent system for designing and simulating quantum-optics experiments; OPTIAGENT~\cite{optiagent2026} trains an LLM for lens design with reinforcement learning (DrGRPO) and a physics-driven agentic framework. Earlier, inverse design reshaped nanophotonics~\cite{molesky2018}, a contrast to the discrete, component-level layout problem we address. Beamline differs in combining figure-based reproduction with a verifier-scored repair loop, hierarchical decomposition with physical power accounting, and a fabrication output.
+
+\paragraph{LLM agents for science and agent patterns.} AI is increasingly part of scientific discovery~\cite{wang2023aisci}, and LLM-based autonomous agents are a fast-growing field~\cite{wang2024agentsurvey}. Coscientist~\cite{coscientist2023}, ChemCrow~\cite{chemcrow2024} and the AI Scientist~\cite{aiscientist2024} couple LLMs with domain tools. Our loops instantiate familiar patterns: reasoning interleaved with tool calls (ReAct~\cite{react2023}), verbal feedback from failures (Reflexion~\cite{reflexion2023}, Self-Refine~\cite{selfrefine2023}), and role-specialized multi-agent conversations (AutoGen~\cite{autogen2023}, MetaGPT~\cite{metagpt2024}). The distinguishing feature here is that the critic is not an LLM but a physics engine.
+
+\paragraph{Physics.} Beam propagation uses the complex beam parameter $q$ with ABCD matrices~\cite{kogelnik1966,siegman1986,self1983}; polarization uses Jones calculus~\cite{jones1941}. Domain blocks follow standard references: AOM double pass~\cite{donley2005}, SAS~\cite{preston1996}, PDH~\cite{black2001}, tweezers~\cite{ashkin1986,gieseler2021}, trapped ions~\cite{bruzewicz2019}; nonlinear elements follow textbook SOA gain saturation~\cite{stubkjaer2000}, quasi-phase-matched $\chi^{(2)}$ conversion~\cite{pplnqpm} and a single-PPLN half adder proposed (and simulated) by Wang et al.~\cite{sfglogic}.
+
+% ---------------------------------------------------------------------------
+\section{System}
+\label{sec:system}
+
+\subsection{Design IR}
+\label{sec:ir}
+A \code{Design} (\code{backend/optics/ir.py}) contains a baseplate, sources (position, direction, wavelength, power, waist, Jones polarization, enable switch), an ordered element list, optional targets (e.g.\ ``$\ge$\SI{5}{\milli\watt} into fiber F1'', polarization fidelity), optional modules (rectangular regions) and an optional \code{LogicSpec}. Units are mm, degrees, nm, mW and MHz; the table frame has its origin at the baseplate's lower-left corner. Elements are placed either absolutely (\code{at}) or, PyOpticL-style, \emph{on a beam}: \code{beam} names a branch and \code{distance\_mm} the distance along it. Branch names are deterministic: a source starts branch \code{L1}; splitters append \code{.t}/\code{.r}; AOMs append \code{.0} and \code{.+1}/\code{.-1}; other elements keep the name (e.g.\ \code{L1.r.+1}). Mirrors may be specified by the desired \code{out\_direction\_deg}, which the tracer converts into a surface normal. This makes designs short, mostly free of trigonometry, and robust to moving an upstream optic---properties that matter when an LLM writes them.
+
+\subsection{Planar Gaussian + Jones tracer}
+\label{sec:tracer}
+\code{trace(design)} (\code{optics/trace.py}) runs two passes. A \emph{placement pass} traces every source depth-first and places the first not-yet-placed element on the current branch at its distance, unless an already-positioned element is physically intersected first (repeated up to six rounds so combiners on later sources' branches are seen). A \emph{physics pass} freezes geometry and traces by ray--segment intersection, producing segments, hits, powers and coupling numbers; branches below \SI{e-6}{\milli\watt} are dropped. Each element is a line segment (splitter cubes use their diagonal, so they can be hit from all faces). Gaussian beams carry $q$ through thin lenses~\cite{kogelnik1966,siegman1986}; polarization is a Jones vector in the beam frame with sign flips on reflection and mirrored fast axes for counter-propagating waveplates~\cite{jones1941}. Clipping on a circular aperture of radius $r$ for beam radius $w$ and offset $h$ uses $(1-e^{-2r^2/w^2})\,T_x(h)/T_x(0)$ with an erf-based offset correction.
+
+\paragraph{AOMs and fibers.} An AOM diffracts order $\pm1$ by $\theta=\lambda f/v$ with efficiency $\eta_{\mathrm{AOM}}$, leaving $(1-\eta_{\mathrm{AOM}})$ in the zero order, so double-pass geometries~\cite{donley2005} trace naturally. A fiber coupler focuses the beam with its lens ($f=\SI{11}{\milli\metre}$ default) onto a fiber of mode radius $w_f$ and computes
+\begin{equation}
+\eta = \eta_{\mathrm{ovl}}\, e^{-(f\alpha/w_f)^2}\, e^{-(\pi w_f h/\lambda f)^2}\, T_{\mathrm{clip}},
+\end{equation}
+where $\eta_{\mathrm{ovl}}$ is the Gaussian size-and-curvature overlap, $\alpha$ the tilt and $h$ the offset at the lens.
+
+\paragraph{Nonlinear elements.} For all-optical logic the IR includes an SOA, a $\chi^{(2)}$ crystal and a saturable absorber. If any are present the physics pass iterates to a fixed point: trace, sum incident power $P_{\mathrm{tot}}$ per element, update state, retrace; convergence at $10^{-4}$ relative change within 12 iterations (damped by 50\% from iteration 5). The SOA applies a shared gain $G=G_0/(1+P_{\mathrm{tot}}/P_{\mathrm{sat}})$, giving cross-gain modulation~\cite{stubkjaer2000}; the absorber transmits $T=T_0+(1-T_0)P_{\mathrm{tot}}/(P_{\mathrm{tot}}+P_{\mathrm{sat}})$. The SFG crystal combines co-propagating, overlapping beams into $1/\lambda_{\mathrm{out}}=1/\lambda_1+1/\lambda_2$ with a photon-number-limited power
+\begin{equation}
+P_{\mathrm{out}} = Q_{\min}\tanh^2\!\sqrt{\eta P_1P_2\cdot 10^{-3}/Q_{\min}},\quad Q_i=P_i\lambda_i/\lambda_{\mathrm{out}},
+\end{equation}
+depleting each input by one photon per generated photon. Phase matching is assumed perfect (quasi-phase-matched~\cite{pplnqpm} for the configured process only).
+
+\subsection{Verifier and score}
+\label{sec:verify}
+\code{verify(design, trace)} (\code{optics/verify.py}) emits checks with severities: unplaced elements; clipping (warning $>1\%$, error $>10\%$); stray beams (error if an escaping segment carries $>\SI{0.5}{\milli\watt}$, ``laser safety: unterminated beam''); elements off the table; footprint collisions; beams passing through another element's mount without interacting; unmet targets; trace depth caps; dark elements; and nonlinear non-convergence. Footprints are per-type rectangles (e.g.\ mirror $25\times25$\,mm, AOM $40\times25$\,mm). The score is
+\begin{equation}
+S = \mathrm{clip}_{[0,100]}\!\left(95 + 5\,\tfrac{P_{\mathrm{delivered}}}{P_{\mathrm{in}}} - 25\,n_{\mathrm{err}} - 5\,n_{\mathrm{warn}}\right),
+\end{equation}
+with delivered power counting fiber-coupled and photodiode-absorbed light (beam dumps excluded). A design \emph{passes} when it has no errors. Every message names elements and branches, so it can be pasted verbatim into a repair prompt.
+
+\subsection{Deterministic autofix}
+\label{sec:autofix}
+Stray beams were the most common error in early runs (Section~\ref{sec:benchmark}). \code{optics/autofix.py} therefore terminates every escaping branch carrying non-trivial power by trying beam-dump placements (near/far, full block or knife edge) just inside the table edge and keeping the first that terminates the branch \emph{without adding any error}---so a dump never clips a wanted beam running nearby. It runs before every LLM repair round and frees the model for real topology problems.
+
+\subsection{Alignment tuner}
+\code{optics/tune.py} performs coordinate search over physical knobs in beam order: waveplate fast axes, lens and coupler distances, coupler focal length, mirror angles (\SI{\pm1.5}{\degree}), and split ratios; coarse grid then refinement; a step is kept only if it strictly improves the objective. The objective rewards target satisfaction, delivered fraction, fiber coupling and score, and penalizes structural errors so the search never ``dims the light'' to silence stray-beam errors. A companion \code{detune()} produces realistically misaligned copies (waveplates off by 8--\SI{25}{\degree}, lenses by 8--20\%, mirrors by 0.2--\SI{0.8}{\degree}) for demonstration and testing.
+
+\subsection{Build kit and build document}
+\label{sec:build}
+\code{optics/bom.py} produces a bill of materials (an element's own part number wins, otherwise a default optic+mount kit with list-price \emph{estimates}) and a printable baseplate built with manifold3d~\cite{manifold} booleans: 1/4-20 table holes on a \SI{50.8}{\milli\metre} grid, a counterbored screw hole and two \SI{2}{\milli\metre} dowel-pin holes per element oriented to its optical axis (so mounts are keyed and pre-aligned, as in PyOpticL), and a \SI{1}{\milli\metre} groove along every beam segment. Plates larger than \SI{250}{\milli\metre} are tiled with half-lap joints. The kit (zip) contains \code{BOM.csv}, STL tiles, a PyOpticL/FreeCAD script and an assembly README. \code{optics/build\_doc.py} typesets a PDF with Typst~\cite{typst} (cover, plan-view SVG, verification, BOM, assembly steps in beam order, alignment procedure from the tuner, laser safety, credits); compilation typically takes $\sim$\SI{0.3}{\second}. All agent-written text reaches Typst as data, never as markup.
+
+\subsection{Web application}
+A Vite/React/three.js~\cite{threejs} app renders the bench in 3D with live re-tracing on edit (\code{/api/trace}), a verify panel, an inspector, module regions, a logic I/O strip, and an agent console that shows each agent's state, streamed tokens and thought summaries, tool runs and an iteration timeline with deterministic design diffs. In figure mode the source figure lies above the table and recognized parts ``fly in'' from their detected bounding boxes; after a passing design, the app auto-detunes and runs a tuning tour with a live power meter, renders cover art with Nano Banana image models, and produces the build PDF.
+
+\begin{table}[t]
+\centering\small
+\caption{System components (all in \code{backend/} unless noted).}
+\label{tab:components}
+\footnotesize
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+Component & Role \\
+\midrule
+\code{optics/ir.py} & Pydantic design IR, trace/report schemas \\
+\code{optics/trace.py} & Planar Gaussian+Jones tracer, AOM, fiber, nonlinear fixed point \\
+\code{optics/verify.py} & Checks, severities, score \\
+\code{optics/autofix.py} & Validated stray-beam termination \\
+\code{optics/tune.py} & Coordinate-search alignment, detune \\
+\code{optics/merge.py} & Namespaced merge of module designs \\
+\code{optics/bom.py} & BOM, keyed tiled baseplate STL \\
+\code{optics/build\_doc.py} & Typst build document \\
+\code{optics/pyopticl\_export.py} & Export to PyOpticL source \\
+\code{agents/design.py} & Goal$\to$design, best-of-$N$ + repair \\
+\code{agents/reproduce.py} & Figure$\to$design, 3 vision agents \\
+\code{agents/hierarchical.py} & Architect + module agents + budget \\
+\code{agents/papers.py} & arXiv search, figure scoring \\
+\code{agents/events.py}, \code{llm.py} & Console events, streamed Gemini calls \\
+\code{agents/cover.py} & Nano Banana cover renders \\
+\code{web/} & three.js viewer, console, tuning tour \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Provenance and hackathon scope}
+\label{sec:provenance}
+Everything in Table~\ref{tab:provenance} labelled ``built today'' was written on 25 October 2026 during the hackathon. The git history of the \code{beamline} repository starts at 11:23 PDT that day (commit \code{4817b5d}, ``Contract: design IR, trace/report schemas, API spec'') and comprised 42 commits at the time of writing. The code was written by an AI coding assistant (Claude Code) and multiple sub-agents running during the event under the team's direction; the team set goals, reviewed results, and made design decisions. This paper, its figures and its bibliography were likewise drafted by AI agents during the event under the team's direction.
+
+\begin{table}[t]
+\centering\small
+\caption{What was built during the hackathon versus what pre-existed.}
+\label{tab:provenance}
+\footnotesize
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{0.27\linewidth}X@{}}
+\toprule
+Category & Items \\
+\midrule
+Built today, from scratch (\code{beamline} repo, 42 commits from 11:23 PDT) &
+Design IR; tracer and verifier incl.\ nonlinear models; autofix; tuner; merge and hierarchical pipeline; all agent pipelines (design, reproduce, hierarchical, paper search, console events, token streaming); PyOpticL exporter; BOM/STL/build-document generation; cover-render integration; web app (three.js viewer, console, fly-in, tuning tour); examples and benchmark set; the evaluation in this paper. \\
+\addlinespace
+Built today, outside the app &
+Gemini latency benchmark tool (\code{gembench.py}); \code{gemini-4-argon} capability probe (\code{experiments/argon\_probe}). \\
+\addlinespace
+Pre-existing, used &
+PyOpticL~\cite{pyopticl} (design concept and export target; cloned for reference, not vendored); Gemini models (\code{gemini-4-argon}, Nano Banana 2/2.1, TTS) via API; open-source libraries (three.js, React, @react-three/fiber, drei, FastAPI, Pydantic, NumPy, google-genai, httpx, manifold3d, trimesh, Pillow, Typst, ffmpeg); published figures used as inputs (CC BY/CC0, and the arXiv-licensed Gieseler et al.\ figure~\cite{gieseler2021}, fetched live and not redistributed). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ---------------------------------------------------------------------------
+\section{Multi-agent pipelines}
+\label{sec:agents}
+All agents call \code{gemini-4-argon} through a shared wrapper (\code{agents/llm.py}) that always sets the thinking level explicitly, allows up to 32{,}768 output tokens, requests schema-constrained JSON validated into the Pydantic IR (with one corrective retry that feeds back the validation error), and streams both output and thought summaries. The guiding rule is that no model output is trusted: every design goes through \code{trace}+\code{verify}, and every arithmetic quantity that matters (scales, power budgets, region packing) is computed deterministically.
+
+\subsection{Goal $\to$ design}
+\code{agents/design.py}: a planner drafts an approach; $N=4$ designer agents generate candidates in parallel (a straggler grace of \SI{15}{\second} after the first lands, \SI{75}{\second} hard cap); each is traced and verified; the best enters a repair loop (\code{agents/common.py}) that first applies autofix and then gives the model the verify report plus a compact trace digest (branch list, powers, hits). Error rounds always run while time remains; warnings-only ``polish'' rounds start only with enough budget left. Every candidate and repair round is emitted as an \code{iteration} event with a deterministic diff against its parent.
+
+\subsection{Figure $\to$ design}
+\code{agents/reproduce.py} reproduces a setup from an image: three vision agents run in parallel with different emphases (exhaustive parts list, beam connectivity, labels and values), each returning parts with bounding boxes in normalized 0--1000 coordinates and beam links. A merge step takes a majority vote on the order-independent parts signature; once two passes agree the third gets only \SI{4}{\second} more. A deterministic scaling step maps pixels to millimetres using known mount sizes (1'' $\approx$ \SI{38}{\milli\metre}) and stretches the layout so optic centres are $\ge\SI{40}{\milli\metre}$ apart, because our probe showed drawings read 1.5--3$\times$ too short. Two synthesizer agents convert the graph into a traceable IR in parallel; the best is repaired under a hard deadline (in the current code the final design is always emitted within \SI{115}{\second} of the request, with at most one repair round after \SI{75}{\second}; some runs reported below predate this setting). A deterministic matcher pairs figure components with design elements for the UI. Figures can be dropped in or found by \code{agents/papers.py}, which queries the arXiv API, scrapes figures and captions from arXiv HTML, ranks them by an ``optical setup'' caption score and reports the license; downloads are restricted to an allowlist of hosts.
+
+\subsection{Hierarchical design}
+\code{agents/hierarchical.py} handles apparatus with 50--200 optics. An architect agent (high and medium thinking raced; medium wins after an \SI{8}{\second} grace) splits the goal into fiber-in/fiber-out modules with sizes, purposes and links, and lists each physical laser once. Regions are shelf-packed deterministically. A deterministic budget then derives each module's input power: root modules receive the power of lasers they host, outgoing feeds are capped at 90\% of a module's input, fiber feeds are multiplied by 0.7. Module agents design all modules in parallel in local frames (two candidates each, then repair); designs are rescaled to their budget and merged with namespaced ids (\code{optics/merge.py}), then the whole is traced and verified, with \code{power\_budget} checks added to the report.
+
+\subsection{Observability}
+Each pipeline emits a fine-grained event stream (\code{CONTRACT.md}): agent state changes, per-call token counts and latencies, streamed thought summaries, raw token batches every $\sim$\SI{120}{\milli\second}, deterministic tool runs and intermediate designs with diffs. The console shows parallel agents as colored token lanes. Beyond the demo value, this stream was the primary debugging instrument: every failure analysed in Section~\ref{sec:benchmark} was diagnosed from recorded streams.
+
+% ---------------------------------------------------------------------------
+\begin{table*}[t]
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\caption{Eight-figure stress test (25 Oct 2026, \code{demo/figures/RESULTS.md}). Entries: time / score / pass / number of elements. ``--'' = not attempted.}
+\label{tab:benchmark}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.3cm}p{1.1cm}p{2.7cm}p{2.7cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Figure (license) & Diff. & Reproduce & Design & Notable failure \\
+\midrule
+Raman backscatter (CC BY 4.0) & easy & 46\,s / 96 / pass / 12 & -- & Sample modelled as a mirror; filter passes laser line to CCD (physically wrong pass) \\
+Pump--probe delay (CC0) & easy & 55\,s / 100 / pass / 8 & -- & First synth left a 50\,mW stray; repair 1 broke a mirror; fixed in round 2 \\
+PDH thin-disk lock (CC BY 4.0) & medium & 41\,s / 95 / pass / 9 & 52\,s / 99.6 / pass / 14 & No cavity element; resonator not modelled \\
+Sr$^+$ ion-trap lasers (CC BY 4.0) & medium & 104\,s / 0 / fail / 27 & 68\,s / 74.7 / pass / 21 & 9 unterminated AOM/sampler ports; budget exhausted before repair \\
+MOT + LCVR laser system (CC BY 4.0) & medium & 90\,s / 0 / fail / 22 & aborted (infra) & Dump on diffracted order, then optics placed on it; 14 cascaded branch errors \\
+Dual-trap tweezers, arXiv:2411.16256 (CC BY 4.0) & hard & 80\,s / 96 / pass / 22 & 84\,s / 99.5 / pass / 58 & QPDs on forward beam; focal lengths and 3\,W from notes ignored; design used 4 separate sources \\
+HOM tomography (CC BY 4.0, 3D) & hard & 119\,s / 18 / fail / 41 & -- & Vision 75.6\,s; LLM merge failed; 16\% clipping; no time to repair \\
+Yb$^+$ clock laser (CC BY 4.0, dense) & hard & error $\times$2 at 60\,s & -- & 60\,s vision deadline cancelled all passes \\
+MALDI ion source (goal only) & medium & -- & 50\,s / 99.2 / pass / 32 & Target is a fiber coupler, not a focused spot \\
+\bottomrule
+\end{tabularx}
+\end{table*}
+
+\section{Results}
+\label{sec:results}
+All numbers below were measured on 25 October 2026 on a laptop (macOS, Apple silicon) against the live Gemini API; raw event streams are in the repository.
+
+\subsection{Grounding study}
+Before building the agents we probed \code{gemini-4-argon} on 14 requests (\code{experiments/argon\_probe/FINDINGS.md}; Fig.~\ref{fig:grounding}). Asked zero-shot to write PyOpticL code for an AOM double pass or SAS setup, the model used a stale or invented API: 1/18, 1/52 and 1/42 API references were valid (95--98\% hallucination). With a $\sim$17k-token context of real designs plus a signature digest, all references were valid (135/0, 140/0, 130/0; 0\%). With the PyOpticL paper's Fig.~2a plus grounding, the model recovered 15/15 components in order, 14/15 beam indices and 14/15 rotations, but distances were 1.5--3$\times$ too short. In schema-constrained figure$\to$JSON extraction it recovered 15/15 components with the complete beam graph and read 9/9 printed part numbers verbatim from a second figure without inventions. High-thinking calls took 73--98\,s for extraction; non-streaming high-thinking calls hung beyond \SI{600}{\second} four times while streaming calls succeeded. These findings fixed the architecture: emit an IR instead of library code, constrain output by schema, ask for normalized boxes, correct distances deterministically, and stream.
+
+\begin{figure}[t]
+\centering
+\beamfig{grounding}
+\caption{Grounding study: fraction of valid PyOpticL API references in generated code, zero-shot versus grounded with real designs and a signature digest (data: \code{experiments/argon\_probe/FINDINGS.md}).}
+\label{fig:grounding}
+\end{figure}
+
+\subsection{Reproduction reliability and timing}
+Table~\ref{tab:timings} lists measured end-to-end times. The demo SAS figure (PyOpticL Fig.~2a) passed 3/3 concurrent reproduction runs in 40.7, 55.0 and \SI{41.5}{\second} (scores 95--96), with vision extraction taking 18--21\,s and synthesis 19--22\,s; two runs needed no repair. For the optical-tweezers figure of Gieseler et al.~\cite{gieseler2021} fetched by URL, a run (arXiv:2004.05246) passed at 95.4 in \SI{73}{\second} with 14/14 components matched (\code{demo/DEMO.md}), and after introducing the hard deadline, three tweezers reproduction runs passed in 55--\SI{74}{\second} (reported in the message of commit \code{a008d56}; we did not find their raw streams in the repository). Not every run is fast: a recorded console run took \SI{89.2}{\second} (score 96), and an earlier check run took \SI{118.4}{\second} and passed with a score of only 80 (\code{demo/live\_tweezers\_check.sse}). Figure~\ref{fig:timeline} shows the per-agent timeline of a tweezers run and Fig.~\ref{fig:scores} the score trajectory across candidates and repair rounds.
+
+\begin{table}[t]
+\centering\small
+\caption{Measured end-to-end times (sources in parentheses: D = \code{demo/DEMO.md}; R = \code{demo/reliability/*.sse}; C = recorded \code{demo/*.sse}; G = git log; B = \code{optics/build\_doc.py} docstring; S = \code{paper/scripts/scaling\_data.json}).}
+\label{tab:timings}
+\begin{tabularx}{\linewidth}{@{}Xr@{}}
+\toprule
+Task & Time \\
+\midrule
+Goal $\to$ verified design, best of 4, scores 97--98 (D) & 45--85\,s \\
+Figure $\to$ design, SAS, 3/3 concurrent pass (R) & 40.7--55.0\,s \\
+Figure $\to$ design, range over demo runs (D) & 41--92\,s \\
+Tweezers by URL, 3/3 pass after deadline fix (G) & 55--74\,s \\
+Tweezers by URL, 14/14 matched, score 95.4 (D) & 73\,s \\
+Tweezers by URL, console recording, score 96 (C) & 89.2\,s \\
+Tweezers check run, score 80 (C) & 118.4\,s \\
+Hierarchical, 6 modules, 96 optics, score 98.5 (D) & $\sim$100\,s \\
+Trace+verify, 121-element apparatus (D, S) & 6.1--9.6\,ms \\
+Alignment tuning, AOM double pass, 75 steps (D) & 35\,ms \\
+Build-document compile, Typst (B) & $\sim$0.3\,s \\
+Cover art, faithful / cinematic (D) & $\sim$10 / 15--30\,s \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\beamfig{timeline_tweezers}
+\caption{Per-agent timeline of two live figure$\to$design runs on the optical-tweezers figure of Gieseler et al.~\cite{gieseler2021} (arXiv:2004.05246, Fig.~5), reproduce stage only (no tune, cover or PDF tail). (a) Three parallel vision passes (23.3--28.1\,s) agree 3/3 on 16 parts; the two parallel synthesizers score 0 and 86; one repair round reaches 96; total 89.2\,s with 14/14 components matched. (b) Autofix lifts synthesizer 2 from 35 to 80; both repair rounds regress to 45 and are rejected, so the 80-point passing design is kept at 118.4\,s. Bars are reconstructed from each agent's own elapsed time and the per-stage timings (the streams carry no wall-clock timestamps); light segments show time to first token; ticks mark deterministic trace/verify/autofix calls (each $<$\SI{4}{\milli\second}).}
+\label{fig:timeline}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\beamfig{scores_iterations}
+\caption{Verifier score for every design scored in seven live runs (best so far, i.e.\ the design the pipeline keeps). Marker shape gives the origin (LLM synthesizer/designer, deterministic autofix, LLM repair); hollow markers failed verification. Autofix alone produces jumps such as 35$\to$80 and 65$\to$95; repair adds 5--10 points (86$\to$96, 90$\to$95); regressing repairs are discarded.}
+\label{fig:scores}
+\end{figure}
+
+\subsection{Eight-figure benchmark}
+\label{sec:benchmark}
+To stress the pipelines beyond the demo we selected eight open-access setup figures of increasing difficulty plus one goal-only task (\code{demo/figures/RESULTS.md}, licenses in \code{catalog.json}); results are in Table~\ref{tab:benchmark} and Fig.~\ref{fig:benchmark}. Ten early runs were cut off by a development server that restarted on file saves; they are excluded as infrastructure aborts, not counted as failures. Four of eight reproductions passed verification; three of eight were physically faithful. The fourth pass (Raman backscatter) routes the \SI{532}{\nano\metre} laser line straight to the detector, because the long-pass filter was modelled as a dichroic that transmits it---a physics shortcut our verifier does not catch. The faithful reproductions include the hardest passing case, a 22-element dual-trap optical tweezer (arXiv:2411.16256; distinct from the Gieseler et al.\ tutorial used in the paper-search runs) with the correct split/recombine topology. All 4/4 completed goal-design runs passed.
+
+
+\begin{figure}[t]
+\centering
+\beamfig{benchmark}
+\caption{Stress test on eight open-access setup figures: wall time (bars) and verifier score (labels); green PASS, red FAIL. Reproduce: 4/8 pass verification (3/8 physically faithful). Goal design: 4/4 completed runs pass; one MOT design run aborted by a dev-server reload is excluded (data: \code{demo/figures/runs/summary.json}, \code{RESULTS.md}).}
+\label{fig:benchmark}
+\end{figure}
+
+\paragraph{Failure analysis.} The failures cluster into six patterns, several of which led to same-day fixes: (i) \emph{unterminated ports} on multi-laser figures (9 stray-beam errors on Sr$^+$) with the time budget spent before repair---addressed by the deterministic autofix and complexity-scaled budgets (commit \code{2707604}); (ii) \emph{branch-topology errors} around AOMs and dumps, where one invented branch cascades into $\sim$15 errors---addressed by prompt rules on AOM orders and terminators; (iii) \emph{physics shortcuts} because the IR lacks a sample/scatterer primitive---Raman, tweezer QPDs and MALDI all pass with physically wrong detection, which the verifier does not catch; (iv) \emph{disconnected modules} in hierarchical designs, e.g.\ \SI{5740}{\milli\watt} of module input for a \SI{3}{\watt} laser---a power-budget double counting fixed by the deterministic budget (commit \code{a007e29}), after which a 3\,W laser feeding 6 modules balanced exactly; (v) \emph{numeric constraints in the notes ignored} (focal lengths, power); and (vi) \emph{dense or 3D figures} timing out in vision---the first-pass cap was subsequently raised to \SI{150}{\second}, but the benchmark has not been re-run since.
+
+\subsection{Scaling}
+Tracing is fast enough to be invisible to agents and users (Fig.~\ref{fig:scaling}). Across the 13 example designs the median trace+verify time over 5 repetitions is 0.13--\SI{0.84}{\milli\second} for designs of 5--28 elements; the 121-element, 7-subsystem Sr$^+$ apparatus (Fig.~\ref{fig:planview}) takes 6--\SI{10}{\milli\second} (\SI{6.1}{\milli\second} on an idle machine, \SI{9.6}{\milli\second} median under concurrent load). Tiling the fixed AOM double pass up to 33 copies (363 elements, 528 segments) takes $\approx$\SI{105}{\milli\second} median under the same load, with an empirical log--log slope of about 1.6 and an identical score (97.9) for every tiling (\code{paper/scripts/scaling\_data.json}). Absolute times carry roughly $\pm2\times$ load noise.
+
+\begin{figure}[t]
+\centering
+\beamfig{scaling}
+\caption{Trace+verify time versus number of elements: example designs and tiled copies of the AOM double pass (median of 5; \code{paper/scripts/scaling\_data.json}).}
+\label{fig:scaling}
+\end{figure}
+
+\begin{figure*}[t]
+\centering
+\beamfig[0.9\textwidth]{planview_apparatus}
+\caption{Plan view of the hierarchical Sr$^+$ ion-trap laser apparatus drawn directly from the deterministic trace: 121 elements, 11 sources, 134 beam segments, 6 wavelengths (405--1092\,nm) on a $1200\times900$\,mm table split into 7 module regions (dashed). Color encodes wavelength, line width $\sqrt{\text{power}}$. The design passes verification (score 99.2), delivering 236.9 of 280.0\,mW input.}
+\label{fig:planview}
+\end{figure*}
+
+\subsection{Alignment tuning}
+We detuned three designs with \code{detune(seed=1)} and ran the tuner (Fig.~\ref{fig:tuning}; \code{paper/scripts/tuning\_data.json}). For the fixed AOM double pass, delivered fiber power fell from 11.80 to \SI{3.73}{\milli\watt} and was recovered to \SI{12.06}{\milli\watt} (102\% of the reference) in 75 steps (\SI{35}{\milli\second} in the demo measurement). For a fiber-coupling telescope, \SI{1.09}{\milli\watt} was recovered to \SI{9.82}{\milli\watt} (reference 9.64) in 63 steps. For the SAS setup the detuning barely changed delivered power (18.07 vs.\ \SI{18.32}{\milli\watt}); the tuner still raised the objective from 2.77 to 3.18 in 67 steps while delivered power ended at \SI{18.00}{\milli\watt}, because the objective also weighs score and targets. Recovery above 100\% means the hand-written reference was itself slightly misaligned.
+
+\begin{figure}[t]
+\centering
+\beamfig{tuning}
+\caption{Deterministic re-alignment after seeded misalignment (seed 1). (a) Best-so-far objective versus trial; (b) delivered power relative to the as-designed value: fiber telescope 11\%$\to$102\%, AOM double pass 32\%$\to$102\%, SAS essentially unchanged (\code{paper/scripts/tuning\_data.json}).}
+\label{fig:tuning}
+\end{figure}
+
+\subsection{Optical logic}
+As a probe of the nonlinear models we built optical logic examples (\code{demo/OPTICAL\_LOGIC.md}; Fig.~\ref{fig:logic}). Linear ``directed logic'' gates encode bits as half-wave-plate angles (0° or 45°) steering a single rail through PBSs; NAND, half adder and full adder pass their truth tables. The all-optical SFG half adder takes two laser inputs: CARRY is the sum-frequency beam and SUM the residual fundamental. With inputs A = \SI{1064}{\nano\metre} at \SI{218.5}{\milli\watt} and B = \SI{1550}{\nano\metre} at \SI{150}{\milli\watt}, CARRY is \SI{631}{\nano\metre} light. Its truth table (threshold \SI{40}{\milli\watt}) gives SUM $=150$ and \SI{218.5}{\milli\watt} for single inputs and, for $A=B=1$, CARRY $=\SI{347.4}{\milli\watt}$ with SUM depleted to \SI{21.1}{\milli\watt}. An SFG AND gate with \SI{50}{\milli\watt} per input gives \SI{35.3}{\milli\watt} only for $A=B=1$ (threshold \SI{0.5}{\milli\watt}) (\code{paper/scripts/logic\_truth.json}). These rely on idealized models: the SOA NAND has $\sim$5\,dB contrast and is not cascadable in our model, and the half adder assumes a single PPLN crystal with optimistic efficiency.
+
+\begin{figure}[t]
+\centering
+\beamfig{logic_truth}
+\caption{(a) All-optical half adder on one PPLN crystal (A = 1064\,nm, 218.5\,mW; B = 1550\,nm, 150\,mW): SUM (residual IR) and CARRY (631\,nm SFG) for inputs 00/01/10/11; all rows correct at a 40\,mW threshold. (b) SFG AND gate, 50\,mW per input: 35.3\,mW only for 11 (threshold 0.5\,mW) (\code{paper/scripts/logic\_truth.json}).}
+\label{fig:logic}
+\end{figure}
+
+\subsection{Build kit}
+For the fixed AOM double pass the build kit lists 18 purchased parts and 58 hardware items at an estimated \$4.1k, and two watertight baseplate tiles requiring an estimated 38\,h and 566\,g of PLA to print (\code{demo/DEMO.md}). Build documents generated for four designs are in \code{demo/build\_docs/}. Figure~\ref{fig:gallery} shows representative outputs.
+
+\begin{figure*}[t]
+\centering
+\beamfig[0.9\textwidth]{gallery}
+\caption{Artifacts produced by Beamline. (a) An open-access setup figure (dual-trap tweezers, arXiv:2411.16256, CC BY 4.0). (b) Fly-in: the figure floats above the bench as its parts are placed. (c) The 121-element Sr$^+$ apparatus, a plan view drawn from the trace (not an app screenshot). (d) The agent console streaming tokens from parallel agents. (e) Cover renders, faithful and cinematic (Nano Banana models). (f) Printable keyed baseplate tiles from the build kit.}
+\label{fig:gallery}
+\end{figure*}
+
+% ---------------------------------------------------------------------------
+\section{Discussion: the potential of multi-agent systems for optical design}
+\label{sec:discussion}
+
+\paragraph{Decomposition matches how laboratories modularize.} Real apparatus is built as fiber-linked subsystems---a laser head, a double pass, a spectroscopy lock, a delivery board---which is exactly the decomposition that PyOpticL baseplates encourage~\cite{pyopticl} and that our architect produces. Splitting a 100-element problem into modules of 10--20 elements keeps each agent's context and output within the regime where the model is reliable, and lets modules be designed in parallel. The merge step showed that decomposition is only as good as its interface contract: without deterministic power accounting, module agents happily invented their own lasers.
+
+\paragraph{Parallel exploration against an objective verifier.} Because tracing and verifying costs milliseconds, it is cheap to generate several candidates and keep the best, and to run several vision or synthesizer agents concurrently. The verifier turns ``is this a good layout?''---a question LLMs answer unreliably---into a score and a list of named defects that are easy for the next agent to act on. This is the key difference from LLM-critic loops~\cite{reflexion2023,selfrefine2023}: the critic cannot be talked into agreement.
+
+\paragraph{Consensus for perception.} Reading an optics schematic is a perception task with characteristic errors (missed small mirrors, misread splits). Running three differently-prompted vision agents and voting on the parts signature cost little extra latency (the passes run concurrently) and, in the recorded SAS runs, two of three agreed on a 14-part list while the third over-counted mirrors. Deterministic post-processing (normalized boxes, mm scaling from known mount sizes) corrects the systematic distance compression found in the probe.
+
+\paragraph{Deterministic tools as ground truth.} Our most effective fixes were not prompt changes but deterministic tools that took work away from the model: stray-beam autofix, power budgets, region packing, mm scaling and component matching. The model is left with what it is good at---recognizing structure and proposing topology---and the arithmetic and geometry are owned by code. The grounding study points the same way: emitting a small, schema-constrained IR is far more robust than emitting library code.
+
+\paragraph{Human in the loop.} The live console, the iteration timeline with diffs, and the editable 3D bench make every agent decision inspectable and reversible. We see the system as a drafting assistant that brings an expert to a verified first layout in about a minute, not as a replacement for the expert's judgement.
+
+\paragraph{Failure modes.} The benchmark shows where the approach is still weak: topology and branch-naming errors that cascade; layout drift when notes specify numbers the model replaces with ``convenient'' ones; and physics shortcuts that the verifier does not detect, notably missing sample or scatterer elements so that detectors observe the wrong beam. A verifier rewards only what it checks; a high score on a wrong design is the most dangerous failure, and expanding the verifier (e.g.\ ``a detector must not receive the excitation wavelength'') is as important as improving the agents.
+
+\paragraph{Toward closed loop.} Uddin et al.~\cite{optomate2025} demonstrate robotic assembly and alignment of AI-designed free-space optics. Beamline's keyed baseplates and alignment tuner suggest a path to a closed loop in which the tuner's knobs are driven by real power-meter or camera feedback, and discrepancies between measured and simulated power update the model of the bench.
+
+\paragraph{Benchmarks are needed.} Our eight-figure set is small and hand-curated. Progress requires standardized datasets of setup diagrams paired with ground-truth component graphs and layouts, with clear licenses (many figures are not openly licensed), and metrics that score physical correctness rather than verifier pass rates alone.
+
+% ---------------------------------------------------------------------------
+\section{Limitations}
+\label{sec:limitations}
+The physics model is two-dimensional (all optics in one plane, no periscopes or vertical steering); Gaussian beams are round and lenses thin; there is no interference, coherence or cavity modelling, so interferometers and resonators are represented only geometrically; nonlinear models are steady-state, CW and textbook (perfect phase matching, no overlap integrals or acceptance bandwidths); prices are list-price estimates; and print times are estimates. The evaluation was performed on a single day with a single model family, small sample sizes (3 reliability runs per figure, 8 benchmark figures), timing measured on one laptop against a live API, and benchmark runs that predate later pipeline changes. The verifier's pass criterion does not establish physical correctness, as the Raman and tweezers cases show.
+
+% ---------------------------------------------------------------------------
+\section{Conclusion}
+Beamline shows that a team of LLM agents, held to account by a fast deterministic tracer and verifier, can turn a goal or a published figure into a verified, tuned and fabricable tabletop optical layout in about a minute, and can scale to a 121-element apparatus through hierarchical decomposition. The same experiments show where the frontier lies: perception of dense figures, faithful use of numeric constraints, and physics that the verifier does not yet check. We believe multi-agent systems are a natural fit for optical system design precisely because optics offers what language alone lacks---an objective, cheap, deterministic judge.
+
+% ---------------------------------------------------------------------------
+\section*{Data and code availability}
+All code is in the \code{beamline} repository: physics in \code{backend/optics/}, agents in \code{backend/agents/}, examples in \code{backend/examples/}, web app in \code{web/}, and the API and event contract in \code{CONTRACT.md}. Measured numbers come from \code{demo/DEMO.md}, \code{demo/figures/RESULTS.md} (raw streams in \code{demo/figures/runs/}), \code{demo/reliability/*.sse}, \code{demo/*.sse}, \code{experiments/argon\_probe/FINDINGS.md} (in the parent hackathon directory), and \code{paper/scripts/*.json}; figure scripts are in \code{paper/scripts/}. Source figures and licenses are listed in \code{demo/figures/catalog.json}; raw arXiv downloads are not redistributed.
+
+\section*{Acknowledgments}
+Agents use Google Gemini \code{gemini-4-argon}~\cite{gemini2023}; cover renders use Nano Banana 2 and 2.1. The software, this paper, its figures and its bibliography were produced with AI coding assistance (Claude Code and sub-agents) under the team's direction during the hackathon. We thank the PyOpticL authors~\cite{pyopticl} for the open-source library and concept that inspired this work, and the authors of the openly licensed figures used in our benchmark.
+
+\bibliographystyle{unsrtnat}
+\bibliography{references,extras}
+
+\end{document}

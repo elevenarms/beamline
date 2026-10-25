@@ -7,3 +7,8 @@ demo/figures/raw/
 *.part
 .DS_Store
 demo/video/raw/
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.bbl
+paper/*.blg
