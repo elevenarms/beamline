@@ -37,6 +37,12 @@ ElementType = Literal[
     "beam_dump",          # terminates beam
     "vapor_cell",         # pass-through with transmission (e.g. Rb cell)
     "isolator",           # passes forward (along angle_deg) with transmission, blocks reverse
+    # Nonlinear elements (power-dependent; the tracer iterates to a self-consistent solution):
+    "soa",                # semiconductor optical amplifier: gain G = G0 / (1 + P_total/P_sat), shared by all
+                          # beams through it -> cross-gain modulation (a strong control beam darkens a probe)
+    "sfg_crystal",        # chi(2) sum-frequency / second-harmonic crystal: two beams overlapping in it generate a
+                          # new beam at 1/lambda_out = 1/lambda_1 + 1/lambda_2 with P = eta * P1 * P2 (optical AND)
+    "saturable_absorber", # transmission rises with intensity: T = T0 + (1 - T0) * P / (P + P_sat) (thresholder)
 ]
 
 TERMINATING: set[str] = {"fiber_coupler", "photodiode", "beam_dump"}
@@ -65,6 +71,7 @@ class Source(BaseModel):
     waist_mm: float = 0.5            # 1/e^2 intensity radius at the waist
     waist_offset_mm: float = 0.0     # waist location along the beam from the source (+ = downstream)
     polarization: PolarizationSpec = "H"
+    enabled: bool = True             # input switch: a disabled source emits nothing (logic inputs, shutters)
 
 
 class Element(BaseModel):
@@ -96,7 +103,10 @@ class Element(BaseModel):
     aom_order: Literal[1, -1] | None = None  # default +1
     acoustic_velocity_m_s: float | None = None  # default 4200 (TeO2 longitudinal)
     fiber_mfd_um: float | None = None        # mode-field diameter (default 5.0)
-    transmission: float | None = None        # vapor_cell / isolator (default 1.0 / 0.9)
+    transmission: float | None = None        # vapor_cell / isolator (default 1.0 / 0.9); saturable_absorber T0
+    saturation_power_mw: float | None = None # soa / saturable_absorber P_sat (defaults 5 / 10)
+    small_signal_gain_db: float | None = None  # soa G0 (default 15 dB)
+    nl_efficiency_per_w: float | None = None   # sfg_crystal eta in 1/W (default 2.0; P_out = eta*P1*P2)
 
     @model_validator(mode="after")
     def _placement(self) -> "Element":
