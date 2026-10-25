@@ -17,6 +17,8 @@ Conversions
   stops (fiberport, photodetector, iris) face the beam (axis + 180).
   Cubes use rotate_cube to choose which side the reflected port is on; the AOM is
   flipped 180 deg when the diffracted order leaves on the clockwise side.
+- Polarization: PBS cubes use ref_polarization=0 (the reflected s/"V" state), so linear
+  polarization and waveplate fast-axis angles are emitted as Beamline angle + 90 deg.
 Element orientations are taken from the Beamline tracer when available, otherwise
 from a light-weight built-in walk of the design.
 """
@@ -24,6 +26,7 @@ from __future__ import annotations
 
 import math
 import re
+import textwrap
 
 from optics.ir import Design, Element, TraceResult
 
@@ -107,12 +110,14 @@ def _geo_from_trace(design: Design, tr: TraceResult) -> _Geo:
     for pe in tr.elements:
         if pe.placed and pe.position is not None:
             g.pos[pe.id] = pe.position
-    first_in: dict[str, object] = {}
+    incoming: dict[str, list] = {}
     for s in tr.segments:
-        if s.end_element and s.end_reason == "element" and s.end_element not in first_in:
-            first_in[s.end_element] = s
+        if s.end_element:
+            incoming.setdefault(s.end_element, []).append(s)
     for el in design.elements:
-        s_in = first_in.get(el.id)
+        cands = incoming.get(el.id, [])
+        # prefer the segment on the element's own branch (its placement beam)
+        s_in = next((s for s in cands if s.branch == el.beam), cands[0] if cands else None)
         if s_in is None:
             continue
         g.d_in[el.id] = s_in.direction_deg
@@ -239,13 +244,13 @@ def _definition(el: Element, g: _Geo) -> tuple[str | None, float]:
                 f"mount_definition=thorlabs.Lens_Mount_L05G(){_pn(el)})"), d_in
     if t in ("half_wave_plate", "quarter_wave_plate"):
         ret = 0.5 if t == "half_wave_plate" else 0.25
-        fa = el.fast_axis_deg or 0.0
+        fa = _pol_angle(el.fast_axis_deg or 0.0)
         return (f"optics.Circular_Waveplate(retardance={ret}, fast_axis_angle={_fmt(fa)}, "
                 f"mount_definition=thorlabs.Rotation_Mount_RSP05(){_pn(el)})"), d_in
     if t in _CUBES:
         rotate_cube = side is not None and _cross(d_in, side) < 0
         if t == "pbs":
-            kind = "ref_polarization=90"  # PBS reflects V (s) light
+            kind = "ref_polarization=0"  # reflects the s ("V") state
         else:
             kind = f"ref_ratio={_fmt(el.split_ratio if el.split_ratio is not None else 0.5)}"
         return (f"optics.Beamsplitter_Cube_on_Surface_Adapter({kind}, "
@@ -264,14 +269,23 @@ def _definition(el: Element, g: _Geo) -> tuple[str | None, float]:
     return None, d_in
 
 
+# PyOpticL PBS cubes are created with ref_polarization=0 (the reflected, s / "V" state), so
+# linear angles are shifted by 90 deg: our V -> PyOpticL 0, our H -> PyOpticL 90.
+_POL_SHIFT = 90.0
+
+
+def _pol_angle(deg: float) -> float:
+    return _norm(deg + _POL_SHIFT)
+
+
 def _polarization(p) -> str:
     if isinstance(p, (int, float)):
-        return f"linear_polarization({_fmt(float(p))})"
+        return f"linear_polarization({_fmt(_pol_angle(float(p)))})"
     return {
-        "H": "linear_polarization(0)",
-        "V": "linear_polarization(90)",
-        "D": "linear_polarization(45)",
-        "A": "linear_polarization(-45)",
+        "H": f"linear_polarization({_fmt(_pol_angle(0))})",
+        "V": f"linear_polarization({_fmt(_pol_angle(90))})",
+        "D": f"linear_polarization({_fmt(_pol_angle(45))})",
+        "A": f"linear_polarization({_fmt(_pol_angle(-45))})",
         "R": 'circular_polarization("right")',
         "L": 'circular_polarization("left")',
     }.get(p, "linear_polarization(0)")
@@ -292,8 +306,10 @@ def to_pyopticl(design: Design, trace_result: TraceResult | None = None) -> str:
     w("# PyOpticL/Designs/modules/doublepass.py. Run inside FreeCAD with PyOpticL installed.")
     w("# Note: PyOpticL's AOM model (Isomet 1205C) uses its own RF/sound-velocity values, so")
     w("# diffraction angles may differ slightly from the Beamline trace.")
+    w("# Polarization: PyOpticL angles = Beamline angles + 90 deg (PBS ref_polarization=0 is V).")
     if design.description:
-        for line in design.description.splitlines():
+        w("#")
+        for line in textwrap.wrap(design.description, 92):
             w(f"#   {line}")
     w("")
     w("from PyOpticL.beam_path import BeamPath, circular_polarization, linear_polarization")
@@ -325,7 +341,7 @@ def to_pyopticl(design: Design, trace_result: TraceResult | None = None) -> str:
         w(f"    # source {s.id}: {lbl}" + (f" ({s.part_number})" if s.part_number else ""))
         if "fiber" in (lbl + (s.part_number or "")).lower() or "PAF" in (s.part_number or ""):
             w("    baseplate.add(")
-            w(f"        Component(label={(lbl + ' collimator')!r}, definition=thorlabs.Fiberport_PAF2A4A()),")
+            w(f"        Component(label={(s.id + ' input fiberport')!r}, definition=thorlabs.Fiberport_PAF2A4A()),")
             w(f"        position=({_fmt(s.position[0])}, {_fmt(s.position[1])}, 0),")
             w(f"        rotation={_fmt(_norm(s.direction_deg))},")
             w("    )")

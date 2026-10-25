@@ -72,7 +72,10 @@ def gemini_schema(model: type[BaseModel]) -> dict:
                 return walk(copy.deepcopy(defs[name]))
             out = {}
             for k, v in node.items():
-                if k in ("title", "default"):
+                if k == "properties" and isinstance(v, dict):
+                    out[k] = {pk: walk(pv) for pk, pv in v.items()}  # property names are data
+                    continue
+                if k in ("title", "default") and not isinstance(v, (dict, list)):
                     continue
                 if k == "prefixItems":
                     items = [walk(x) for x in v]

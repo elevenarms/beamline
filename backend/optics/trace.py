@@ -464,9 +464,11 @@ def _interact(el: _El, beam: _Beam, s: float, hit, seg_id: str | None, physics: 
         order = sp.aom_order if sp.aom_order is not None else 1
         v = sp.acoustic_velocity_m_s if sp.acoustic_velocity_m_s else 4200.0
         theta = beam.wl * 1e-9 * f_mhz * 1e6 / v
+        # The acoustic wave vector is fixed in the crystal, so a beam crossing the AOM in reverse
+        # is deflected the opposite way relative to its own direction (double-pass retraces).
         tag = ".+1" if order == 1 else ".-1"
         return [out(beam.branch + ".0", d, P * (1 - eff), beam.ex, beam.ey),
-                out(beam.branch + tag, _rot(d, order * theta), P * eff, beam.ex, beam.ey,
+                out(beam.branch + tag, _rot(d, order * theta * (1 if forward else -1)), P * eff, beam.ex, beam.ey,
                     fshift=beam.fshift + order * f_mhz)], False
 
     if typ == "iris":

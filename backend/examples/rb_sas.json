@@ -1,0 +1,154 @@
+{
+  "name": "rb_sas",
+  "description": "Rb D2 (780 nm) saturated-absorption spectroscopy module (after PyOpticL's scalable_rb_sas). A HWP + PBS picks off ~10% of the laser for spectroscopy and sends the rest to an output fiber. A wedged sampler splits the pickoff into a weak probe (reflection) and a strong pump (transmission). The probe is rotated to H and passes through PBS3, the 75 mm Rb vapor cell and PBS2 onto a photodiode; the V-polarized pump is injected counter-propagating by PBS2 and removed by PBS3 into a beam dump, giving Doppler-free lock signals.",
+  "baseplate": {
+    "width_mm": 508.0,
+    "height_mm": 152.4,
+    "thickness_mm": 25.4,
+    "optical_height_mm": 12.7,
+    "grid_mm": 25.4
+  },
+  "sources": [
+    {
+      "id": "L1",
+      "label": "ECDL output (collimated, after isolator)",
+      "part_number": "Toptica DL pro 780",
+      "position": [
+        75.0,
+        30.0
+      ],
+      "direction_deg": 0.0,
+      "wavelength_nm": 780.24,
+      "power_mw": 20.0,
+      "waist_mm": 1.0,
+      "polarization": "H"
+    }
+  ],
+  "elements": [
+    {
+      "id": "HWP1",
+      "type": "half_wave_plate",
+      "label": "Split-ratio \u03bb/2",
+      "part_number": "WPH05M-780",
+      "beam": "L1",
+      "distance_mm": 25.0,
+      "fast_axis_deg": 9.2
+    },
+    {
+      "id": "PBS1",
+      "type": "pbs",
+      "label": "Spectroscopy pickoff PBS",
+      "part_number": "PBS052",
+      "beam": "L1",
+      "distance_mm": 30.0,
+      "out_direction_deg": 90.0
+    },
+    {
+      "id": "FC1",
+      "type": "fiber_coupler",
+      "label": "Main output fiber coupler",
+      "part_number": "PAF2-11B",
+      "beam": "L1.t",
+      "distance_mm": 355.0,
+      "focal_length_mm": 11.0,
+      "fiber_mfd_um": 5.3
+    },
+    {
+      "id": "S1",
+      "type": "sampler",
+      "label": "Pump/probe sampler (wedged window)",
+      "part_number": "BSF05-B",
+      "beam": "L1.r",
+      "distance_mm": 40.0,
+      "split_ratio": 0.1,
+      "out_direction_deg": 0.0
+    },
+    {
+      "id": "HWP2",
+      "type": "half_wave_plate",
+      "label": "Probe \u03bb/2 (V\u2192H)",
+      "part_number": "WPH05M-780",
+      "beam": "L1.r.r",
+      "distance_mm": 25.0,
+      "fast_axis_deg": 45.0
+    },
+    {
+      "id": "PBS3",
+      "type": "pbs",
+      "label": "Pump rejection PBS",
+      "part_number": "PBS052",
+      "beam": "L1.r.r",
+      "distance_mm": 35.0,
+      "out_direction_deg": 90.0
+    },
+    {
+      "id": "CELL1",
+      "type": "vapor_cell",
+      "label": "Rb vapor cell, 75 mm",
+      "part_number": "GC25075-RB",
+      "beam": "L1.r.r.t",
+      "distance_mm": 120.0,
+      "transmission": 0.6,
+      "aperture_mm": 25.0
+    },
+    {
+      "id": "PBS2",
+      "type": "pbs",
+      "label": "Pump injection PBS",
+      "part_number": "PBS052",
+      "beam": "L1.r.r.t",
+      "distance_mm": 150.0,
+      "out_direction_deg": 90.0
+    },
+    {
+      "id": "PD1",
+      "type": "photodiode",
+      "label": "Probe photodiode",
+      "part_number": "PDA36A2",
+      "beam": "L1.r.r.t.t",
+      "distance_mm": 30.0
+    },
+    {
+      "id": "M2",
+      "type": "mirror",
+      "label": "Pump mirror 1",
+      "part_number": "BB05-E03",
+      "beam": "L1.r.t",
+      "distance_mm": 55.0,
+      "out_direction_deg": 0.0
+    },
+    {
+      "id": "M3",
+      "type": "mirror",
+      "label": "Pump mirror 2",
+      "part_number": "BB05-E03",
+      "beam": "L1.r.t",
+      "distance_mm": 330.0,
+      "out_direction_deg": -90.0
+    },
+    {
+      "id": "BD1",
+      "type": "beam_dump",
+      "label": "Pump dump",
+      "part_number": "LB1",
+      "at": [
+        190.0,
+        45.0
+      ],
+      "angle_deg": -90.0
+    }
+  ],
+  "targets": [
+    {
+      "element_id": "PD1",
+      "kind": "min_power_mw",
+      "value": 0.1
+    },
+    {
+      "element_id": "FC1",
+      "kind": "min_power_mw",
+      "value": 10.0
+    }
+  ],
+  "notes": "Pump:probe \u2248 9:1 from a 10% sampler. HWP1 at 9.2\u00b0 sends ~10% (2 mW) to spectroscopy. PBS2 is placed on the probe path; the pump (V, travelling \u2212y) reflects at PBS2 into \u2212x and counter-propagates through the cell; PBS3 reflects it down into BD1."
+}

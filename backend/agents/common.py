@@ -2,6 +2,7 @@
 prompts, event serialisation, and the verify→repair loop."""
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -140,12 +141,14 @@ async def repair_loop(
         msg = prompts.repair_prompt(goal, d, report_summary(rp), trace_summary(d, t), history)
         try:
             t0 = time.monotonic()
-            new = await llm.generate_model(Design, (extra_context or []) + [msg], system=prompts.system_prompt(),
-                                           thinking=thinking, tag=f"repair{r}")
+            budget = 45.0 if deadline is None else max(20.0, deadline - time.monotonic() + 15.0)
+            new = await asyncio.wait_for(
+                llm.generate_model(Design, (extra_context or []) + [msg], system=prompts.system_prompt(),
+                                   thinking=thinking, tag=f"repair{r}"), timeout=budget)
             log.info("repair round %d took %.1fs", r, time.monotonic() - t0)
         except Exception as e:  # noqa: BLE001
             log.warning("repair round %d failed: %s", r, e)
-            await emit({"type": "status", "stage": "repair", "message": f"repair round {r} failed: {str(e)[:200]}"})
+            await emit({"type": "status", "stage": "repair", "message": f"repair round {r} failed: {(str(e) or type(e).__name__)[:200]}"})
             continue
         nt, nr = evaluate(new)
         await emit({"type": "candidate", "index": index_base + r - 1, "stage": "repair", "round": r,
@@ -156,6 +159,8 @@ async def repair_loop(
                        + "; ".join(c.message for c in nr.checks if c.severity == "error")[:600])
         if rank_key(nr) >= rank_key(rp):
             best = (new, nt, nr)
+        else:
+            history[-1] += " -> REGRESSED, that attempt was discarded; repair the design shown instead, differently."
     return best
 
 

@@ -1,0 +1,108 @@
+{
+ "name": "AOM double-pass, fiber in / fiber out (780 nm)",
+ "description": "Cat-eye double-pass AOM: +160 MHz shift, PBS separates the return beam by polarization.",
+ "baseplate": {
+  "width_mm": 350,
+  "height_mm": 175
+ },
+ "sources": [
+  {
+   "id": "L1",
+   "label": "Fiber collimator (input)",
+   "part_number": "PAF2S-11B",
+   "position": [
+    20,
+    120
+   ],
+   "direction_deg": 0,
+   "wavelength_nm": 780,
+   "power_mw": 20,
+   "waist_mm": 0.45,
+   "polarization": "H"
+  }
+ ],
+ "elements": [
+  {
+   "id": "HWP1",
+   "type": "half_wave_plate",
+   "label": "\u03bb/2 (clean up H)",
+   "part_number": "WPH05M-780",
+   "beam": "L1",
+   "distance_mm": 30,
+   "fast_axis_deg": 0
+  },
+  {
+   "id": "PBS1",
+   "type": "pbs",
+   "label": "PBS",
+   "part_number": "PBS251",
+   "beam": "L1",
+   "distance_mm": 30
+  },
+  {
+   "id": "AOM1",
+   "type": "aom",
+   "label": "AOM 80 MHz",
+   "part_number": "Isomet 1205C-1",
+   "beam": "L1.t",
+   "distance_mm": 40,
+   "aom_frequency_mhz": 80,
+   "aom_efficiency": 0.8,
+   "aom_order": 1
+  },
+  {
+   "id": "LENS1",
+   "type": "lens",
+   "label": "cat-eye lens f=100",
+   "part_number": "LA1509-B",
+   "beam": "L1.t.+1",
+   "distance_mm": 100,
+   "focal_length_mm": 100
+  },
+  {
+   "id": "QWP1",
+   "type": "quarter_wave_plate",
+   "label": "\u03bb/4 @45\u00b0",
+   "part_number": "WPQ05M-780",
+   "beam": "L1.t.+1",
+   "distance_mm": 50,
+   "fast_axis_deg": 45
+  },
+  {
+   "id": "M1",
+   "type": "mirror",
+   "label": "retro mirror (focal plane)",
+   "part_number": "BB05-E03",
+   "beam": "L1.t.+1",
+   "distance_mm": 50,
+   "out_direction_deg": 180
+  },
+  {
+   "id": "M2",
+   "type": "mirror",
+   "label": "output steering",
+   "part_number": "BB05-E03",
+   "beam": "L1.t.+1.+1.r",
+   "distance_mm": 70,
+   "out_direction_deg": 0
+  },
+  {
+   "id": "FC1",
+   "type": "fiber_coupler",
+   "label": "output fiber (housing catches the weak un-shifted return orders)",
+   "part_number": "PAF2S-11B",
+   "beam": "L1.t.+1.+1.r",
+   "distance_mm": 60,
+   "focal_length_mm": 4.5,
+   "fiber_mfd_um": 5.0,
+   "aperture_mm": 12
+  }
+ ],
+ "targets": [
+  {
+   "element_id": "FC1",
+   "kind": "min_power_mw",
+   "value": 8
+  }
+ ]
+}

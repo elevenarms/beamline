@@ -36,7 +36,10 @@ class Plan(BaseModel):
 
 # Settings tuned for a ~90 s demo budget (see report in the final summary).
 PLAN_THINKING = "medium"
-CANDIDATE_THINKING = "medium"
+PLAN_TIMEOUT_S = 35.0
+CANDIDATE_THINKING = "low"
+STRAGGLER_GRACE_S = 15.0   # after the first candidate lands, wait at most this long for the rest
+CANDIDATE_HARD_S = 75.0    # absolute cap for the candidate stage
 REPAIR_THINKING = "low"
 TEMPERATURES = [1.0, 0.7, 1.0, 0.85, 1.0, 0.7]
 DEFAULT_HINTS = [
@@ -50,11 +53,12 @@ DEFAULT_HINTS = [
 async def make_plan(goal: str, emit: Emit) -> Plan | None:
     await emit({"type": "status", "stage": "plan", "message": "planning requirements and modules"})
     try:
-        plan = await llm.generate_model(Plan, [prompts.plan_prompt(goal)], system=prompts.system_prompt(),
-                                        thinking=PLAN_THINKING, tag="plan")
+        plan = await asyncio.wait_for(
+            llm.generate_model(Plan, [prompts.plan_prompt(goal)], system=prompts.system_prompt(),
+                               thinking=PLAN_THINKING, tag="plan"), timeout=PLAN_TIMEOUT_S)
     except Exception as e:  # noqa: BLE001
         log.warning("plan failed: %s", e)
-        await emit({"type": "status", "stage": "plan", "message": f"planning failed ({str(e)[:120]}); designing directly"})
+        await emit({"type": "status", "stage": "plan", "message": f"planning failed ({(str(e) or type(e).__name__)[:120]}); designing directly"})
         return None
     mods = ", ".join(m.name for m in plan.modules)
     await emit({"type": "status", "stage": "plan",
@@ -99,7 +103,25 @@ async def design_from_goal(goal: str, emit: Emit = noop_emit, candidates: int = 
         await emit({"type": "status", "stage": "verify",
                     "message": f"candidate {i}: {headline(rep)}"})
 
-    await asyncio.gather(*(run(i) for i in range(candidates)))
+    tasks = [asyncio.create_task(run(i)) for i in range(candidates)]
+    t_c0 = time.monotonic()
+    t_first: float | None = None
+    pending = set(tasks)
+    while pending:
+        if t_first is not None:
+            left = STRAGGLER_GRACE_S - (time.monotonic() - t_first)
+        else:
+            left = CANDIDATE_HARD_S - (time.monotonic() - t_c0)
+        if left <= 0:
+            break
+        done, pending = await asyncio.wait(pending, timeout=left, return_when=asyncio.FIRST_COMPLETED)
+        if results and t_first is None:
+            t_first = time.monotonic()
+    if pending:
+        await emit({"type": "status", "stage": "design",
+                    "message": f"moving on with {len(results)} candidates ({len(pending)} still thinking, cancelled)"})
+        for t in pending:
+            t.cancel()
     t_cand = time.monotonic()
     if not results:
         # last resort: one more attempt without temperature tricks

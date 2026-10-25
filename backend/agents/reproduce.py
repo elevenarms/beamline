@@ -52,6 +52,13 @@ EXTRACT_THINKING = "medium"
 MERGE_THINKING = "low"
 SYNTH_THINKING = "medium"
 REPAIR_THINKING = "low"
+EXTRACT_GRACE_S = 10.0   # after the first vision pass lands, wait at most this long for the others
+EXTRACT_HARD_S = 60.0
+
+
+def _signature(g: "Graph") -> tuple:
+    """Order-independent parts list, used for majority voting between vision passes."""
+    return tuple(sorted(c.type for c in g.components))
 
 
 def graph_dict(g: Graph) -> dict:
@@ -81,16 +88,45 @@ async def reproduce_from_image(image_bytes: bytes, mime: str, notes: str = "", e
     deadline = t0 + time_budget_s
     img = llm.image_part(image_bytes, mime)
     await emit({"type": "status", "stage": "extract", "message": "reading the figure (3 parallel passes)"})
-    res = await asyncio.gather(*(_extract(i, img, notes) for i in range(3)), return_exceptions=True)
-    graphs = [g for g in res if isinstance(g, Graph) and g.components]
-    for r in res:
-        if isinstance(r, Exception):
-            log.warning("extraction failed: %s", r)
+    tasks = [asyncio.create_task(_extract(i, img, notes)) for i in range(3)]
+    graphs: list[Graph] = []
+    errors: list[str] = []
+    t_first: float | None = None
+    pending = set(tasks)
+    while pending:
+        left = (EXTRACT_GRACE_S - (time.monotonic() - t_first)) if t_first is not None \
+            else (EXTRACT_HARD_S - (time.monotonic() - t0))
+        if left <= 0:
+            break
+        done, pending = await asyncio.wait(pending, timeout=left, return_when=asyncio.FIRST_COMPLETED)
+        for t in done:
+            try:
+                g = t.result()
+            except Exception as e:  # noqa: BLE001
+                log.warning("extraction failed: %s", e)
+                errors.append(str(e)[:150])
+                continue
+            if g.components:
+                graphs.append(g)
+                await emit({"type": "status", "stage": "extract",
+                            "message": f"vision pass {len(graphs)}: {len(g.components)} components, "
+                                       f"{len(g.beams)} beam links"})
+                if t_first is None:
+                    t_first = time.monotonic()
+    for t in pending:
+        t.cancel()
     if not graphs:
-        raise llm.LLMError("all vision extraction passes failed: " + "; ".join(str(r)[:150] for r in res))
-    await emit({"type": "status", "stage": "extract",
-                "message": f"{len(graphs)} passes saw {[len(g.components) for g in graphs]} components; merging"})
-    graph = await _merge(graphs, img, notes)
+        raise llm.LLMError("all vision extraction passes failed: " + "; ".join(errors))
+    sigs = [_signature(g) for g in graphs]
+    if len(graphs) >= 2 and max(sigs.count(x) for x in sigs) >= 2:
+        best_sig = max(sigs, key=sigs.count)
+        graph = next(g for g, sg in zip(graphs, sigs) if sg == best_sig)
+        await emit({"type": "status", "stage": "extract",
+                    "message": f"{sigs.count(best_sig)}/{len(graphs)} vision passes agree on the parts list"})
+    else:
+        await emit({"type": "status", "stage": "extract",
+                    "message": f"vision passes disagree ({[len(g.components) for g in graphs]} components); merging"})
+        graph = await _merge(graphs, img, notes)
     t_ext = time.monotonic()
     await emit({"type": "extraction", "graph": graph_dict(graph)})
 

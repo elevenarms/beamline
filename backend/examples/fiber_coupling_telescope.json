@@ -1,0 +1,97 @@
+{
+  "name": "fiber_coupling_telescope",
+  "description": "Mode-matching a collimated 780 nm laser (w = 0.86 mm) into single-mode PM fiber. A 2:1 Keplerian telescope (f = 100 mm, f = 50 mm achromats) shrinks the beam to the 0.43 mm waist matched by a PAF2-A4A (f = 4.6 mm) fiberport; two steering mirrors give the 4 degrees of freedom (walk the beam) needed to align into the fiber. Target: \u2265 80% coupling.",
+  "baseplate": {
+    "width_mm": 381.0,
+    "height_mm": 152.4,
+    "thickness_mm": 25.4,
+    "optical_height_mm": 12.7,
+    "grid_mm": 25.4
+  },
+  "sources": [
+    {
+      "id": "L1",
+      "label": "Collimated laser",
+      "part_number": "Thorlabs LP785-SF20 + C230TMD-B",
+      "position": [
+        75.0,
+        30.0
+      ],
+      "direction_deg": 0.0,
+      "wavelength_nm": 780.0,
+      "power_mw": 10.0,
+      "waist_mm": 0.86,
+      "polarization": "H"
+    }
+  ],
+  "elements": [
+    {
+      "id": "LENS1",
+      "type": "lens",
+      "label": "Telescope lens f=100 mm",
+      "part_number": "AC127-100-B",
+      "beam": "L1",
+      "distance_mm": 25.0,
+      "focal_length_mm": 100.0
+    },
+    {
+      "id": "LENS2",
+      "type": "lens",
+      "label": "Telescope lens f=50 mm",
+      "part_number": "AC127-050-B",
+      "beam": "L1",
+      "distance_mm": 150.0,
+      "focal_length_mm": 50.0
+    },
+    {
+      "id": "M1",
+      "type": "mirror",
+      "label": "Steering mirror 1",
+      "part_number": "BB05-E03",
+      "beam": "L1",
+      "distance_mm": 70.0,
+      "out_direction_deg": 90.0
+    },
+    {
+      "id": "M2",
+      "type": "mirror",
+      "label": "Steering mirror 2",
+      "part_number": "BB05-E03",
+      "beam": "L1",
+      "distance_mm": 90.0,
+      "out_direction_deg": 180.0
+    },
+    {
+      "id": "IR1",
+      "type": "iris",
+      "label": "Alignment iris",
+      "part_number": "ID12",
+      "beam": "L1",
+      "distance_mm": 100.0,
+      "aperture_mm": 4.0
+    },
+    {
+      "id": "FC1",
+      "type": "fiber_coupler",
+      "label": "Fiberport (PM780-HP)",
+      "part_number": "PAF2-A4A",
+      "beam": "L1",
+      "distance_mm": 100.0,
+      "focal_length_mm": 4.6,
+      "fiber_mfd_um": 5.3
+    }
+  ],
+  "targets": [
+    {
+      "element_id": "FC1",
+      "kind": "min_coupling",
+      "value": 0.8
+    },
+    {
+      "element_id": "FC1",
+      "kind": "min_power_mw",
+      "value": 8.0
+    }
+  ],
+  "notes": "Lens separation f1+f2 = 150 mm (afocal). Matched collimated waist for 5.3 \u00b5m MFD at f=4.6 mm: \u03bbf/(\u03c0\u00b72.65 \u00b5m) \u2248 0.43 mm."
+}

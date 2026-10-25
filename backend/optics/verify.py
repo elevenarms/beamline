@@ -14,7 +14,7 @@ Checks (Check.id):
 
 Footprints (along optical axis/normal x across, mm), centred on the element position:
   mirror 25x25, lens 15x25, waveplates 15x25, cubes (pbs/beamsplitter/sampler/dichroic) 20x20,
-  aom 40x25, iris 10x25, fiber_coupler 30x30, photodiode 30x20, beam_dump 20x20,
+  aom 40x25, iris 10x25, fiber_coupler 30x30, photodiode 30x20, beam_dump 10x10 (compact razor/knife-edge block),
   vapor_cell 75x25, isolator 50x25.
 For beam_through_mount the footprint is shrunk by 2 mm per side to tolerate near misses.
 
@@ -32,7 +32,7 @@ FOOTPRINT = {
     "mirror": (25, 25), "lens": (15, 25), "half_wave_plate": (15, 25), "quarter_wave_plate": (15, 25),
     "pbs": (20, 20), "beamsplitter": (20, 20), "sampler": (20, 20), "dichroic": (20, 20),
     "aom": (40, 25), "iris": (10, 25), "fiber_coupler": (30, 30), "photodiode": (30, 20),
-    "beam_dump": (20, 20), "vapor_cell": (75, 25), "isolator": (50, 25),
+    "beam_dump": (10, 10), "vapor_cell": (75, 25), "isolator": (50, 25),
 }
 
 
@@ -123,7 +123,17 @@ def verify(design: Design, trace: TraceResult) -> VerifyReport:
 
     # collisions + beams through mounts
     placed = [e for e in trace.elements if e.position is not None]
-    rects = {e.id: _rect(e.position, e.angle_deg, FOOTPRINT.get(e.type, (20, 20))) for e in placed}
+    elem_by_id = {e.id: e for e in design.elements}
+
+    def footprint(e) -> tuple[float, float]:
+        # A beam dump with an explicit aperture is a knife-edge/razor block sized by that aperture,
+        # e.g. for picking off one AOM order ~1 mm from its neighbour.
+        spec = elem_by_id.get(e.id)
+        if e.type == "beam_dump" and spec is not None and spec.aperture_mm:
+            return (4.0, spec.aperture_mm + 4.0)
+        return FOOTPRINT.get(e.type, (20, 20))
+
+    rects = {e.id: _rect(e.position, e.angle_deg, footprint(e)) for e in placed}
     for i, a in enumerate(placed):
         for b in placed[i + 1:]:
             if math.dist(a.position, b.position) > 60:
@@ -132,7 +142,7 @@ def verify(design: Design, trace: TraceResult) -> VerifyReport:
                 checks.append(Check(id="collision", severity="warning", element_id=a.id,
                                     message=f"{a.id} and {b.id} footprints overlap "
                                             f"({math.dist(a.position, b.position):.1f} mm apart)"))
-    small = {e.id: _rect(e.position, e.angle_deg, FOOTPRINT.get(e.type, (20, 20)), shrink=2.0) for e in placed}
+    small = {e.id: _rect(e.position, e.angle_deg, footprint(e), shrink=2.0) for e in placed}
     flagged = set()
     for s in trace.segments:
         if s.power_mw < 1e-3:
@@ -172,11 +182,11 @@ def verify(design: Design, trace: TraceResult) -> VerifyReport:
         power_in = sum(h.power_in_mw for h in e.hits)
         if t.kind == "min_power_mw":
             val = e.power_out_mw if e.power_out_mw is not None else power_in
-            ok = val >= float(t.value)
+            ok = val >= float(t.value) * (1 - 1e-6) - 1e-9  # tolerate float round-off
             msg = f"{e.id}: {val:.3f} mW (need ≥ {float(t.value):.3f})"
         elif t.kind == "min_coupling":
             val = e.coupling_efficiency or 0.0
-            ok = val >= float(t.value)
+            ok = val >= float(t.value) * (1 - 1e-6) - 1e-9  # tolerate float round-off
             msg = f"{e.id}: coupling {100 * val:.1f}% (need ≥ {100 * float(t.value):.1f}%)"
         else:
             val, label = 0.0, "no light"

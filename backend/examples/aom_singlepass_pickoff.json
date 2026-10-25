@@ -1,0 +1,141 @@
+{
+  "name": "aom_singlepass_pickoff",
+  "description": "780 nm single-pass AOM switch with power monitor (after PyOpticL's singlepass module). A 5% sampler picks off light to a photodiode for intensity stabilisation. Lens 1 (f=100 mm) focuses into a 200 MHz AOM (w0 \u2248 60 \u00b5m \u2192 ~10 ns rise time); lens 2 (f=250 mm), centred on the +1 order one focal length after the AOM, recollimates it (w \u2248 1.1 mm) for a PAF2-11B fiber port. The 0th order is 8.5 mm away after 230 mm and is caught by a beam dump before lens 2.",
+  "baseplate": {
+    "width_mm": 508.0,
+    "height_mm": 152.4,
+    "thickness_mm": 25.4,
+    "optical_height_mm": 12.7,
+    "grid_mm": 25.4
+  },
+  "sources": [
+    {
+      "id": "L1",
+      "label": "Fiber input (PM780-HP via PAF2-A4A collimator)",
+      "part_number": "PAF2-A4A",
+      "position": [
+        75.0,
+        30.0
+      ],
+      "direction_deg": 0.0,
+      "wavelength_nm": 780.24,
+      "power_mw": 30.0,
+      "waist_mm": 0.43,
+      "polarization": "V"
+    }
+  ],
+  "elements": [
+    {
+      "id": "S1",
+      "type": "sampler",
+      "label": "5% pickoff",
+      "part_number": "BSF05-B",
+      "beam": "L1",
+      "distance_mm": 20.0,
+      "split_ratio": 0.05,
+      "out_direction_deg": 90.0
+    },
+    {
+      "id": "PD1",
+      "type": "photodiode",
+      "label": "Intensity monitor",
+      "part_number": "PDA36A2",
+      "beam": "L1.r",
+      "distance_mm": 35.0
+    },
+    {
+      "id": "LENS1",
+      "type": "lens",
+      "label": "Focusing lens f=100 mm",
+      "part_number": "AC127-100-B",
+      "beam": "L1.t",
+      "distance_mm": 20.0,
+      "focal_length_mm": 100.0
+    },
+    {
+      "id": "AOM1",
+      "type": "aom",
+      "label": "200 MHz AOM",
+      "part_number": "MT200-A0.5-800",
+      "beam": "L1.t",
+      "distance_mm": 100.0,
+      "aom_frequency_mhz": 200.0,
+      "aom_efficiency": 0.8,
+      "aom_order": 1,
+      "aperture_mm": 0.5
+    },
+    {
+      "id": "BD1",
+      "type": "beam_dump",
+      "label": "0th-order dump",
+      "part_number": "LB1",
+      "beam": "L1.t.0",
+      "distance_mm": 230.0
+    },
+    {
+      "id": "LENS2",
+      "type": "lens",
+      "label": "Recollimating lens f=250 mm",
+      "part_number": "AC254-250-B",
+      "beam": "L1.t.+1",
+      "distance_mm": 250.0,
+      "focal_length_mm": 250.0,
+      "aperture_mm": 25.4
+    },
+    {
+      "id": "M1",
+      "type": "mirror",
+      "label": "+1 order pickoff mirror",
+      "part_number": "BB05-E03",
+      "beam": "L1.t.+1",
+      "distance_mm": 32.0,
+      "out_direction_deg": 90.0
+    },
+    {
+      "id": "M2",
+      "type": "mirror",
+      "label": "Fiber steering mirror",
+      "part_number": "BB05-E03",
+      "beam": "L1.t.+1",
+      "distance_mm": 79.528,
+      "out_direction_deg": 180.0
+    },
+    {
+      "id": "IR1",
+      "type": "iris",
+      "label": "Alignment iris",
+      "part_number": "ID12",
+      "beam": "L1.t.+1",
+      "distance_mm": 60.0,
+      "aperture_mm": 6.0
+    },
+    {
+      "id": "FC1",
+      "type": "fiber_coupler",
+      "label": "Output fiber coupler (PM780-HP)",
+      "part_number": "PAF2-11B",
+      "beam": "L1.t.+1",
+      "distance_mm": 150.0,
+      "focal_length_mm": 11.0,
+      "fiber_mfd_um": 5.3
+    }
+  ],
+  "targets": [
+    {
+      "element_id": "PD1",
+      "kind": "min_power_mw",
+      "value": 1.0
+    },
+    {
+      "element_id": "FC1",
+      "kind": "min_power_mw",
+      "value": 15.0
+    },
+    {
+      "element_id": "FC1",
+      "kind": "min_coupling",
+      "value": 0.8
+    }
+  ],
+  "notes": "Bragg angle at 200 MHz, 780 nm: 37.1 mrad; 0/+1 separation 8.5 mm at the dump. Focused waist in the AOM \u2248 \u03bbf/(\u03c0w) = 58 \u00b5m."
+}

@@ -1,0 +1,143 @@
+{
+  "name": "aom_doublepass",
+  "description": "Rb-87 780 nm AOM double-pass in cat-eye configuration (after PyOpticL's doublepass module). Fiber-coupled light is cleaned up by a HWP + PBS, diffracted by an 80 MHz Isomet AOM, retro-reflected through a f=75 mm lens / QWP / mirror cat-eye so the +1 order re-enters the AOM and is diffracted again (+160 MHz total, beam pointing independent of RF frequency). The double-passed QWP turns H into V so the PBS reflects the return beam into the output fiber. The forward 0th order is caught by a razor-blade dump before the retro mirror. Note: the un-diffracted part of the return pass (~3 mW, 0.85\u00b0 off axis) is NOT blocked here \u2014 the verifier flags it as an unterminated beam; see aom_doublepass_fixed.",
+  "baseplate": {
+    "width_mm": 381.0,
+    "height_mm": 152.4,
+    "thickness_mm": 25.4,
+    "optical_height_mm": 12.7,
+    "grid_mm": 25.4
+  },
+  "sources": [
+    {
+      "id": "L1",
+      "label": "Fiber input (PM780-HP via PAF2-A4A collimator)",
+      "part_number": "PAF2-A4A",
+      "position": [
+        75.0,
+        45.0
+      ],
+      "direction_deg": 0.0,
+      "wavelength_nm": 780.24,
+      "power_mw": 20.0,
+      "waist_mm": 0.43,
+      "polarization": 20.0
+    }
+  ],
+  "elements": [
+    {
+      "id": "HWP1",
+      "type": "half_wave_plate",
+      "label": "Input \u03bb/2 (rotate to H)",
+      "part_number": "WPH05M-780",
+      "beam": "L1",
+      "distance_mm": 25.0,
+      "fast_axis_deg": 10.0
+    },
+    {
+      "id": "PBS1",
+      "type": "pbs",
+      "label": "Polarizing beamsplitter cube",
+      "part_number": "PBS052",
+      "beam": "L1",
+      "distance_mm": 25.0,
+      "out_direction_deg": -90.0
+    },
+    {
+      "id": "BD1",
+      "type": "beam_dump",
+      "label": "Dump for rejected V light",
+      "part_number": "LB1",
+      "beam": "L1.r",
+      "distance_mm": 25.0
+    },
+    {
+      "id": "AOM1",
+      "type": "aom",
+      "label": "80 MHz AOM",
+      "part_number": "Isomet 1205C-2",
+      "beam": "L1.t",
+      "distance_mm": 50.0,
+      "aom_frequency_mhz": 80.0,
+      "aom_efficiency": 0.8,
+      "aom_order": 1,
+      "aperture_mm": 2.0
+    },
+    {
+      "id": "LENS1",
+      "type": "lens",
+      "label": "Cat-eye lens f=75 mm",
+      "part_number": "AC127-075-B",
+      "beam": "L1.t.+1",
+      "distance_mm": 75.0,
+      "focal_length_mm": 75.0
+    },
+    {
+      "id": "QWP1",
+      "type": "quarter_wave_plate",
+      "label": "\u03bb/4 at 45\u00b0 (double pass \u2192 \u03bb/2)",
+      "part_number": "WPQ05M-780",
+      "beam": "L1.t.+1",
+      "distance_mm": 50.0,
+      "fast_axis_deg": 45.0
+    },
+    {
+      "id": "BD2",
+      "type": "beam_dump",
+      "label": "0th-order razor block (cat-eye)",
+      "part_number": "LB1",
+      "at": [
+        275.006,
+        45.371
+      ],
+      "aperture_mm": 1.0,
+      "angle_deg": 0.8513
+    },
+    {
+      "id": "M1",
+      "type": "mirror",
+      "label": "Cat-eye retro mirror (focal plane)",
+      "part_number": "BB05-E03",
+      "beam": "L1.t.+1",
+      "distance_mm": 25.0,
+      "out_direction_deg": 180.8513
+    },
+    {
+      "id": "M2",
+      "type": "mirror",
+      "label": "Output fold mirror",
+      "part_number": "BB05-E03",
+      "beam": "L1.t.+1.+1.r",
+      "distance_mm": 75.0,
+      "out_direction_deg": 0.0
+    },
+    {
+      "id": "FC1",
+      "type": "fiber_coupler",
+      "label": "Output fiber coupler (PM780-HP)",
+      "part_number": "PAF2-A4A",
+      "beam": "L1.t.+1.+1.r",
+      "distance_mm": 215.0,
+      "focal_length_mm": 4.6,
+      "fiber_mfd_um": 5.3
+    }
+  ],
+  "targets": [
+    {
+      "element_id": "FC1",
+      "kind": "min_power_mw",
+      "value": 8.0
+    },
+    {
+      "element_id": "FC1",
+      "kind": "min_coupling",
+      "value": 0.8
+    },
+    {
+      "element_id": "FC1",
+      "kind": "polarization",
+      "value": "V"
+    }
+  ],
+  "notes": "Bragg angle at 80 MHz, 780 nm, TeO2 (4200 m/s): 14.9 mrad. Cat-eye: AOM\u2013lens = lens\u2013mirror = f, so the return beam retraces the +1 path for any RF frequency. Forward 0th order is offset by f\u00b7\u03b8 \u2248 1.1 mm at the retro mirror and is blocked there."
+}
