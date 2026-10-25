@@ -615,9 +615,9 @@ table.match tr.clickable:hover td { background: var(--panel-2); }
 @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
 .cover-meta { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
 .mast-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); cursor: pointer; }
-.masthead { position: absolute; left: 0; right: 0; top: 0; padding: 4% 6% 10%; text-align: center; color: #fff; background: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0)); pointer-events: none; }
-.mh-title { font: 700 clamp(36px, 7.2vw, 72px)/1 "Times New Roman", Georgia, serif; letter-spacing: 0.04em; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
-.mh-issue { margin-top: 6px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.8); font: 500 10.5px/1.2 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; }
+.masthead { position: absolute; left: 0; right: 0; top: 0; padding: 4% 0 10%; text-align: center; color: #fff; background: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0)); pointer-events: none; }
+.mh-title { font: 700 48px/1 "Times New Roman", Georgia, serif; letter-spacing: 0.04em; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
+.mh-issue { margin: 6px 6% 0; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.8); font: 500 10.5px/1.2 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; }
 
 .pm-coupling { font-size: 12px; color: var(--text-2); margin-top: 2px; }
 .pm-coupling b { color: var(--text); font-weight: 500; }
