@@ -22,7 +22,7 @@ import Console from "./panels/Console";
 import { useConsole } from "./consoleStore";
 import ExportModal from "./panels/ExportModal";
 import { mW } from "./lib/format";
-import RoboLabPanel from "./panels/RoboLabPanel";
+import RoboLabLeftColumn, { RoboLabBottomConsole, RoboLabRightColumn } from "./panels/RoboLabPanel";
 import { useLab } from "./labStore";
 
 function BrandMark() {
@@ -171,6 +171,7 @@ export default function App() {
   const loadDesign = useStore((s) => s.loadDesign);
   const leftTab = useStore((s) => s.leftTab);
   const setLeftTab = useStore((s) => s.setLeftTab);
+  const labEnabled = useLab((l) => l.enabled);
   const traceError = useStore((s) => s.traceError);
   const [examples, setExamples] = useState<ExampleInfo[]>([]);
   const compare = useStore((s) => s.compare);
@@ -212,20 +213,26 @@ export default function App() {
   return (
     <div className={`app${director ? " director" : ""}`}>
       <TopBar examples={examples} onPick={pick} />
-      <aside className="side left">
-        <div className="tabs" role="tablist">
-          <button className={`tab${leftTab === "workflow" ? " active" : ""}`} onClick={() => setLeftTab("workflow")}><Workflow size={14} /> Workflow</button>
-          <button className={`tab${leftTab === "lab" ? " active" : ""}`} onClick={() => { setLeftTab("lab"); if (!useLab.getState().enabled) useLab.getState().setEnabled(true); }}><Bot size={14} /> Lab</button>
-          <button className={`tab${leftTab === "outline" ? " active" : ""}`} onClick={() => setLeftTab("outline")}><ListTree size={14} /> Outline</button>
-          <button className={`tab${leftTab === "json" ? " active" : ""}`} onClick={() => setLeftTab("json")}><Braces size={14} /> JSON</button>
-        </div>
-        <div className="scroll">{leftTab === "workflow" ? <AgentPanel /> : leftTab === "lab" ? <RoboLabPanel /> : leftTab === "outline" ? <OutlinePanel /> : <JsonPanel />}</div>
+      <aside className="side left" style={labEnabled ? { width: 335 } : undefined}>
+        {labEnabled ? (
+          <RoboLabLeftColumn />
+        ) : (
+          <>
+            <div className="tabs" role="tablist">
+              <button className={`tab${leftTab === "workflow" ? " active" : ""}`} onClick={() => setLeftTab("workflow")}><Workflow size={14} /> Workflow</button>
+              <button className={`tab${leftTab === "lab" ? " active" : ""}`} onClick={() => { setLeftTab("lab"); if (!useLab.getState().enabled) useLab.getState().setEnabled(true); }}><Bot size={14} /> Lab</button>
+              <button className={`tab${leftTab === "outline" ? " active" : ""}`} onClick={() => setLeftTab("outline")}><ListTree size={14} /> Outline</button>
+              <button className={`tab${leftTab === "json" ? " active" : ""}`} onClick={() => setLeftTab("json")}><Braces size={14} /> JSON</button>
+            </div>
+            <div className="scroll">{leftTab === "workflow" ? <AgentPanel /> : leftTab === "lab" ? <RoboLabLeftColumn /> : leftTab === "outline" ? <OutlinePanel /> : <JsonPanel />}</div>
+          </>
+        )}
       </aside>
-      <main className="center">
+      <main className="center" style={labEnabled ? { display: "flex", flexDirection: "column" } : undefined}>
         {/* always mounted so the canvas never re-parents (avoids WebGL/Html portal teardown) */}
-        <div className="fig-pane-wrap" style={{ width: paneW, display: showCompare ? undefined : "none" }}>{showCompare && <ComparePane />}</div>
-        <div className="split-handle" role="separator" aria-orientation="vertical" aria-label="Resize comparison" onPointerDown={startDrag} style={{ display: showCompare ? undefined : "none" }} />
-        <div className="viewport">
+        <div className="fig-pane-wrap" style={{ width: paneW, display: showCompare && !labEnabled ? undefined : "none" }}>{showCompare && !labEnabled && <ComparePane />}</div>
+        <div className="split-handle" role="separator" aria-orientation="vertical" aria-label="Resize comparison" onPointerDown={startDrag} style={{ display: showCompare && !labEnabled ? undefined : "none" }} />
+        <div className="viewport" style={labEnabled ? { flex: 1, minHeight: 0 } : undefined}>
           <Viewer />
           <ViewToolbar />
           <Legend />
@@ -233,18 +240,23 @@ export default function App() {
           <LogicStrip />
           <PowerMeter />
           <RunClock />
-          {!showCompare && <FigureThumb />}
+          {!showCompare && !labEnabled && <FigureThumb />}
           {!design && <div className="canvas-empty">Loading…</div>}
           {traceError && <div className="trace-err">Trace failed: {traceError}</div>}
         </div>
+        {labEnabled && <RoboLabBottomConsole />}
       </main>
-      <aside className="side right">
-        <div className="scroll">
-          <Inspector />
-          <VerifyPanel />
-        </div>
+      <aside className="side right" style={labEnabled ? { width: 345 } : undefined}>
+        {labEnabled ? (
+          <RoboLabRightColumn />
+        ) : (
+          <div className="scroll">
+            <Inspector />
+            <VerifyPanel />
+          </div>
+        )}
       </aside>
-      <Console />
+      {!labEnabled && <Console />}
       <StatusBar />
       <BeamTooltip />
       <PaperPip />

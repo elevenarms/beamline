@@ -57,6 +57,13 @@ export interface GcodeLogEntry {
   encoder_counts: [number, number, number];
 }
 
+export interface LabStreamEvent {
+  id: number;
+  tag: string;
+  color: string;
+  text: string;
+}
+
 export interface LabManifest {
   design_name: string;
   pick_station_xy_mm: [number, number];
@@ -131,6 +138,8 @@ interface LabSseEvent {
   gcode?: LabGcodeResultItem;
   summary?: { parts_assembled?: number; mms_gcode_moves?: number };
   message?: string;
+  text?: string;
+  agent_id?: string;
 }
 
 interface LabState {
@@ -138,6 +147,9 @@ interface LabState {
   running: boolean;
   phase: "idle" | "planning" | "building" | "aligning" | "done";
   statusMessage: string;
+  playbackSpeed: number;
+  setPlaybackSpeed: (v: number) => void;
+  eventLog: LabStreamEvent[];
 
   wasmReady: boolean;
   wasmVersion: string;
@@ -398,6 +410,7 @@ let mjData: MjData | null = null;
 let mjLoading: Promise<MainModule> | null = null;
 let runAbort: AbortController | null = null;
 let gcodeSeq = 1;
+let eventSeq = 1;
 let lastReactSyncMs = 0;
 
 async function ensureMujocoWasm(): Promise<MainModule> {
@@ -407,8 +420,8 @@ async function ensureMujocoWasm(): Promise<MainModule> {
     const m = await loadMujoco();
     try {
       m.FS.mkdir("/working");
-      const memfs = (m as unknown as { MEMFS: unknown }).MEMFS;
-      m.FS.mount(memfs, { root: "." }, "/working");
+      const fsMod: { MEMFS?: unknown } = m;
+      m.FS.mount(fsMod.MEMFS, { root: "." }, "/working");
     } catch {
       /* already mounted */
     }
@@ -605,6 +618,16 @@ export const useLab = create<LabState>((set, get) => ({
   running: false,
   phase: "idle",
   statusMessage: "Overhead Gantry + Inverted 6-DOF UR5e + X/Y Crib Stage + 0x23/MicroManipulatorStepper ready",
+  playbackSpeed: 2,
+  setPlaybackSpeed: (v: number) => set({ playbackSpeed: Math.max(1, Math.min(5, v)) }),
+  eventLog: [
+    {
+      id: eventSeq++,
+      tag: "SYS",
+      color: "#38bdf8",
+      text: "MuJoCo WASM 3.3.8 + Overhead Gantry UR5e + X/Y Crib Stage + 0x23/MicroManipulatorStepper initialized",
+    },
+  ],
 
   wasmReady: false,
   wasmVersion: "3.3.8",
@@ -796,6 +819,18 @@ export const useLab = create<LabState>((set, get) => ({
     await get().initWorkcell(baseDesign);
     const con = useConsole.getState();
     con.reset();
+    const pushEvent = (tag: string, color: string, text: string) => {
+      set((s) => ({
+        eventLog: [...s.eventLog.slice(-79), { id: eventSeq++, tag, color, text }],
+      }));
+    };
+
+    const sleepScaled = async (baseMs: number) => {
+      const waitMs = Math.max(2, baseMs / Math.max(1, get().playbackSpeed));
+      const { promise, resolve } = Promise.withResolvers<void>();
+      window.setTimeout(resolve, waitMs);
+      await promise;
+    };
 
     set((s) => ({
       running: true,
@@ -804,6 +839,14 @@ export const useLab = create<LabState>((set, get) => ({
       adjustingElementId: null,
       activeSlotIndex: 0,
       slots: s.slots.map((sl) => ({ ...sl, state: "in_crib" })),
+      eventLog: [
+        {
+          id: eventSeq++,
+          tag: "ARGON",
+          color: "#a78bfa",
+          text: "Spawning Argon Lab Director + Crib Stage + Overhead UR5e + MicroManipulatorStepper agents…",
+        },
+      ],
       statusMessage: "Argon Lab Director planning overhead-gantry assembly & 0x23/MicroManipulatorStepper alignment…",
     }));
 
@@ -811,7 +854,7 @@ export const useLab = create<LabState>((set, get) => ({
       const resp = await fetch("/api/lab/run", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-        body: JSON.stringify({ design: baseDesign, use_llm: useLlm, pace_ms: 50 }),
+        body: JSON.stringify({ design: baseDesign, use_llm: useLlm, pace_ms: 0 }),
         signal: ac.signal,
       });
       if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
@@ -827,6 +870,7 @@ export const useLab = create<LabState>((set, get) => ({
         buf += dec.decode(value, { stream: true }).replace(/\r\n/g, "\n");
         let idx: number;
         while ((idx = buf.indexOf("\n\n")) >= 0) {
+          if (ac.signal.aborted) break;
           const block = buf.slice(0, idx);
           buf = buf.slice(idx + 2);
           const dataLine = block
@@ -845,6 +889,9 @@ export const useLab = create<LabState>((set, get) => ({
           if (CONSOLE_EVENT_TYPES[ev.type]) {
             con.ingest(ev as unknown as Parameters<typeof con.ingest>[0]);
           }
+          if (ev.type === "thought" && ev.text) {
+            pushEvent(ev.agent_id?.toUpperCase() ?? "ARGON", "#a78bfa", ev.text);
+          }
 
           if (ev.type === "lab_init" && ev.mjcf_xml && ev.manifest) {
             const info = loadXmlIntoMujoco(ev.mjcf_xml, -85, ev.manifest.pick_station_xy_mm[1]);
@@ -857,6 +904,7 @@ export const useLab = create<LabState>((set, get) => ({
               slots: ev.manifest.slots.map((sl) => ({ ...sl, state: "in_crib" })),
               phase: "planning",
             });
+            pushEvent("MUJOCO", "#38bdf8", `Loaded MJCF workcell (${ev.manifest.slots.length} optical crib slots, 18 DOF)`);
           } else if (ev.type === "lab_stage" && ev.stage_xy_mm) {
             set((s) => ({
               phase: "building",
@@ -866,6 +914,12 @@ export const useLab = create<LabState>((set, get) => ({
               carriageCmdYMm: ev.carriage_y_mm ?? s.carriageCmdYMm,
               statusMessage: ev.message ?? "",
             }));
+            pushEvent(
+              "XY-CRIB",
+              "#38bdf8",
+              `Slot #${ev.slot_index ?? 0} (${ev.element_id ?? ""}) indexed -> stage (${ev.stage_xy_mm[0].toFixed(0)}, ${ev.stage_xy_mm[1].toFixed(0)}) mm`,
+            );
+            await sleepScaled(26);
           } else if (ev.type === "lab_arm" && ev.element_id && ev.arm_q_rad) {
             const eid = ev.element_id;
             const pState = ev.part_state ?? "carried";
@@ -883,6 +937,14 @@ export const useLab = create<LabState>((set, get) => ({
               slots: s.slots.map((sl) => (sl.element_id === eid ? { ...sl, state: pState } : sl)),
               statusMessage: ev.message ?? "",
             }));
+            if (ev.phase === "pick" || ev.phase === "place" || ev.phase === "adjust_engage") {
+              pushEvent(
+                "UR5e-IK",
+                "#fbbf24",
+                `${ev.phase.toUpperCase()} ${eid} @ Gantry (${(ev.rail_x_mm ?? 0).toFixed(0)}, ${(ev.carriage_y_mm ?? 0).toFixed(0)}) mm`,
+              );
+            }
+            await sleepScaled(22);
           } else if (ev.type === "lab_place" && ev.design && ev.trace && ev.report) {
             const placedMap: Record<string, true> = {};
             for (const pid of ev.placed_ids ?? []) placedMap[pid] = true;
@@ -892,6 +954,12 @@ export const useLab = create<LabState>((set, get) => ({
               statusMessage: `Placed ${(ev.placed_ids ?? []).length}/${ev.total_parts ?? s.slots.length} optics (${ev.element_id ?? ""}) — live beam trace updated`,
             }));
             useStore.getState().showDesign(ev.design, { trace: ev.trace, report: ev.report });
+            pushEvent(
+              "BENCH",
+              "#34d399",
+              `Mounted ${ev.element_id ?? ""} (${(ev.placed_ids ?? []).length}/${ev.total_parts ?? 0}) · rays=${ev.trace.segments.length}`,
+            );
+            await sleepScaled(18);
           } else if (ev.type === "lab_mms" && ev.gcode) {
             const gc = ev.gcode;
             const entry: GcodeLogEntry = {
@@ -923,6 +991,12 @@ export const useLab = create<LabState>((set, get) => ({
               gcodeLog: [...s.gcodeLog.slice(-119), entry],
               statusMessage: ev.message ?? "",
             }));
+            pushEvent(
+              "MMS-GCODE",
+              "#10b981",
+              `${gc.unit_id}: ${gc.command} -> (${gc.pos_um[0].toFixed(1)}, ${gc.pos_um[1].toFixed(1)}, ${gc.pos_um[2].toFixed(1)}) µm`,
+            );
+            await sleepScaled(28);
           } else if (ev.type === "lab_done" && ev.design && ev.trace && ev.report) {
             const finalRep = ev.report;
             useStore.getState().showDesign(ev.design, { trace: ev.trace, report: finalRep });
@@ -933,12 +1007,18 @@ export const useLab = create<LabState>((set, get) => ({
               slots: s.slots.map((sl) => ({ ...sl, state: "placed" })),
               statusMessage: `Autonomous lab complete — ${ev.summary?.parts_assembled ?? s.slots.length} parts assembled, ${ev.summary?.mms_gcode_moves ?? 0} MicroManipulatorStepper G-code moves · PASS (${finalRep.score.toFixed(1)})`,
             }));
+            pushEvent(
+              "DONE",
+              "#10b981",
+              `Assembly & alignment complete · Score ${finalRep.score.toFixed(1)} (${finalRep.passed ? "PASS" : "CHECK"})`,
+            );
           }
         }
       }
     } catch (e) {
-      if ((e as Error).name !== "AbortError") {
-        set({ running: false, phase: "idle", statusMessage: `Lab run error: ${(e as Error).message}` });
+      const err = e instanceof Error ? e : new Error(String(e));
+      if (err.name !== "AbortError") {
+        set({ running: false, phase: "idle", statusMessage: `Lab run error: ${err.message}` });
       }
     } finally {
       if (runAbort === ac) {
@@ -1089,7 +1169,7 @@ export const useLab = create<LabState>((set, get) => ({
       ctrl[16] = st.mmsPosMm[1] * 0.001;
       ctrl[17] = st.mmsPosMm[2] * 0.001;
 
-      const substeps = Math.max(1, Math.min(6, Math.round(dt / 0.004)));
+      const substeps = Math.max(1, Math.min(18, Math.round((dt * st.playbackSpeed) / 0.004)));
       for (let k = 0; k < substeps; k++) {
         mjModule.mj_step(mjModel, mjData);
       }
@@ -1125,7 +1205,7 @@ export const useLab = create<LabState>((set, get) => ({
     } else {
       const nowMs = performance.now();
       if (nowMs - lastReactSyncMs < 45) return;
-      const alpha = Math.min(1, dt * 10);
+      const alpha = Math.min(1, dt * 12 * st.playbackSpeed);
       const nextStage: [number, number] = [
         st.stageSimMm[0] + (st.stageCmdMm[0] - st.stageSimMm[0]) * alpha,
         st.stageSimMm[1] + (st.stageCmdMm[1] - st.stageSimMm[1]) * alpha,

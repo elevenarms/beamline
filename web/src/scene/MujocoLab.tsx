@@ -66,18 +66,15 @@ function UrJointDrum({
     axis === "vertical" ? [0, yawRad, 0] : [Math.PI / 2, yawRad, 0];
   return (
     <group position={pos} rotation={rot}>
-      {/* Brushed aluminum joint body */}
       <mesh>
         <cylinderGeometry args={[radius, radius, length, 24]} />
         <meshStandardMaterial color="#cbd5e1" metalness={0.65} roughness={0.28} />
         <Edges threshold={25} color="#334155" />
       </mesh>
-      {/* Black motor collar ring */}
       <mesh position={[0, -length * 0.28, 0]}>
         <cylinderGeometry args={[radius * 1.03, radius * 1.03, length * 0.22, 24]} />
         <meshStandardMaterial color="#1e293b" metalness={0.4} roughness={0.5} />
       </mesh>
-      {/* Signature UR Blue Anodized End Cap */}
       <mesh position={[0, length * 0.5 + 1.5, 0]}>
         <cylinderGeometry args={[radius * 0.94, radius * 0.98, 3.0, 24]} />
         <meshStandardMaterial color="#2589bd" metalness={0.5} roughness={0.3} />
@@ -87,7 +84,7 @@ function UrJointDrum({
   );
 }
 
-/** Motorized 2-Axis X/Y Part-Presentation Stage + Inventory Crib. */
+/** Motorized 2-Axis X/Y Part-Presentation Stage + Inventory Crib (decluttered, no floating text spam). */
 function MotorizedXYCribStage({
   slots,
   stageSimMm,
@@ -132,7 +129,6 @@ function MotorizedXYCribStage({
           <meshStandardMaterial color="#9aa4b2" roughness={0.25} metalness={0.75} />
         </mesh>
       ))}
-      {/* X-Axis NEMA17 Stepper Motor */}
       <mesh position={toW(pickX - trayW * 0.5 - 18, pickY, baseZ)}>
         <boxGeometry args={[28, 28, 28]} />
         <meshStandardMaterial color="#2b313c" roughness={0.5} metalness={0.4} />
@@ -177,29 +173,12 @@ function MotorizedXYCribStage({
             >
               <mesh position={[0, 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
                 <ringGeometry args={[11, 14.5, 24]} />
-                <meshBasicMaterial color={isActive ? "#fbbf24" : inCrib ? "#38bdf8" : "#475569"} side={THREE.DoubleSide} />
+                <meshBasicMaterial color={isActive ? "#fbbf24" : inCrib ? "#38bdf8" : "#334155"} side={THREE.DoubleSide} />
               </mesh>
               {inCrib && (
                 <group position={[0, oh, 0]} scale={cols > 6 ? 0.72 : 0.92}>
                   <Part type={sl.type} oh={oh} hi={isActive} />
                 </group>
-              )}
-              {isActive && (
-                <Html position={[0, 22, 0]} center style={{ pointerEvents: "none" }}>
-                  <div
-                    style={{
-                      font: "600 9.5px 'IBM Plex Mono', monospace",
-                      padding: "1px 5px",
-                      borderRadius: 3,
-                      background: "#f59e0b",
-                      color: "#0f172a",
-                      border: "1px solid #fbbf24",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    #{sl.slot_index} {sl.element_id} ({sl.type})
-                  </div>
-                </Html>
               )}
             </group>
           );
@@ -209,24 +188,9 @@ function MotorizedXYCribStage({
       {/* Fixed Calibrated Pick Station Reticle */}
       <group position={toW(pickX, pickY, tableTop + 0.8)}>
         <mesh rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[16, 19, 32]} />
+          <ringGeometry args={[16, 19.5, 32]} />
           <meshBasicMaterial color="#10b981" side={THREE.DoubleSide} />
         </mesh>
-        <Html position={[0, 34, 0]} center style={{ pointerEvents: "none" }}>
-          <div
-            style={{
-              font: "600 10px 'IBM Plex Mono', monospace",
-              padding: "2px 6px",
-              borderRadius: 4,
-              background: "rgba(6, 78, 59, 0.92)",
-              color: "#6ee7b7",
-              border: "1px solid #10b981",
-              whiteSpace: "nowrap",
-            }}
-          >
-            PICK STATION ({pickX}, {pickY}) · X/Y Crib ({stageSimMm[0].toFixed(0)}, {stageSimMm[1].toFixed(0)}) mm
-          </div>
-        </Html>
       </group>
     </group>
   );
@@ -301,16 +265,13 @@ function OverheadGantryAndInvertedCobot({
         />
       ))}
 
-      {/* Front & Back Overhead Longitudinal X-Rails (along build plate length) */}
       {[yFront, yBack].map((ry) => (
         <group key={ry} position={toW(midX, ry, gantryW + 10)}>
-          {/* Anodized extrusion beam */}
           <mesh>
             <boxGeometry args={[spanX + 24, 18, 22]} />
             <meshStandardMaterial color="#1e293b" metalness={0.5} roughness={0.4} />
             <Edges threshold={20} color="#475569" />
           </mesh>
-          {/* Precision steel linear guide rail */}
           <mesh position={[0, 11, 0]}>
             <boxGeometry args={[spanX, 4, 8]} />
             <meshStandardMaterial color="#cbd5e1" metalness={0.85} roughness={0.18} />
@@ -320,13 +281,11 @@ function OverheadGantryAndInvertedCobot({
 
       {/* 2. Moving Overhead Gantry Bridge (slides along build plate length X = railSimXMm) */}
       <group position={toW(railSimXMm, midY, gantryW + 12)}>
-        {/* Main Cross-Bridge Girder */}
         <mesh>
           <boxGeometry args={[34, 16, spanY + 20]} />
           <meshStandardMaterial color="#ea580c" metalness={0.35} roughness={0.4} />
           <Edges threshold={20} color="#fdba74" />
         </mesh>
-        {/* Linear Bearing Trucks on Front & Back X-Rails */}
         <mesh position={[0, -2, spanY * 0.5]}>
           <boxGeometry args={[52, 22, 32]} />
           <meshStandardMaterial color="#0f172a" metalness={0.5} roughness={0.4} />
@@ -340,28 +299,12 @@ function OverheadGantryAndInvertedCobot({
       </group>
 
       {/* 3. Overhead Trolley + Inverted UR5e 6-DOF Robot Arm */}
-      {/* Trolley Carriage hanging under the Overhead Bridge */}
       <group position={baseW}>
         <mesh position={[0, 4, 0]}>
           <boxGeometry args={[48, 12, 48]} />
           <meshStandardMaterial color="#1e293b" metalness={0.55} roughness={0.35} />
           <Edges threshold={20} color="#38bdf8" />
         </mesh>
-        <Html position={[0, 32, 0]} center style={{ pointerEvents: "none" }}>
-          <div
-            style={{
-              font: "600 9.5px 'IBM Plex Mono', monospace",
-              padding: "2px 6px",
-              borderRadius: 4,
-              background: "rgba(15, 23, 42, 0.9)",
-              color: "#fdba74",
-              border: "1px solid #ea580c",
-              whiteSpace: "nowrap",
-            }}
-          >
-            OVERHEAD GANTRY X={railSimXMm.toFixed(0)} Y={carriageSimYMm.toFixed(0)} mm · Inverted UR5e
-          </div>
-        </Html>
       </group>
 
       {/* Inverted Base Turret (Gantry Trolley -> J1/J2 Shoulder) */}
@@ -383,13 +326,11 @@ function OverheadGantryAndInvertedCobot({
 
       {/* 4. End-Effector: Parallel Servo Gripper + Integrated 0x23/MicroManipulatorStepper Delta-3D Toolhead */}
       <group position={tipW} rotation={[0, toolYawRad, 0]}>
-        {/* Gripper Body */}
         <mesh position={[0, 10, 0]}>
           <boxGeometry args={[18, 8, 30]} />
           <meshStandardMaterial color="#0f172a" roughness={0.35} metalness={0.55} />
           <Edges threshold={20} color="#38bdf8" />
         </mesh>
-        {/* Parallel Gripper Fingers */}
         <mesh position={[0, -4, fingerOffsetMm]}>
           <boxGeometry args={[7, 18, 3.5]} />
           <meshStandardMaterial color="#10b981" roughness={0.3} metalness={0.4} />
@@ -431,7 +372,6 @@ function OverheadGantryAndInvertedCobot({
           })}
         </group>
 
-        {/* Carried 3D Optical Component while in transit */}
         {carriedSlot && (
           <group position={[0, 0, 0]}>
             <Part type={carriedSlot.type} oh={oh} sel hi />
@@ -439,23 +379,25 @@ function OverheadGantryAndInvertedCobot({
         )}
       </group>
 
-      {/* Active 0x23/MicroManipulatorStepper Telemetry Callout at Toolhead */}
+      {/* Single compact badge on the active TCP target only */}
       <Line points={[[tipW[0] + 18, tipW[1] + 12, tipW[2]], tipW]} color="#38bdf8" lineWidth={2} />
-      <Html position={[tipW[0], tipW[1] + 46, tipW[2]]} center style={{ pointerEvents: "none" }}>
-        <div
-          style={{
-            font: "600 9.5px 'IBM Plex Mono', monospace",
-            padding: "2px 6px",
-            borderRadius: 4,
-            background: "rgba(15, 23, 42, 0.92)",
-            color: "#38bdf8",
-            border: "1px solid #0284c7",
-            whiteSpace: "nowrap",
-          }}
-        >
-          0x23/MMS [{selectedMmsElementId || "TCP"}] ({mmsKin.ee_um[0].toFixed(1)}, {mmsKin.ee_um[1].toFixed(1)}, {mmsKin.ee_um[2].toFixed(1)}) µm
-        </div>
-      </Html>
+      {(carriedSlot || selectedMmsElementId) && (
+        <Html position={[tipW[0], tipW[1] + 34, tipW[2]]} center style={{ pointerEvents: "none" }}>
+          <div
+            style={{
+              font: "600 9.5px 'IBM Plex Mono', monospace",
+              padding: "1px 5px",
+              borderRadius: 3,
+              background: "rgba(15, 23, 42, 0.88)",
+              color: carriedSlot ? "#fbbf24" : "#38bdf8",
+              border: `1px solid ${carriedSlot ? "#f59e0b" : "#0284c7"}`,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {carriedSlot ? `PICK: ${carriedSlot.element_id}` : `MMS: ${selectedMmsElementId}`}
+          </div>
+        </Html>
+      )}
     </group>
   );
 }

@@ -767,7 +767,7 @@ function TuneWidgets() {
 }
 
 /** Module regions: subtle outlines with a title chip; regions with no parts yet are drawn as planned placeholders. */
-function ModuleRegions({ design, items, oh, solo }: { design: Design; items: Item[]; oh: number; solo: string | null }) {
+function ModuleRegions({ design, items, oh, solo, hideLabels }: { design: Design; items: Item[]; oh: number; solo: string | null; hideLabels?: boolean }) {
   const P = usePalette();
   const focusBox = useView((v) => v.focusBox);
   const filled = useMemo(() => new Set(items.map((i) => i.group)), [items]);
@@ -801,12 +801,14 @@ function ModuleRegions({ design, items, oh, solo }: { design: Design; items: Ite
               </mesh>
             )}
             {fail && <Hatch x={x} y={y} w={w} h={hh} z={h} color={P.err} />}
-            <Html position={toW(x, y + hh, h)} zIndexRange={[8, 0]} style={{ pointerEvents: "auto", transform: "translate(0, calc(-100% - 2px))" }}>
-              <div className={`mlabel${planned ? " planned" : ""}${fail ? " failed" : ""}${faded ? " faded" : ""}`} onClick={() => focusBox(x, y, w, hh)} title={fail ? `Failed: ${fail}` : m.description || m.title || m.id}>
-                {m.title || m.id}{planned ? " · planned" : ""}{fail ? " · failed" : ""}
-                {fail && <div className="mlabel-msg">{fail.slice(0, 120)}</div>}
-              </div>
-            </Html>
+            {!hideLabels && (
+              <Html position={toW(x, y + hh, h)} zIndexRange={[8, 0]} style={{ pointerEvents: "auto", transform: "translate(0, calc(-100% - 2px))" }}>
+                <div className={`mlabel${planned ? " planned" : ""}${fail ? " failed" : ""}${faded ? " faded" : ""}`} onClick={() => focusBox(x, y, w, hh)} title={fail ? `Failed: ${fail}` : m.description || m.title || m.id}>
+                  {m.title || m.id}{planned ? " · planned" : ""}{fail ? " · failed" : ""}
+                  {fail && <div className="mlabel-msg">{fail.slice(0, 120)}</div>}
+                </div>
+              </Html>
+            )}
           </group>
         );
       })}
@@ -826,7 +828,7 @@ function ModuleRegions({ design, items, oh, solo }: { design: Design; items: Ite
         return (
           <group key={i}>
             <Line points={pts} color={P.fiber} lineWidth={1.6} dashed dashSize={8} gapSize={5} transparent opacity={0.85} />
-            {l.purpose && (
+            {l.purpose && !hideLabels && (
               <Html position={toW(0.25 * ca[0] + 0.5 * ctrl[0] + 0.25 * cb[0], 0.25 * ca[1] + 0.5 * ctrl[1] + 0.25 * cb[1], 4)} center zIndexRange={[7, 0]}>
                 <div className="link-label" title={`${l.from_module} → ${l.to_module}`}>{l.purpose}</div>
               </Html>
@@ -890,7 +892,8 @@ export default function Viewer() {
   const zoomOk = useView((v) => v.labelsZoomOk);
   const flying = useDemo((d) => d.flying);
   const capturing = useDemo((d) => d.capturing);
-  const labelsOn = !flying && (plan ? zoomOk || items.length <= 40 : items.length <= 60);
+  const labEnabled = useLab((l) => l.enabled);
+  const labelsOn = !flying && !labEnabled && (plan ? zoomOk || items.length <= 40 : items.length <= 60);
   const segs = awaitingFly ? EMPTY_SEGS : trace?.segments ?? EMPTY_SEGS;
   const dimSet = useMemo(() => {
     if (!solo || !design) return null;
@@ -907,7 +910,6 @@ export default function Viewer() {
     }
     return m;
   }, [segs]);
-  const labEnabled = useLab((l) => l.enabled);
   const designKey = design ? `${fitNonce}|${bp.width_mm}|${bp.height_mm}|${labEnabled ? "lab" : "std"}` : "";
   const highlight = useView((v) => v.highlight);
   const selSeg = selected?.kind === "segment" ? selected.id : null;
@@ -936,7 +938,7 @@ export default function Viewer() {
         <planeGeometry args={[bp.width_mm * 4, bp.height_mm * 4]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      {design?.modules?.length ? <ModuleRegions design={design} items={items} oh={oh} solo={solo} /> : null}
+      {design?.modules?.length ? <ModuleRegions design={design} items={items} oh={oh} solo={solo} hideLabels={labEnabled} /> : null}
       {segs.map((s) => (
         <Beam key={s.id} s={s} ex={ex} active={s.id === selSeg || s.id === hoverSeg || (!!selBranch && s.branch === selBranch)} dim={!!dimSet?.has(s.id)} dist0={dist0.get(s.id) ?? 0} />
       ))}
@@ -950,7 +952,7 @@ export default function Viewer() {
           it={it}
           oh={oh}
           selected={selected?.id === it.id && selected.kind === it.kind}
-          warn={warnBy.get(it.id) ?? null}
+          warn={labEnabled ? null : (warnBy.get(it.id) ?? null)}
           label={labels.get(it.id)}
           labelsOn={labelsOn}
           dim={!!solo && it.group !== solo}
