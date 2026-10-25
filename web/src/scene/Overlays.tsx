@@ -337,7 +337,7 @@ export function PowerMeter() {
   const pts = h.map((v, i) => `${(i / Math.max(1, h.length - 1)) * W},${H - ((v - lo) / (hi - lo || 1)) * (H - 4) - 2}`).join(" ");
   return (
     <div className="pmeter panel-float">
-      <div className="pm-title">Delivered power {tune.current && <span className="mono muted">· tuning {tune.current}</span>}</div>
+      <div className="pm-title">{tune.phase === "detune" ? <>As-built misalignment {tune.dropFrom != null && <span className="mono muted">· from {tune.dropFrom.toFixed(2)} mW</span>}</> : <>Delivered power {tune.current && <span className="mono muted">· tuning {tune.current}</span>}</>}</div>
       <div className="pm-row">
         <div className="pm-value mono">{delivered.toFixed(delivered < 10 ? 2 : 1)}<small> mW</small>{(hasFiberTarget || fc) && fc?.coupling_efficiency != null && <div className="pm-coupling">coupling <b>{pc(fc.coupling_efficiency)}</b></div>}</div>
         <div className="pm-spark-wrap">

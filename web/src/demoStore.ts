@@ -22,6 +22,8 @@ export interface TuneState {
   value: number | null;
   values: number[]; // values tried on the current knob (slider range)
   history: number[]; // tuner objective per step ("alignment score")
+  phase?: "detune" | "tune";
+  dropFrom?: number | null; // delivered before the as-built misalignment
   baseDelivered: number | null; // delivered power before the pass (re-trace)
   coupling: number | null;
   flags: Record<string, number>; // element → relative gain
@@ -234,12 +236,23 @@ export const useDemo = create<DemoState>((set, get) => ({
     tuneQueue = [];
     skipping = false;
     const reference = d;
-    const detuned = await api.detune(d);
-    st.replaceDesign(detuned);
-    useConsole.getState().ingest({ type: "status", stage: "tune", message: "Bench detuned; starting alignment pass" });
+    const before = st.report?.metrics.delivered_mw ?? null;
     usePipeline.getState().mark("tuning");
-    set({ tune: { ...emptyTune, active: true } });
-    await new Promise((r) => setTimeout(r, 600));
+    // 1) as-built misalignment: show the detuned bench and the power dropping before the recovery
+    set({ tune: { ...emptyTune, active: true, phase: "detune", baseDelivered: before } });
+    const det = await api.detune(d);
+    const detuned = det.design;
+    const changed = new Set((detuned.elements ?? []).filter((e) => {
+      const o = d.elements?.find((x) => x.id === e.id);
+      return o && JSON.stringify(o) !== JSON.stringify(e);
+    }).map((e) => e.id));
+    useView.getState().startTween(changed, 450);
+    st.showDesign(detuned, { trace: det.trace, report: det.report });
+    const after = det.report.metrics.delivered_mw ?? 0;
+    useConsole.getState().ingest({ type: "status", stage: "tune", message: `as-built misalignment: ${changed.size} knobs off, delivered ${before?.toFixed(2) ?? "—"} → ${after.toFixed(2)} mW` });
+    set({ tune: { ...emptyTune, active: true, phase: "detune", baseDelivered: after, dropFrom: before } });
+    await new Promise((r) => setTimeout(r, 1200 / Math.max(1, get().speed)));
+    set((s0) => ({ tune: { ...s0.tune, phase: "tune" } }));
     try {
       for await (const ev of api.tuneStream(detuned, reference, tuneAbort.signal)) {
         tuneQueue.push(ev);
@@ -271,7 +284,7 @@ function pump() {
   switch (ev.type) {
     case "tune_start": {
       const e = ev as TuneStart;
-      D.setState({ tune: { ...tune, active: true, order: e.order, baseline: e.baseline, baseDelivered: useStore.getState().report?.metrics.delivered_mw ?? e.baseline.delivered_mw, coupling: couplingOf(useStore.getState().trace) } });
+      D.setState({ tune: { ...tune, active: true, phase: "tune", order: e.order, baseline: e.baseline, baseDelivered: tune.baseDelivered ?? e.baseline.delivered_mw, coupling: couplingOf(useStore.getState().trace) } });
       con.ingest({ type: "tool", agent_id: "tuner", name: "tune", summary: `start  ${e.order.length} knobs  objective ${e.objective}  baseline ${e.baseline.delivered_mw.toFixed(2)} mW`, elapsed_ms: 0 });
       wait = 400;
       break;

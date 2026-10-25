@@ -1,4 +1,4 @@
-import type { AgentEvent, Design, ExampleInfo, TraceResponse } from "./types";
+import type { AgentEvent, Design, ExampleInfo, TraceResponse, TraceResult, VerifyReport } from "./types";
 import { traceDesign } from "./mock/tracer";
 import { MOCK_EXAMPLES } from "./mock/designs";
 import { mockAgentStream } from "./mock/agent";
@@ -244,14 +244,19 @@ export function reproduceUrlStream(image_url: string, notes: string, citation: s
   );
 }
 
-export async function detune(design: Design): Promise<Design> {
+/** as-built misalignment: backend /api/detune (returns the detuned design with its trace + report) */
+export async function detune(design: Design): Promise<{ design: Design; trace: TraceResult; report: VerifyReport }> {
+  let d: Design;
   try {
     if (isMock()) throw new Error("mock");
-    const r = await json<{ design: Design } | Design>("/api/detune", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ design }) });
-    return "design" in r ? r.design : r;
+    const r = await json<{ design: Design; trace?: TraceResult; report?: VerifyReport }>("/api/detune", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ design }) });
+    if (r.trace && r.report) return { design: r.design, trace: r.trace, report: r.report };
+    d = r.design;
   } catch {
-    return mockDetune(design);
+    d = mockDetune(design);
   }
+  const t = await trace(d);
+  return { design: d, trace: t.trace, report: t.report };
 }
 
 export function tuneStream(design: Design, reference: Design | undefined, signal?: AbortSignal) {
