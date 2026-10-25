@@ -26,6 +26,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from .bom import short_tag
 from .ir import Design, TraceResult
 
 TYPST = shutil.which("typst") or "/opt/homebrew/bin/typst"
@@ -142,6 +143,30 @@ def plan_svg(design: Design, trace: TraceResult, holes: list[tuple[float, float]
     return "\n".join(out)
 
 
+_SPLITS = {"pbs", "beamsplitter", "sampler", "dichroic", "aom", "sfg_crystal"}
+_ROLE = {"t": "transmitted", "r": "reflected", "0": "zero order", "+1": "+1 order", "-1": "−1 order", "sfg": "sum-frequency"}
+
+
+def human_title(name: str) -> str:
+    """'dual_beam_optical_tweezers' -> 'Dual Beam Optical Tweezers' (all-caps words kept: AOM, SFG)."""
+    words = name.replace("_", " ").replace("-", " ").split()
+    return " ".join(w if w.isupper() else w[:1].upper() + w[1:] for w in words)
+
+
+def _title_size(title: str) -> int:
+    """Cover title size: 26 pt up to ~28 characters, shrinking for longer names (min 13 pt)."""
+    return max(13, min(26, int(26 * 28 / max(len(title), 1))))
+
+
+def direction_text(deg: float) -> str:
+    """0 -> '+x', 90 -> '+y', 180 -> '−x', 270 -> '−y' (within 0.5°), else e.g. '135.0°'."""
+    a = deg % 360.0
+    for card, name in ((0, "+x"), (90, "+y"), (180, "−x"), (270, "−y"), (360, "+x")):
+        if abs(a - card) < 0.5:
+            return name
+    return f"{a:.1f}°"
+
+
 def _short(label: str, n: int = 48) -> str:
     """Agent-written labels can be sentences: keep the part before the first bracket/colon."""
     s = (label or "").split(" (")[0].split(":")[0].strip()
@@ -182,12 +207,21 @@ def _data(design: Design, trace: TraceResult, report, bom: dict, tune_summary: d
     outs: dict[str, list[str]] = {}
     for s in trace.segments:
         if s.start_element in by_id and s.power_mw > 1e-4:
-            outs.setdefault(s.start_element, []).append(f"{s.branch} → {s.direction_deg % 360:.1f}° "
-                                                        f"({s.power_mw:.3g} mW)")
+            role = _ROLE.get(s.branch.rsplit(".", 1)[-1], "") if by_id[s.start_element].type in _SPLITS else ""
+            outs.setdefault(s.start_element, []).append(
+                f"{role + ' ' if role else ''}→ {direction_text(s.direction_deg)} ({s.power_mw:.3g} mW)")
+    prev: dict[str, str] = {}
+    for s in trace.segments:
+        if s.end_element in by_id and s.end_element not in prev and s.start_element:
+            prev[s.end_element] = s.start_element
     blocks: dict[str, list[str]] = {}
+    names = {**{e.id: e.id for e in design.elements}, **{src.id: src.id for src in design.sources}}
     for s in trace.segments:
         if s.end_element in by_id and by_id[s.end_element].type == "beam_dump":
-            blocks.setdefault(s.end_element, []).append(f"{s.branch} ({s.power_mw:.3g} mW, {s.wavelength_nm:g} nm)")
+            frm = names.get(s.start_element or "", "the source")
+            blocks.setdefault(s.end_element, []).append(
+                f"beam from {frm}, travelling {direction_text(s.direction_deg)} "
+                f"({s.power_mw:.3g} mW, {s.wavelength_nm:g} nm)")
 
     changes = []
     if tune_summary:
@@ -242,15 +276,15 @@ def _data(design: Design, trace: TraceResult, report, bom: dict, tune_summary: d
         if p is None or not p.position:
             continue
         pos = f"({p.position[0]:.1f}, {p.position[1]:.1f}) mm"
-        head = (f"Mount {_short(el.label) or el.id} ({', '.join(pns.get(eid, [])) or el.type}) at site {k}, {pos}; "
-                f"orientation {(p.angle_deg or 0) % 360:.1f}°; keyed by pins, one 8-32 screw from below.")
+        head = (f"Mount {short_tag(el.label, el.id)} ({', '.join(pns.get(eid, [])) or el.type}) at site {k}, {pos}; "
+                f"orientation {round(p.angle_deg or 0.0, 1) % 360:.1f}°; keyed by pins, one 8-32 screw from below.")
         t = el.type
         extra = ""
         if t in ("half_wave_plate", "quarter_wave_plate"):
             extra = f"Set the fast axis to {val(el, 'fast_axis_deg') or 0:.1f}° from horizontal (H)."
         elif t == "lens":
             extra = (f"f = {el.focal_length_mm or 100:g} mm, "
-                     + (f"{val(el, 'distance_mm'):.1f} mm after the previous element on {el.beam}."
+                     + (f"{val(el, 'distance_mm'):.1f} mm after {prev.get(eid, 'the previous element')}."
                         if el.beam else "at the absolute position above."))
         elif t in ("pbs", "beamsplitter", "sampler", "dichroic"):
             extra = "Outputs: " + "; ".join(outs.get(eid, ["(no light)"]))
@@ -261,6 +295,8 @@ def _data(design: Design, trace: TraceResult, report, bom: dict, tune_summary: d
         elif t == "aom":
             extra = (f"Drive at {val(el, 'aom_frequency_mhz') or 80:g} MHz; use the {'+' if (el.aom_order or 1) > 0 else '-'}1 "
                      f"order (≈ {100 * (el.aom_efficiency or 0.8):.0f} % efficiency).")
+        elif t == "sfg_crystal":
+            extra = "Outputs: " + "; ".join(outs.get(eid, ["(no light)"]))
         elif t == "fiber_coupler":
             extra = (f"Collimation lens f = {val(el, 'focal_length_mm') or 11:g} mm, fiber MFD {el.fiber_mfd_um or 5:g} µm. "
                      f"Walk the two last mirrors and adjust the focus for maximum: expect ≈ {(p.power_out_mw or 0):.3g} mW "
@@ -296,7 +332,8 @@ def _data(design: Design, trace: TraceResult, report, bom: dict, tune_summary: d
 
     date = _dt.date.today().strftime("%d %B %Y")
     return {
-        "title": design.name.replace("_", " "), "name": design.name, "date": date,
+        "title": human_title(design.name), "title_size": _title_size(human_title(design.name)),
+        "name": design.name, "date": date,
         "citation": citation or "", "license": license or "", "description": design.description or "",
         "notes": design.notes or "", "has_cover": has_cover, "has_figure": has_figure,
         "specs": specs,
@@ -360,7 +397,7 @@ TEMPLATE = r'''
       text(size: 8.5pt, fill: ink, tracking: 1pt)[#if d.citation != "" [GENERATED FROM #upper(d.citation)] else [DESIGNED IN BEAMLINE]])
   ])
   #place(bottom + left, dx: 14mm, dy: -16mm, block(width: 80%, fill: if d.has_cover { black.transparentize(45%) } else { none }, inset: 8pt)[
-    #text(font: serif, size: 26pt, fill: ink)[#d.title]
+    #text(font: serif, size: d.title_size * 1pt, fill: ink)[#d.title]
   ])
 ]
 

@@ -209,6 +209,47 @@ def _element_wavelengths(design: Design, trace: TraceResult | None) -> dict[str,
     return wl
 
 
+def short_tag(label: str | None, fallback: str, n: int = 32) -> str:
+    """A short role tag from an element label: the part before any bracket/colon, cut to <= n
+    chars at a word boundary.  Never the element's notes/description."""
+    s = (label or "").split(" (")[0].split("(")[0].split(":")[0].split(";")[0].strip(" -,.")
+    if not s:
+        return fallback
+    if len(s) > n:
+        cut = s[: n + 1].rsplit(" ", 1)[0].rstrip(" -,.")
+        s = (cut if cut else s[:n]) + "…"
+    return s
+
+
+def _type_desc(el) -> str:
+    """Generic description for an element whose part number is not in the catalog."""
+    t = el.type
+    if t == "dichroic":
+        kind = "longpass" if (el.reflect or "below") == "below" else "shortpass"
+        return f"dichroic mirror, {kind} {el.cutoff_nm or 650:g} nm"
+    if t == "lens":
+        return f"lens, f = {el.focal_length_mm or 100:g} mm"
+    if t == "sampler":
+        return f"beam sampler, {100 * (el.split_ratio or 0.05):g} % pickoff"
+    if t == "beamsplitter":
+        r = el.split_ratio if el.split_ratio is not None else 0.5
+        return f"beamsplitter, {100 * (1 - r):g}:{100 * r:g} (T:R)"
+    if t == "aom":
+        return f"acousto-optic modulator, {el.aom_frequency_mhz or 80:g} MHz"
+    return _DESC.get(t, t)
+
+
+def _finish_descriptions(rows: list[dict], tags: dict[str, str]) -> None:
+    """description = catalog/type text + role: '— TAG' for one element, '× n: id1, id2' for several."""
+    for r in rows:
+        ids = r["element_ids"]
+        if len(ids) == 1:
+            r["description"] = f"{r['description']} — {tags.get(ids[0], ids[0])}"
+        elif ids:
+            shown = ", ".join(ids[:8]) + (f", … +{len(ids) - 8}" if len(ids) > 8 else "")
+            r["description"] = f"{r['description']} × {len(ids)}: {shown}"
+
+
 def _purchased(design: Design, trace: TraceResult | None) -> list[dict]:
     rows: dict[str, dict] = {}
     default_wl = design.sources[0].wavelength_nm if design.sources else 780.0
@@ -221,14 +262,16 @@ def _purchased(design: Design, trace: TraceResult | None) -> list[dict]:
         if eid not in r["element_ids"]:
             r["element_ids"].append(eid)
 
+    tags: dict[str, str] = {}
     for s in design.sources:
         pn = s.part_number or f"LASER-{_wl_tag(s.wavelength_nm)}"
-        add(pn, f"{s.label or 'laser'} ({s.wavelength_nm:g} nm, {s.power_mw:g} mW)", s.id, laser=True)
+        tags[s.id] = short_tag(s.label, s.id)
+        add(pn, f"laser, {s.wavelength_nm:g} nm, {s.power_mw:g} mW", s.id, laser=True)
     for el in design.elements:
         wl = wls.get(el.id) or default_wl
+        tags[el.id] = short_tag(el.label, el.id)
         if el.part_number:
-            add(el.part_number, CATALOG.get(el.part_number, (f"{_DESC.get(el.type, el.type)}: {el.label}",))[0]
-                if el.part_number in CATALOG else f"{_DESC.get(el.type, el.type)} ({el.label or el.id})", el.id)
+            add(el.part_number, CATALOG[el.part_number][0] if el.part_number in CATALOG else _type_desc(el), el.id)
             if el.type in _NEEDS_MOUNT and el.part_number not in _NEEDS_MOUNT.values():
                 add(_NEEDS_MOUNT[el.type], None, el.id)
         else:
@@ -237,7 +280,9 @@ def _purchased(design: Design, trace: TraceResult | None) -> list[dict]:
         if posts and el.type not in ("aom", "soa"):
             for pn in ("TR075", "PH075", "BA1S"):
                 add(pn, None, el.id)
-    return sorted(rows.values(), key=lambda r: (r["vendor"] != "Thorlabs", r["part_number"]))
+    out = sorted(rows.values(), key=lambda r: (r["vendor"] != "Thorlabs", r["part_number"]))
+    _finish_descriptions(out, tags)
+    return out
 
 
 # ───────────────────────────── plate geometry ───────────────────────────────

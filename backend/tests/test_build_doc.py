@@ -75,3 +75,30 @@ def test_endpoint():
                                         "figure_url_or_data": "https://evil.example.com/x.png"})
     assert r.status_code == 200 and r.headers["content-type"] == "application/pdf"
     assert r.content.startswith(b"%PDF")
+
+
+def test_polish_helpers():
+    from optics.bom import short_tag
+    from optics.build_doc import direction_text, human_title
+    assert direction_text(0) == "+x" and direction_text(90) == "+y" and direction_text(180) == "−x"
+    assert direction_text(-90) == "−y" and direction_text(359.8) == "+x" and direction_text(135) == "135.0°"
+    assert human_title("dual_beam_optical_tweezers") == "Dual Beam Optical Tweezers"
+    assert short_tag("DM (longpass dichroic, cutoff 560 nm: reflects ...)", "DM") == "DM"
+    t = short_tag("Upper dump / condenser stop for transmitted 532 nm light", "BD")
+    assert len(t) <= 33 and not t.endswith(" …")
+
+
+def test_bom_descriptions_have_no_design_notes():
+    from optics.bom import build_bom
+    final = None
+    for line in (ROOT / "demo" / "live_tweezers_check.sse").read_text().splitlines():
+        if line.startswith("data:"):
+            ev = json.loads(line[5:])
+            if ev["type"] == "final":
+                final = ev
+    d = Design.model_validate(final["design"])
+    for r in build_bom(d)["purchased"]:
+        assert "(" not in r["description"].split(" — ")[-1], r["description"]
+        assert len(r["description"]) < 120, r["description"]
+        if len(r["element_ids"]) > 1:
+            assert f"× {len(r['element_ids'])}: " in r["description"]
