@@ -44,3 +44,38 @@ def test_no_stray_light_or_warnings_any_combo(name):
         _, rep = run(d, dict(zip(ins, bits)))
         assert rep.metrics["stray_mw"] == 0.0
         assert not [c for c in rep.checks if c.severity == "warning"], bits
+
+
+# ───────────────────── nonlinear all-optical gates (inputs = source enables) ─────────────────────
+
+@pytest.mark.parametrize("name", ["alloptical_nand", "alloptical_and_sfg"])
+def test_alloptical_truth_tables(name):
+    spec = CIRCUITS[name]
+    rows = truth_table(EXAMPLES / f"{name}.json", spec["inputs"], list(spec["outputs"]))
+    for row in rows:
+        bits = tuple(row["inputs"].values())
+        assert row["outputs"] == {o: f(*bits) for o, f in spec["outputs"].items()}, (bits, row["powers_mw"])
+        assert row["passed"], (bits, row["errors"])
+
+
+def test_alloptical_nand_levels():
+    p = EXAMPLES / "alloptical_nand.json"
+    d = load(p)
+    lvl = {bits: run(d, dict(zip("AB", bits)))[0]["OUT"] for bits in itertools.product((0, 1), repeat=2)}
+    assert lvl[(0, 1)] == pytest.approx(lvl[(1, 0)], rel=1e-6)    # symmetric inputs
+    assert lvl[(1, 1)] < 0.15 < min(lvl[(0, 1)], lvl[(0, 0)])      # threshold sits between the levels
+    assert lvl[(0, 1)] / lvl[(1, 1)] > 2.5                           # >= ~4 dB extinction after the SA
+
+
+def test_alloptical_sfg_outputs_red_only_for_11():
+    d = load(EXAMPLES / "alloptical_and_sfg.json")
+    for bits in itertools.product((0, 1), repeat=2):
+        assert evaluate(d, dict(zip("AB", bits)))["OUT"] == (bits[0] & bits[1])
+
+
+def test_source_and_hwp_inputs_mix():
+    from logic import set_inputs
+    d = set_inputs(load(EXAMPLES / "alloptical_nand.json"), {"A": 0, "B": 1})
+    assert [s.enabled for s in d.sources if s.id in "AB"] == [False, True]
+    with pytest.raises(KeyError):
+        set_inputs(d, {"NOPE": 1})

@@ -65,10 +65,52 @@ Physics conventions
   eta = Gaussian overlap (size + curvature) * exp(-(f*alpha/w_f)^2) (beam tilt
   alpha vs. coupler axis) * exp(-(pi w_f h/(lambda f))^2) (offset h at the
   lens) * clip.  Backside hits couple nothing.
+* Placement is repeated (max 6 rounds) while it makes progress, so an element
+  placed on a later source's branch (e.g. a combiner) is seen by earlier
+  sources' beams; already-placed elements never move.
+* Disabled sources (``enabled=False``) are traced at unit power in the
+  placement pass (so the layout never jumps when an input is toggled) and emit
+  nothing in the physics pass.
 * end_reason: "element" (passes on), "absorbed" (terminating element, mirror
   backside, isolator reverse, placement-error blocker), "escaped" (no hit
   within the baseplate + 50 mm margin or 2000 mm), "max_depth" (64
   interactions per path or 2000 segments in total).
+
+Nonlinear elements (all-optical logic)
+--------------------------------------
+Placement: transmissive, angle_deg defaults to the incoming beam axis, clip by
+aperture as usual (default 12.7 mm).  When a design contains any of them the
+physics pass is iterated to a fixed point: trace with the current state ->
+sum the incident power P_tot on each nonlinear element (all beams, all
+sources, after clipping) -> update state -> retrace.  Converged when every
+P_tot (and every generated SFG power) changes by < 1e-4 relative; at most 12
+iterations (from iteration 5 on, updates are damped 50 %).  Elements that did
+not converge are listed in ``TraceResult.nonconverged`` (verify emits
+"nonlinear_convergence").  State starts at P_tot = 0 (unsaturated).
+* **soa** (semiconductor optical amplifier): every beam through it gets
+  P_out = G * P_in with G = G0 / (1 + P_tot / P_sat), G0 = 10^(dB/10).
+  Defaults small_signal_gain_db = 15, saturation_power_mw = 5.  Gain is shared
+  by all beams and wavelengths -> cross-gain modulation (a strong control beam
+  darkens a weak probe).  Bidirectional, polarization- and wavelength-independent.
+* **saturable_absorber**: every beam gets T = T0 + (1 - T0) * P_tot/(P_tot + P_sat),
+  T0 = transmission (default 0.05), P_sat = saturation_power_mw (default 10).
+* **sfg_crystal**: every pair of different incident beams whose centres are
+  within max(w1, w2) of each other on the crystal and whose directions agree
+  within 5 deg generates a new beam with 1/lambda_out = 1/lambda_1 + 1/lambda_2
+  and P_out[mW] = eta * P1[mW] * P2[mW] * 1e-3 (eta = nl_efficiency_per_w in
+  1/W, default 2.0; 10 mW x 10 mW -> 0.2 mW).  Emitted from the first beam's hit
+  point along the mean direction, on branch "<first beam's branch>.sfg"
+  ("...sfg2", ... if that name is taken), inheriting the first beam's
+  polarization and q; freq shifts add.  "First" = earlier source in
+  design.sources order, then branch name.  The inputs pass through depleted by
+  photon-energy conservation (beam i loses P_out * lambda_out/lambda_i, clamped
+  at its power).  SHG: if nl_efficiency_per_w is set explicitly and exactly one
+  beam hits the crystal, P_out = eta * P1^2 * 1e-3 at lambda/2.  No phase
+  matching, overlap integral or wavelength acceptance is modelled.
+  Branches from the crystal: the inputs keep their names; the generated beam
+  gets ".sfg".
+* PlacedElement.power_out_mw is also filled for soa and saturable_absorber
+  (total output power); it does not count toward delivered_mw.
 
 CLI:  uv run python -m optics.trace path/to/design.json
 """
@@ -91,6 +133,12 @@ from .ir import (
     TraceResult,
 )
 
+
+class TraceResultNL(TraceResult):
+    """TraceResult plus the ids of nonlinear elements whose fixed-point iteration
+    did not converge (empty for linear designs)."""
+    nonconverged: list[str] = []
+
 # ───────────────────────────── constants / defaults ─────────────────────────
 
 MAX_DEPTH = 64           # interactions along one path
@@ -103,7 +151,11 @@ EPS = 1e-6
 TRANSMISSIVE = {
     "lens", "half_wave_plate", "quarter_wave_plate", "aom", "iris", "vapor_cell",
     "isolator", "fiber_coupler", "photodiode", "beam_dump",
+    "soa", "sfg_crystal", "saturable_absorber",
 }
+NONLINEAR = {"soa", "sfg_crystal", "saturable_absorber"}
+NL_MAX_ITER = 12
+NL_RTOL = 1e-4
 
 
 def default_aperture(t: str) -> float:
@@ -264,6 +316,11 @@ class _El:
     hits: list = field(default_factory=list)
     power_in: float = 0.0
     power_out: float = 0.0
+    # nonlinear state: nl_p = P_tot used for this run; nl_acc / nl_rec collected during the run
+    nl_p: float = 0.0
+    nl_frac: dict = field(default_factory=dict)   # sfg: branch -> pass-through fraction (depletion)
+    nl_acc: float = 0.0
+    nl_rec: list = field(default_factory=list)    # sfg: (beam, hit, P_clipped, w, q_at_hit)
 
     @property
     def positioned(self) -> bool:
@@ -369,8 +426,17 @@ def _intersect(el: _El, p, d) -> float | None:
 
 def _nearest(els: list[_El], beam: _Beam) -> tuple[_El | None, float]:
     best, bs = None, math.inf
+    px, py = beam.pos
+    dx, dy = beam.d
     for el in els:
         if not el.positioned or el.spec.id == beam.start_el:
+            continue
+        # cheap reject: every element's hit zone lies within 0.75*aperture of its centre
+        # (cube diagonals reach aperture/sqrt2), so skip ones behind or laterally out of reach
+        cx, cy = el.pos[0] - px, el.pos[1] - py
+        r = 0.75 * el.aperture
+        along = cx * dx + cy * dy
+        if along < -r or along > bs + r or abs(dx * cy - dy * cx) > r:
             continue
         s = _intersect(el, beam.pos, beam.d)
         if s is not None and s < bs:
@@ -474,6 +540,27 @@ def _interact(el: _El, beam: _Beam, s: float, hit, seg_id: str | None, physics: 
     if typ == "iris":
         return [out(beam.branch, d, P, beam.ex, beam.ey)], False
 
+    if typ in NONLINEAR:
+        el.nl_acc += P
+        if typ == "soa":
+            g0 = 10 ** ((sp.small_signal_gain_db if sp.small_signal_gain_db is not None else 15.0) / 10)
+            psat = sp.saturation_power_mw or 5.0
+            gain = g0 / (1 + el.nl_p / psat)
+            if physics:
+                el.power_out += P * gain
+            return [out(beam.branch, d, P * gain, beam.ex, beam.ey)], False
+        if typ == "saturable_absorber":
+            t0 = sp.transmission if sp.transmission is not None else 0.05
+            psat = sp.saturation_power_mw or 10.0
+            tr = t0 + (1 - t0) * el.nl_p / (el.nl_p + psat)
+            if physics:
+                el.power_out += P * tr
+            return [out(beam.branch, d, P * tr, beam.ex, beam.ey)], False
+        # sfg_crystal: record the input for pair generation, pass through depleted
+        el.nl_rec.append((beam, hit, P, w, q))
+        frac = el.nl_frac.get(beam.branch, 1.0)
+        return [out(beam.branch, d, P * frac, beam.ex, beam.ey)], False
+
     if typ == "vapor_cell":
         tr = sp.transmission if sp.transmission is not None else 1.0
         return [out(beam.branch, d, P * tr, beam.ex, beam.ey)], False
@@ -512,7 +599,7 @@ def _interact(el: _El, beam: _Beam, s: float, hit, seg_id: str | None, physics: 
 
 # ───────────────────────────── main loop ────────────────────────────────────
 
-def _run(design: Design, els: list[_El], physics: bool):
+def _run(design: Design, els: list[_El], physics: bool, inject: list | None = None):
     bp = design.baseplate
     box = (-MARGIN, -MARGIN, bp.width_mm + MARGIN, bp.height_mm + MARGIN)
     segments: list[Segment] = []
@@ -530,12 +617,18 @@ def _run(design: Design, els: list[_El], physics: bool):
                 return el
         return None
 
+    starts = []
     for src in design.sources:
         lam = src.wavelength_nm * 1e-6
         zr = math.pi * src.waist_mm ** 2 / lam
         ex, ey = _normalize(*jones_from_spec(src.polarization))
-        stack = [_Beam(src.id, src.id, tuple(src.position), _u(src.direction_deg), src.wavelength_nm,
-                       0.0, src.power_mw, ex, ey, complex(-src.waist_offset_mm, zr), 0, src.id)]
+        # disabled sources: unit-power ghost for placement, nothing in physics
+        power = src.power_mw if src.enabled else (0.0 if physics else 1.0)
+        starts.append([_Beam(src.id, src.id, tuple(src.position), _u(src.direction_deg), src.wavelength_nm,
+                             0.0, power, ex, ey, complex(-src.waist_offset_mm, zr), 0, src.id)])
+    if inject:
+        starts.append(list(reversed(inject)))
+    for stack in starts:
         while stack:
             beam = stack.pop()
             if physics and beam.power < MIN_POWER:
@@ -608,6 +701,56 @@ def _run(design: Design, els: list[_El], physics: bool):
     return segments, branches, branch_end
 
 
+def _sfg_generate(design: Design, nl_els: list[_El]):
+    """From the inputs recorded on each sfg_crystal in the last run, return
+    (generated beams, {crystal id: {branch: pass-through fraction}}, {crystal id: P_generated})."""
+    order = {s.id: i for i, s in enumerate(design.sources)}
+    beams, fracs, gen_p = [], {}, {}
+    used: set[str] = set()
+    for el in nl_els:
+        if el.type != "sfg_crystal":
+            continue
+        sp = el.spec
+        eta = sp.nl_efficiency_per_w if sp.nl_efficiency_per_w is not None else 2.0
+        recs = sorted(el.nl_rec, key=lambda r: (order.get(r[0].source_id, 1e9), r[0].branch))
+        loss = [0.0] * len(recs)
+        pairs = []
+        for i in range(len(recs)):
+            for j in range(i + 1, len(recs)):
+                b1, h1, _, w1, _ = recs[i]
+                b2, h2, _, w2, _ = recs[j]
+                if math.dist(h1, h2) > max(w1, w2, 1e-3):
+                    continue
+                if _dot(b1.d, b2.d) < math.cos(math.radians(5.0)):
+                    continue
+                pairs.append((i, j))
+        if not pairs and len(recs) == 1 and sp.nl_efficiency_per_w is not None:
+            pairs.append((0, 0))  # SHG
+        total = 0.0
+        for i, j in pairs:
+            b1, h1, p1, _, q1 = recs[i]
+            b2, _, p2, _, _ = recs[j]
+            lam_out = 1.0 / (1.0 / b1.wl + 1.0 / b2.wl)
+            p_out = eta * p1 * p2 * 1e-3
+            # photon-energy bookkeeping: beam k gives up P_out * lambda_out / lambda_k
+            loss[i] += p_out * lam_out / b1.wl
+            loss[j] += p_out * lam_out / b2.wl
+            dm = (b1.d[0] + b2.d[0], b1.d[1] + b2.d[1])
+            n = math.hypot(*dm) or 1.0
+            name = b1.branch + ".sfg"
+            k = 2
+            while name in used:
+                name, k = f"{b1.branch}.sfg{k}", k + 1
+            used.add(name)
+            total += p_out
+            beams.append(_Beam(name, b1.source_id, h1, (dm[0] / n, dm[1] / n), lam_out, b1.fshift + b2.fshift,
+                               p_out, b1.ex, b1.ey, q1, b1.depth + 1, el.spec.id))
+        fracs[el.spec.id] = {r[0].branch: max(0.0, 1.0 - loss[k] / r[2]) if r[2] > 0 else 1.0
+                             for k, r in enumerate(recs)}
+        gen_p[el.spec.id] = total
+    return beams, fracs, gen_p
+
+
 def trace(design: Design) -> TraceResult:
     els = [_El(spec=e, idx=i, type=e.type,
                aperture=e.aperture_mm if e.aperture_mm else default_aperture(e.type))
@@ -622,8 +765,25 @@ def trace(design: Design) -> TraceResult:
             el.placed = True
             _initial_angle(el)
 
-    # pass 1: placement
-    _, place_branches, branch_end = _run(design, els, physics=False)
+    nl_els = [el for el in els if el.type in NONLINEAR]
+    has_sfg = any(el.type == "sfg_crystal" for el in nl_els)
+
+    # pass 1: placement.  Re-run while it makes progress: an element placed on a later
+    # source's branch may sit in an earlier source's path (e.g. a combiner), and new SFG
+    # ghost beams need their own .sfg branches placed.  Placed elements never move.
+    inject: list[_Beam] = []
+    for _round in range(6):
+        n_before = sum(el.placed or el.error is not None for el in els)
+        for el in nl_els:
+            el.nl_rec = []
+        _, place_branches, branch_end = _run(design, els, physics=False, inject=inject)
+        progressed = sum(el.placed or el.error is not None for el in els) > n_before
+        new_inject = _sfg_generate(design, nl_els)[0] if has_sfg else []
+        sfg_changed = [x.branch for x in new_inject] != [x.branch for x in inject]
+        inject = new_inject
+        unplaced_left = any(not el.placed and el.error is None for el in els)
+        if not sfg_changed and not (progressed and unplaced_left):
+            break
 
     for el in els:
         if el.placed or el.error:
@@ -640,21 +800,48 @@ def trace(design: Design) -> TraceResult:
                         + (f"; earlier unplaced on this branch: {', '.join(earlier)}" if earlier else "")
                         + ")")
 
-    # pass 2: physics
-    for el in els:
-        el.hits, el.power_in, el.power_out = [], 0.0, 0.0
-    segments, branches, _ = _run(design, els, physics=True)
+    # pass 2: physics, iterated to a fixed point when nonlinear elements exist
+    gen: list[_Beam] = []
+    gen_p_used: dict[str, float] = {}
+    nonconverged: list[str] = []
+    for el in nl_els:
+        el.nl_p, el.nl_frac = 0.0, {}
+    for it in range(NL_MAX_ITER if nl_els else 1):
+        for el in els:
+            el.hits, el.power_in, el.power_out = [], 0.0, 0.0
+            el.nl_acc, el.nl_rec = 0.0, []
+        segments, branches, _ = _run(design, els, physics=True, inject=gen)
+        if not nl_els:
+            break
+        new_gen, fracs, gen_p = _sfg_generate(design, nl_els)
+
+        def close(a: float, b: float) -> bool:
+            return abs(a - b) <= NL_RTOL * max(abs(a), abs(b)) + 1e-12
+
+        bad = [el.spec.id for el in nl_els
+               if not close(el.nl_acc, el.nl_p)
+               or (el.type == "sfg_crystal" and not close(gen_p.get(el.spec.id, 0.0),
+                                                          gen_p_used.get(el.spec.id, 0.0)))]
+        if not bad:
+            break
+        relax = 0.5 if it >= 4 else 1.0
+        for el in nl_els:
+            el.nl_p += relax * (el.nl_acc - el.nl_p)
+            el.nl_frac = fracs.get(el.spec.id, {})
+        gen, gen_p_used = new_gen, gen_p
+    else:
+        nonconverged = bad  # ran out of iterations
 
     out = []
     for el in els:
         pe = PlacedElement(id=el.spec.id, type=el.type, placed=el.placed and not el.error,
                            position=el.pos, angle_deg=el.angle, hits=el.hits, error=el.error)
-        if el.type in TERMINATING:
+        if el.type in TERMINATING or el.type in ("soa", "saturable_absorber"):
             pe.power_out_mw = el.power_out
             if el.type == "fiber_coupler":
                 pe.coupling_efficiency = el.power_out / el.power_in if el.power_in > 0 else 0.0
         out.append(pe)
-    return TraceResult(segments=segments, elements=out, branches=branches)
+    return TraceResultNL(segments=segments, elements=out, branches=branches, nonconverged=nonconverged)
 
 
 # ───────────────────────────── CLI ──────────────────────────────────────────

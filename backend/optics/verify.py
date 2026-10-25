@@ -11,11 +11,13 @@ Checks (Check.id):
   target              error    a design Target is unmet (info when met)
   max_depth           warning  tracing hit the interaction/segment cap
   no_light            info     placed element receives no light
+  nonlinear_convergence warning  soa/sfg/saturable-absorber fixed-point iteration did not converge
 
 Footprints (along optical axis/normal x across, mm), centred on the element position:
   mirror 25x25, lens 15x25, waveplates 15x25, cubes (pbs/beamsplitter/sampler/dichroic) 20x20,
   aom 40x25, iris 10x25, fiber_coupler 30x30, photodiode 30x20, beam_dump 10x10 (compact razor/knife-edge block),
-  vapor_cell 75x25, isolator 50x25.
+  vapor_cell 75x25, isolator 50x25, soa 30x20 (butterfly module), sfg_crystal 20x15,
+  saturable_absorber 10x25.
 For beam_through_mount the footprint is shrunk by 2 mm per side to tolerate near misses.
 
 Score: 95 + 5 * delivered/input, -25 per error, -5 per warning, clamped to 0..100.
@@ -33,6 +35,7 @@ FOOTPRINT = {
     "pbs": (20, 20), "beamsplitter": (20, 20), "sampler": (20, 20), "dichroic": (20, 20),
     "aom": (40, 25), "iris": (10, 25), "fiber_coupler": (30, 30), "photodiode": (30, 20),
     "beam_dump": (10, 10), "vapor_cell": (75, 25), "isolator": (50, 25),
+    "soa": (30, 20), "sfg_crystal": (20, 15), "saturable_absorber": (10, 25),
 }
 
 
@@ -111,6 +114,11 @@ def verify(design: Design, trace: TraceResult) -> VerifyReport:
             checks.append(Check(id="max_depth", severity="warning", segment_id=s.id,
                                 message=f"trace depth limit reached on {s.branch} (cavity or loop?)"))
 
+    for eid in getattr(trace, "nonconverged", None) or []:
+        checks.append(Check(id="nonlinear_convergence", severity="warning", element_id=eid,
+                            message=(f"{eid}: power-dependent state did not converge in 12 iterations "
+                                     f"(feedback loop / bistability?); powers downstream are approximate")))
+
     # off table
     for e in trace.elements:
         if e.position is None:
@@ -133,25 +141,38 @@ def verify(design: Design, trace: TraceResult) -> VerifyReport:
             return (4.0, spec.aperture_mm + 4.0)
         return FOOTPRINT.get(e.type, (20, 20))
 
+    def bbox(pts):
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        return (min(xs), min(ys), max(xs), max(ys))
+
+    def bb_overlap(a, b) -> bool:
+        return a[0] <= b[2] and b[0] <= a[2] and a[1] <= b[3] and b[1] <= a[3]
+
     rects = {e.id: _rect(e.position, e.angle_deg, footprint(e)) for e in placed}
+    boxes = {k: bbox(v) for k, v in rects.items()}
     for i, a in enumerate(placed):
+        ba = boxes[a.id]
         for b in placed[i + 1:]:
-            if math.dist(a.position, b.position) > 60:
+            if not bb_overlap(ba, boxes[b.id]):   # AABB pre-check before the exact SAT test
                 continue
             if _sat(rects[a.id], rects[b.id]):
                 checks.append(Check(id="collision", severity="warning", element_id=a.id,
                                     message=f"{a.id} and {b.id} footprints overlap "
                                             f"({math.dist(a.position, b.position):.1f} mm apart)"))
     small = {e.id: _rect(e.position, e.angle_deg, footprint(e), shrink=2.0) for e in placed}
+    small_boxes = [(e, small[e.id], bbox(small[e.id])) for e in placed]
     flagged = set()
     for s in trace.segments:
         if s.power_mw < 1e-3:
             continue
         seg = [tuple(s.start), tuple(s.end)]
-        for e in placed:
+        sb = bbox(seg)
+        for e, poly, eb in small_boxes:
+            if not bb_overlap(sb, eb):
+                continue
             if e.id in (s.start_element, s.end_element) or (s.id, e.id) in flagged:
                 continue
-            if _sat(seg, small[e.id]):
+            if _sat(seg, poly):
                 flagged.add((s.id, e.id))
                 checks.append(Check(id="beam_through_mount", severity="warning", element_id=e.id,
                                     segment_id=s.id,

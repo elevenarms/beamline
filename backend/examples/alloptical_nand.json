@@ -1,0 +1,134 @@
+{
+  "name": "alloptical_nand",
+  "description": "All-optical NAND by cross-gain modulation in a semiconductor optical amplifier: light switches light. A weak 1550 nm probe shares an SOA with two 1310 nm control beams (inputs A and B, each a laser that is on = 1 / off = 0). The controls are combined losslessly on a PBS (A is V, B is H) and folded onto the probe by a dichroic. Every photon through the SOA competes for the same gain, so the controls darken the probe; one control halves the probe level, both together saturate the gain. A second dichroic dumps the 1310 nm controls, and a saturable absorber squares away the residual probe in the both-on case. OUT is bright unless A AND B.",
+  "baseplate": {
+    "width_mm": 457.2,
+    "height_mm": 304.8,
+    "thickness_mm": 25.4,
+    "optical_height_mm": 12.7,
+    "grid_mm": 25.4
+  },
+  "sources": [
+    {
+      "id": "PROBE",
+      "label": "1550 nm DFB probe (logic rail)",
+      "part_number": "SFL1550S",
+      "position": [
+        76.2,
+        76.2
+      ],
+      "direction_deg": 0.0,
+      "wavelength_nm": 1550.0,
+      "power_mw": 0.5,
+      "waist_mm": 0.5,
+      "polarization": "H"
+    },
+    {
+      "id": "A",
+      "label": "input A: 1310 nm control laser (on = 1)",
+      "part_number": "FPL1009S",
+      "position": [
+        76.2,
+        177.8
+      ],
+      "direction_deg": 0.0,
+      "wavelength_nm": 1310.0,
+      "power_mw": 30.0,
+      "waist_mm": 0.5,
+      "polarization": "V",
+      "enabled": true
+    },
+    {
+      "id": "B",
+      "label": "input B: 1310 nm control laser (on = 1)",
+      "part_number": "FPL1009S",
+      "position": [
+        177.8,
+        228.6
+      ],
+      "direction_deg": -90.0,
+      "wavelength_nm": 1310.0,
+      "power_mw": 30.0,
+      "waist_mm": 0.5,
+      "polarization": "H",
+      "enabled": false
+    }
+  ],
+  "elements": [
+    {
+      "id": "PBS_AB",
+      "type": "pbs",
+      "label": "control combiner: A (V) reflects down, B (H) transmits down",
+      "part_number": "PBS104",
+      "beam": "A",
+      "distance_mm": 101.6,
+      "out_direction_deg": -90.0
+    },
+    {
+      "id": "DICH_IN",
+      "type": "dichroic",
+      "label": "1310 reflect / 1550 pass: folds the controls onto the probe",
+      "part_number": "DMSP1500",
+      "beam": "A.r",
+      "distance_mm": 101.6,
+      "out_direction_deg": 0.0,
+      "cutoff_nm": 1400.0,
+      "reflect": "below"
+    },
+    {
+      "id": "SOA",
+      "type": "soa",
+      "label": "SOA (shared gain: cross-gain modulation)",
+      "part_number": "BOA1004P",
+      "beam": "PROBE.t",
+      "distance_mm": 50.8,
+      "small_signal_gain_db": 15.0,
+      "saturation_power_mw": 5.0
+    },
+    {
+      "id": "DICH_OUT",
+      "type": "dichroic",
+      "label": "drop the 1310 nm controls, pass the 1550 nm probe",
+      "part_number": "DMSP1500",
+      "beam": "PROBE.t",
+      "distance_mm": 50.8,
+      "out_direction_deg": 90.0,
+      "cutoff_nm": 1400.0,
+      "reflect": "below"
+    },
+    {
+      "id": "DUMP_CTRL",
+      "type": "beam_dump",
+      "label": "control dump",
+      "part_number": "LB1",
+      "beam": "A.r.r.r",
+      "distance_mm": 50.8
+    },
+    {
+      "id": "SA",
+      "type": "saturable_absorber",
+      "label": "saturable absorber (level restorer)",
+      "part_number": "SAM-1550-1",
+      "beam": "PROBE.t.t",
+      "distance_mm": 38.1,
+      "transmission": 0.001,
+      "saturation_power_mw": 20.0
+    },
+    {
+      "id": "OUT",
+      "type": "photodiode",
+      "label": "OUT = NAND(A, B)",
+      "part_number": "PDA20CS2",
+      "beam": "PROBE.t.t",
+      "distance_mm": 50.8
+    }
+  ],
+  "targets": [
+    {
+      "element_id": "OUT",
+      "kind": "min_power_mw",
+      "value": 0.15
+    }
+  ],
+  "notes": "Logic levels at OUT (threshold 0.15 mW): 00 ~6 mW, 01/10 ~0.23 mW (1), 11 ~0.07 mW (0). Default state A=1, B=0 (OUT lit); toggle sources A/B (enabled) to run the truth table."
+}

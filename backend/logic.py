@@ -1,9 +1,12 @@
 """Optical logic: evaluate polarization-encoded "directed logic" designs as Boolean circuits.
 
-Each input bit is a half-wave plate (element id = bit name): fast_axis_deg 0 = bit 0 (H stays H),
-45 = bit 1 (H -> V). PBSs route the rail by polarization, so the light ends up on exactly one
-photodiode path per input combination. An output bit is 1 when its photodiode absorbs more than
-THRESHOLD x the total source power.
+An input bit is either
+  * a half-wave plate (element id = bit name): fast_axis_deg 0 = bit 0 (H stays H), 45 = bit 1
+    (H -> V); PBSs route the rail by polarization (directed logic), or
+  * a source (source id = bit name): enabled = bit. Used by the nonlinear all-optical gates
+    (SOA cross-gain modulation, SFG), where light switches light.
+An output bit is 1 when its photodiode absorbs more than the circuit's threshold: CIRCUITS
+"threshold_mw" if given, else THRESHOLD x the total power of the enabled sources at all-ones.
 
     evaluate(design_path, {"A": 1, "B": 0}) -> {"SUM": 1, "CARRY": 0}
     truth_table(design_path, ["A", "B"], ["SUM", "CARRY"]) -> list of rows
@@ -33,6 +36,16 @@ CIRCUITS: dict[str, dict] = {
         "inputs": ["A", "B"],
         "outputs": {"SUM": lambda a, b: a ^ b, "CARRY": lambda a, b: a & b},
     },
+    "alloptical_nand": {   # SOA cross-gain modulation + saturable absorber; inputs are lasers
+        "inputs": ["A", "B"],
+        "outputs": {"OUT": lambda a, b: int(not (a and b))},
+        "threshold_mw": 0.15,
+    },
+    "alloptical_and_sfg": {   # sum-frequency generation: red light only when both IR inputs are on
+        "inputs": ["A", "B"],
+        "outputs": {"OUT": lambda a, b: a & b},
+        "threshold_mw": 0.5,
+    },
     "optical_full_adder": {
         "inputs": ["A", "B", "CIN"],
         "outputs": {"SUM": lambda a, b, c: a ^ b ^ c,
@@ -46,20 +59,33 @@ def load(design_path: str | Path) -> Design:
 
 
 def set_inputs(design: Design, inputs: dict[str, int]) -> Design:
-    """Copy of the design with each input HWP's fast axis set to 0 deg (bit 0) or 45 deg (bit 1)."""
+    """Copy of the design with each input applied: a source id sets enabled = bit; an HWP id sets
+    its fast axis to 0 deg (bit 0) or 45 deg (bit 1)."""
     d = design.model_copy(deep=True)
     by_id = {e.id: e for e in d.elements}
+    sources = {s.id: s for s in d.sources}
     for name, bit in inputs.items():
+        if name in sources:
+            sources[name].enabled = bool(bit)
+            continue
         el = by_id.get(name)
         if el is None or el.type != "half_wave_plate":
-            raise KeyError(f"input {name!r} is not a half_wave_plate in {d.name}")
+            raise KeyError(f"input {name!r} is neither a source nor a half_wave_plate in {d.name}")
         el.fast_axis_deg = 45.0 if bit else 0.0
     return d
+
+
+def threshold_mw(design: Design) -> float:
+    spec = CIRCUITS.get(design.name, {})
+    if "threshold_mw" in spec:
+        return spec["threshold_mw"]
+    return THRESHOLD * sum(s.power_mw for s in design.sources)
 
 
 def run(design: Design, inputs: dict[str, int]) -> tuple[dict[str, float], VerifyReport]:
     """Trace with the given inputs; return photodiode powers (mW) and the verify report."""
     d = set_inputs(design, inputs)
+    d.targets = []  # targets describe the default state; logic rows are judged by the threshold
     tr = trace(d)
     powers = {e.id: (e.power_out_mw or 0.0) for e in tr.elements if e.type == "photodiode"}
     return powers, verify(d, tr)
@@ -69,24 +95,24 @@ def evaluate(design_path: str | Path | Design, inputs: dict[str, int],
              outputs: list[str] | None = None) -> dict[str, int]:
     design = design_path if isinstance(design_path, Design) else load(design_path)
     powers, _ = run(design, inputs)
-    p_in = sum(s.power_mw for s in design.sources)
+    thr = threshold_mw(design)
     if outputs is None:
         spec = CIRCUITS.get(design.name)
         outputs = list(spec["outputs"]) if spec else [k for k in powers if k != "REF"]
-    return {o: int(powers.get(o, 0.0) > THRESHOLD * p_in) for o in outputs}
+    return {o: int(powers.get(o, 0.0) > thr) for o in outputs}
 
 
 def truth_table(design_path: str | Path | Design, inputs: list[str], outputs: list[str]) -> list[dict]:
     """One row per input combination: {"inputs", "outputs", "powers_mw", "passed", "errors"}."""
     design = design_path if isinstance(design_path, Design) else load(design_path)
-    p_in = sum(s.power_mw for s in design.sources)
+    thr = threshold_mw(design)
     rows = []
     for bits in itertools.product((0, 1), repeat=len(inputs)):
         ins = dict(zip(inputs, bits))
         powers, rep = run(design, ins)
         rows.append({
             "inputs": ins,
-            "outputs": {o: int(powers.get(o, 0.0) > THRESHOLD * p_in) for o in outputs},
+            "outputs": {o: int(powers.get(o, 0.0) > thr) for o in outputs},
             "powers_mw": {o: powers.get(o, 0.0) for o in outputs},
             "passed": rep.passed,
             "errors": [c.message for c in rep.checks if c.severity == "error"],
@@ -106,7 +132,7 @@ def main(argv: list[str]) -> int:
         inputs = [e.id for e in design.elements if e.type == "half_wave_plate" and "(HWP)" in e.label]
         funcs = {e.id: None for e in design.elements if e.type == "photodiode" and e.id != "REF"}
     outputs = list(funcs)
-    print(f"{design.name}: inputs {inputs} -> outputs {outputs}  (1 = PD > {THRESHOLD:.0%} of source power)")
+    print(f"{design.name}: inputs {inputs} -> outputs {outputs}  (1 = PD > {threshold_mw(design):.3g} mW)")
     print("  " + "  ".join(inputs) + "  |  " + "  ".join(f"{o:>14}" for o in outputs) + "  | verify")
     ok_all = True
     for row in truth_table(design, inputs, outputs):

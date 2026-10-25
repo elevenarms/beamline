@@ -1,0 +1,99 @@
+{
+  "name": "alloptical_and_sfg",
+  "description": "All-optical AND by sum-frequency generation: two invisible infrared inputs, A (1064 nm) and B (1550 nm), are overlapped on a dichroic and sent through a chi(2) crystal. Only when both are on does the crystal emit visible red light at 1/(1/1064 + 1/1550) = 631 nm. A second dichroic picks the red off to the OUT photodiode and the residual IR is dumped.",
+  "baseplate": {
+    "width_mm": 406.4,
+    "height_mm": 304.8,
+    "thickness_mm": 25.4,
+    "optical_height_mm": 12.7,
+    "grid_mm": 25.4
+  },
+  "sources": [
+    {
+      "id": "A",
+      "label": "input A: 1064 nm laser (on = 1)",
+      "part_number": "DPSS-1064-50",
+      "position": [
+        76.2,
+        76.2
+      ],
+      "direction_deg": 0.0,
+      "wavelength_nm": 1064.0,
+      "power_mw": 50.0,
+      "waist_mm": 0.5,
+      "polarization": "H",
+      "enabled": true
+    },
+    {
+      "id": "B",
+      "label": "input B: 1550 nm laser (on = 1)",
+      "part_number": "FPL1055T",
+      "position": [
+        177.8,
+        228.6
+      ],
+      "direction_deg": -90.0,
+      "wavelength_nm": 1550.0,
+      "power_mw": 50.0,
+      "waist_mm": 0.5,
+      "polarization": "H",
+      "enabled": true
+    }
+  ],
+  "elements": [
+    {
+      "id": "DICH_IN",
+      "type": "dichroic",
+      "label": "1550 reflect / 1064 pass: overlaps the inputs",
+      "part_number": "DMLP1180",
+      "beam": "A",
+      "distance_mm": 101.6,
+      "out_direction_deg": -90.0,
+      "cutoff_nm": 1300.0,
+      "reflect": "above"
+    },
+    {
+      "id": "XTAL",
+      "type": "sfg_crystal",
+      "label": "PPLN crystal (sum-frequency: AND gate)",
+      "part_number": "MSFG1-0.5",
+      "beam": "A.t",
+      "distance_mm": 50.8
+    },
+    {
+      "id": "DICH_OUT",
+      "type": "dichroic",
+      "label": "red (631 nm) reflect / IR pass",
+      "part_number": "DMLP805",
+      "beam": "A.t",
+      "distance_mm": 50.8,
+      "out_direction_deg": 90.0,
+      "cutoff_nm": 800.0,
+      "reflect": "below"
+    },
+    {
+      "id": "OUT",
+      "type": "photodiode",
+      "label": "OUT = A AND B (631 nm red)",
+      "part_number": "PDA36A2",
+      "beam": "A.t.sfg.r",
+      "distance_mm": 50.8
+    },
+    {
+      "id": "DUMP_IR",
+      "type": "beam_dump",
+      "label": "residual IR dump",
+      "part_number": "LB1",
+      "beam": "A.t.t",
+      "distance_mm": 50.8
+    }
+  ],
+  "targets": [
+    {
+      "element_id": "OUT",
+      "kind": "min_power_mw",
+      "value": 1.0
+    }
+  ],
+  "notes": "OUT receives eta*P_A*P_B = 2/W (default) x 50 mW x 50 mW = 5 mW of 631 nm only when both inputs are on. nl_efficiency_per_w is left unset on purpose: setting it explicitly also enables single-beam SHG (B alone would make 775 nm, which this red dichroic also reflects)."
+}

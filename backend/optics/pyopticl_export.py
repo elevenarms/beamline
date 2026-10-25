@@ -85,7 +85,9 @@ def branch_to_index(branch: str, source_ids: list[str]) -> tuple[str, int]:
     rest = branch[len(src):].lstrip(".")
     idx = 1
     for tok in [t for t in rest.split(".") if t] if rest else []:
-        if tok in ("t", "0"):
+        if tok in ("t", "0") or tok.startswith("sfg"):
+            # PyOpticL has no sum-frequency generation; the generated beam follows the
+            # pass-through path, so it maps to the transmitted index.
             idx = idx << 1
         elif tok in ("r", "+1", "-1", "1"):
             idx = (idx << 1) + 1
