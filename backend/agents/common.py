@@ -120,43 +120,61 @@ def report_summary(rep: VerifyReport) -> str:
     return "\n".join(out)
 
 
+POLISH_MIN_S = 20.0   # only start a warnings-only polish round if this much budget is left
+
+
+def _counts(rep: VerifyReport) -> tuple[int, int]:
+    return (sum(c.severity == "error" for c in rep.checks), sum(c.severity == "warning" for c in rep.checks))
+
+
 async def repair_loop(
     design: Design, tr: TraceResult, rep: VerifyReport, *, goal: str, emit: Emit,
     rounds: int = 3, thinking: str = "low", index_base: int = 0, extra_context: list | None = None,
     deadline: float | None = None,
 ) -> tuple[Design, TraceResult, VerifyReport]:
-    """Iteratively repair the best design until it passes, rounds run out, or the deadline hits."""
+    """Repair until the design passes with no warnings, rounds run out, or the time budget is spent.
+    Errors are always worth a round while before the deadline; warnings-only polish rounds start only with
+    >= POLISH_MIN_S left and are cut off at the deadline (the passing design is kept)."""
     best = (design, tr, rep)
     history: list[str] = []
     for r in range(1, rounds + 1):
-        if best[2].passed:
+        d, t, rp = best
+        n_err, n_warn = _counts(rp)
+        if rp.passed and n_warn == 0:
             break
-        if deadline is not None and time.monotonic() > deadline:
+        remaining = None if deadline is None else deadline - time.monotonic()
+        polish = rp.passed
+        if remaining is not None and (remaining <= 0 or (polish and remaining < POLISH_MIN_S)):
             await emit({"type": "status", "stage": "repair", "message": "time budget reached, stopping repair"})
             break
-        d, t, rp = best
-        await emit({"type": "status", "stage": "repair",
-                    "message": f"repair round {r}: asking Gemini to fix "
-                               f"{sum(c.severity == 'error' for c in rp.checks)} errors ({headline(rp)})"})
+        if polish:
+            what = f"polishing {n_warn} warning{'s' if n_warn != 1 else ''} ({headline(rp)})"
+            budget = 45.0 if remaining is None else remaining
+        else:
+            what = f"asking Gemini to fix {n_err} error{'s' if n_err != 1 else ''} ({headline(rp)})"
+            budget = 45.0 if remaining is None else max(20.0, remaining + 15.0)
+        await emit({"type": "status", "stage": "repair", "message": f"repair round {r}: {what}"})
         msg = prompts.repair_prompt(goal, d, report_summary(rp), trace_summary(d, t), history)
         try:
             t0 = time.monotonic()
-            budget = 45.0 if deadline is None else max(20.0, deadline - time.monotonic() + 15.0)
             new = await asyncio.wait_for(
                 llm.generate_model(Design, (extra_context or []) + [msg], system=prompts.system_prompt(),
                                    thinking=thinking, tag=f"repair{r}"), timeout=budget)
             log.info("repair round %d took %.1fs", r, time.monotonic() - t0)
         except Exception as e:  # noqa: BLE001
             log.warning("repair round %d failed: %s", r, e)
-            await emit({"type": "status", "stage": "repair", "message": f"repair round {r} failed: {(str(e) or type(e).__name__)[:200]}"})
+            reason = "ran out of time" if isinstance(e, (asyncio.TimeoutError, TimeoutError)) else \
+                (str(e) or type(e).__name__)[:200]
+            await emit({"type": "status", "stage": "repair",
+                        "message": f"repair round {r} {reason}; keeping the best design so far"})
             continue
         nt, nr = evaluate(new)
         await emit({"type": "candidate", "index": index_base + r - 1, "stage": "repair", "round": r,
                     "design": dump(new), "report": dump(nr), "trace": dump(nt)})
         await emit({"type": "status", "stage": "verify",
                     "message": f"repair round {r}: {headline(nr)}"})
-        history.append(f"round {r}: score {rp.score:.0f} -> {nr.score:.0f}; remaining errors: "
-                       + "; ".join(c.message for c in nr.checks if c.severity == "error")[:600])
+        history.append(f"round {r}: score {rp.score:.0f} -> {nr.score:.0f}; remaining problems: "
+                       + "; ".join(c.message for c in nr.checks if c.severity != "info")[:600])
         if rank_key(nr) >= rank_key(rp):
             best = (new, nt, nr)
         else:

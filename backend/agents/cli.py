@@ -69,6 +69,11 @@ async def _main() -> None:
                   f"{len(g.get('parameters', []))} params", flush=True)
             for c in g["components"]:
                 print(f"            {c['id']:<8} {c['type']:<18} {c.get('label', '')[:40]}")
+        elif t == "match":
+            sm = ev["summary"]
+            print(f"[{dt:6.1f}s] match: {sm['matched']}/{sm['in_figure']} figure components matched")
+            for row in ev["rows"]:
+                print(f"            {row['status']:<8} {row['figure_type']:<18} {row['figure_label'][:28]:<28} -> {row['design_id']}")
         elif t == "error":
             print(f"[{dt:6.1f}s] ERROR {ev['message']}")
 

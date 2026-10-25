@@ -53,7 +53,7 @@ def client() -> genai.Client:
     global _client
     if _client is None:
         _client = genai.Client(api_key=_api_key(),
-                               http_options=types.HttpOptions(timeout=240_000))
+                               http_options=types.HttpOptions(timeout=120_000))
     return _client
 
 

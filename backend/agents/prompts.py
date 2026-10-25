@@ -142,7 +142,7 @@ AMO design heuristics:
   the coupler (see catalog). A telescope (two lenses separated by f1+f2) resizes the beam.
 - Pick off a few percent with a sampler to a photodiode for power monitoring / intensity stabilisation.
 - Optical isolator immediately after the laser.
-- Leave ≥ 25 mm between optics (mount footprints), ≥ 15 mm clearance from the baseplate edges; fold with 90°
+- Leave >= 40 mm between optic centres (mount footprints collide otherwise), ≥ 15 mm clearance from the baseplate edges; fold with 90°
   mirror turns on the 25.4 mm grid where possible; keep everything on the baseplate.
 - Clear apertures: 1/2" optics have 12.7 mm aperture; the beam diameter (2w) must be well below it.
 - Set realistic targets (min_power_mw / min_coupling / polarization) on the delivered outputs; achievable
@@ -243,12 +243,19 @@ def repair_prompt(goal: str, design: Design, report: str, trace: str, history: l
     return f"""Goal:
 \"\"\"{goal}\"\"\"
 
-The design below was traced and verified and has problems. Fix ALL errors (and warnings where cheap) and return
-the complete corrected Design JSON. Keep what works; change only what is needed. Typical fixes: add a beam_dump
+The design below was traced and verified and has problems. Fix ALL errors AND warnings and return the complete
+corrected Design JSON. Keep what works; change only what is needed. Warning fixes: "collision" → spread the
+mounts so optic centres are >= 40 mm apart (lengthen distance_mm, move the fold mirrors, enlarge the baseplate);
+"beam_through_mount" → move the element or reroute so no beam crosses another mount; weak "stray_beam" → add a
+beam_dump on that branch; "clipping" → centre the beam / larger aperture / smaller waist. Typical error fixes: add a beam_dump
 on a stray branch, correct a mirror's out_direction_deg, move an element so the beam actually hits it, shrink the
 beam or move away from apertures to avoid clipping, rename a branch reference (".t"/".r"/".0"/".+1"), resize the
 baseplate, fix mode matching (waist vs fiber coupler focal length), relax unrealistic targets only if physically
 impossible.
+Make the SMALLEST edit that fixes each problem: do not reorder, rename or re-branch elements that are not
+named in a check. Targets are goals that an earlier step chose, not physics: if a target is wrong for this layout
+(e.g. it demands a polarization or power the intended setup never delivers there), correct the target instead of
+rebuilding the optics.
 Placement pitfalls: elements sharing a branch name are placed in LIST ORDER along that branch, so a terminator
 (beam_dump / photodiode / fiber_coupler) on branch B must come AFTER every other element on B in the list; to catch a
 splitter's unused output, put the dump on that output's suffixed branch ("<B>.t" or "<B>.r"), never on B itself.
@@ -274,13 +281,16 @@ def extract_prompt(notes: str, i: int) -> str:
 Extract the optical setup as a strict JSON graph:
 - components: every optical component, with id (short, unique, e.g. M1, PBS1), type (one of: laser, mirror,
   lens, half_wave_plate, quarter_wave_plate, pbs, beamsplitter, sampler, dichroic, aom, iris, fiber_coupler,
-  photodiode, beam_dump, vapor_cell, isolator, other), label as written in the figure (plain ASCII: lambda/2, not Greek letters), approx_xy = [x, y]
-  center position normalized 0-1 within the image with y measured UP from the bottom edge, and part_number if
-  printed.
+  photodiode, beam_dump, vapor_cell, isolator, other), label as written in the figure (plain ASCII: lambda/2,
+  not Greek letters), box_2d = [ymin, xmin, ymax, xmax] bounding box of the drawn part (including its mount)
+  normalized to 0-1000 over the whole image (origin top-left), and part_number if printed.
+  Beams entering from outside the figure (input fibers/lasers) count as a component of type laser placed where
+  the beam enters.
+- baseplate_box_2d: the [ymin, xmin, ymax, xmax] 0-1000 box of the baseplate / breadboard if one is drawn.
 - beams: directed edges along which light travels from one component to the next (from, to, optional label /
   wavelength_nm). Include both passes of a double-passed element.
-- parameters: numeric values visible or clearly implied (wavelength, focal lengths, AOM frequency, powers),
-  with the text evidence.
+- parameters: numeric values visible or clearly implied (wavelength, focal lengths, AOM frequency, powers,
+  split ratios), with the text evidence. Do not invent values.
 {focus}
 {('User notes: ' + notes) if notes else ''}"""
 
@@ -288,7 +298,7 @@ Extract the optical setup as a strict JSON graph:
 def merge_prompt(graphs: list[dict], notes: str) -> str:
     return f"""Three independent readers extracted the optics setup in this figure as graphs. Merge them into one
 consensus graph: keep components that at least two readers found (or that are clearly visible in the image),
-unify ids, average approx_xy, take the majority type, and keep beams that are consistent with the merged
+unify ids, average the box_2d boxes, take the majority type, and keep beams that are consistent with the merged
 components. Use the image to break ties.
 {('User notes: ' + notes) if notes else ''}
 Graphs:
@@ -296,19 +306,31 @@ Graphs:
 
 
 def synth_prompt(graph: dict, notes: str) -> str:
+    w, h = graph.get("baseplate_mm", [400, 200])
+    comps = [{k: c[k] for k in ("id", "type", "label", "xy_mm", "part_number") if k in c}
+             for c in graph["components"]]
+    rest = {k: graph[k] for k in ("title", "beams", "parameters", "notes") if k in graph}
     return f"""Reproduce the optical setup in this figure as a Design that the tracer can simulate.
 
-Extracted component graph (approx_xy normalized 0-1, y up):
-{json.dumps(graph, separators=(',', ':'))}
+The figure was read into this component graph. xy_mm is each part's position already converted to table
+millimetres on a {w:.0f} x {h:.0f} mm baseplate (origin lower-left, y up), scaled from known mount sizes so
+mounts are >= 40 mm apart — figures are drawn compressed, so trust xy_mm, not your own estimate of distances.
+Components: {json.dumps(comps, separators=(',', ':'))}
+Graph: {json.dumps(rest, separators=(',', ':'))}
 {('User notes: ' + notes) if notes else ''}
 
 Rules:
-- Preserve the topology (which component feeds which, splitter outputs, double passes) and the relative layout:
-  map approx_xy onto a baseplate of sensible physical size (typically 300-600 mm wide; keep the image aspect
-  ratio), snapping beam paths to clean 0/90/180/270° directions where the figure shows straight lines.
-- Map each component to the closest IR element type (lasers become sources). Drop purely mechanical parts.
-- Use figure values (wavelength, focal lengths, AOM frequency) when given; otherwise realistic defaults.
+- Use baseplate {w:.0f} x {h:.0f} mm (enlarge slightly only if needed).
+- Keep each part close to its xy_mm, but snap beam paths to clean 0/90/180/270° directions where the figure
+  shows straight lines: derive each distance_mm from the xy_mm of consecutive parts along the beam, and make
+  mirror out_direction_deg point at the next part.
+- Use the graph's component ids as element ids (a laser / input beam becomes a source with that id).
+- Preserve the topology (which component feeds which, splitter outputs, counter-propagating or double passes).
+  Map each component to the closest IR element type; drop purely mechanical parts and type "other".
+- Use figure values (wavelength, split ratios, focal lengths, AOM frequency) when given; otherwise realistic
+  defaults.
 - Every beam must terminate (add beam_dumps for beams that leave the figure or end without a component;
-  fibers leaving the figure become fiber_couplers).
-- Add sensible targets for the main outputs.
+  fibers leaving the figure become fiber_couplers). Keep optic centres >= 40 mm apart.
+- Targets: only min_power_mw on the photodiodes / fiber outputs, at about half the power you expect there.
+  No polarization or coupling targets unless the figure states them.
 Return the complete Design JSON."""
