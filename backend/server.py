@@ -6,7 +6,7 @@ import json
 import time
 import traceback
 from pathlib import Path
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Literal
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +32,20 @@ class DesignBody(BaseModel):
 class GoalBody(BaseModel):
     goal: str
     candidates: int = 4
+    # "single": one design pass; "hierarchical": architect splits into modules designed in parallel;
+    # "auto": hierarchical when the goal reads like a multi-subsystem apparatus.
+    mode: Literal["auto", "single", "hierarchical"] = "auto"
+
+
+_BIG_HINTS = ("apparatus", "full laser system", "quantum computer", "subsystems", "entire", "complete system",
+              "whole table", "multiple lasers", "cooling, repump", "laboratory setup")
+
+
+def _wants_hierarchical(body: GoalBody) -> bool:
+    if body.mode != "auto":
+        return body.mode == "hierarchical"
+    goal = body.goal.lower()
+    return any(h in goal for h in _BIG_HINTS) or goal.count(",") >= 4
 
 
 def _trace_and_verify(design: Design) -> dict[str, Any]:
@@ -124,6 +138,10 @@ def _jsonable(obj: Any) -> Any:
 
 @app.post("/api/design")
 async def design_endpoint(body: GoalBody) -> EventSourceResponse:
+    if _wants_hierarchical(body):
+        from agents.hierarchical import design_hierarchical
+
+        return _stream(lambda emit: design_hierarchical(body.goal, emit))
     from agents.design import design_from_goal
 
     return _stream(lambda emit: design_from_goal(body.goal, emit, candidates=max(1, min(body.candidates, 8))))
