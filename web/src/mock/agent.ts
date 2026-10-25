@@ -1,6 +1,6 @@
 import type { AgentEvent, Design, MatchRow } from "../types";
 import { traceDesign } from "./tracer";
-import { MOCK_EXAMPLES, rbAomFiber, srTwoColor } from "./designs";
+import { MOCK_EXAMPLES, bigApparatusModules, mergeDesigns, rbAomFiber, srTwoColor } from "./designs";
 
 const sleep = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((res, rej) => {
@@ -27,7 +27,33 @@ function variant(base: Design, i: number): Design {
 }
 
 /** Offline stand-in for the Gemini design / reproduce SSE pipelines. */
+async function* hierarchical(signal?: AbortSignal): AsyncGenerator<AgentEvent> {
+  const parts = bigApparatusModules();
+  const full = mergeDesigns("mock_big_apparatus", parts);
+  yield { type: "status", stage: "plan", message: "Decomposing apparatus into subsystems" };
+  await sleep(900, signal);
+  yield { type: "modules", modules: full.modules ?? [], table: full.baseplate };
+  await sleep(700, signal);
+  for (const p of parts) {
+    const m = p.modules![0];
+    yield { type: "status", stage: "design", message: `Designing ${m.title}` };
+    await sleep(380, signal);
+    const r = traceDesign({ ...p, baseplate: full.baseplate });
+    yield { type: "module_done", module_id: m.id, design: p, report: r.report };
+    await sleep(220, signal);
+  }
+  yield { type: "status", stage: "verify", message: "Global verification across modules" };
+  await sleep(600, signal);
+  const r = traceDesign(full);
+  yield { type: "status", stage: "done", message: `Apparatus assembled: ${(full.elements ?? []).length} elements` };
+  yield { type: "final", design: full, report: r.report, trace: r.trace };
+}
+
 export async function* mockAgentStream(kind: "design" | "reproduce", text: string, signal?: AbortSignal): AsyncGenerator<AgentEvent> {
+  if (kind === "design" && /(apparatus|full|big|modules|ion trap|whole)/i.test(text)) {
+    try { yield* hierarchical(signal); } catch (e) { if ((e as Error).name !== "AbortError") yield { type: "error", message: String(e) }; }
+    return;
+  }
   const base = pickBase(text);
   try {
     if (kind === "reproduce") {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { Box, ChevronDown, ChevronUp, Maximize2, Orbit, RectangleHorizontal, RectangleVertical, Square, X } from "lucide-react";
+import { Box, ChevronDown, Columns2, ChevronUp, Maximize2, Orbit, RectangleHorizontal, RectangleVertical, Square, X } from "lucide-react";
 import { useStore } from "../store";
 import { domRefs, useView, type Preset } from "./viewStore";
 import { bandName } from "../lib/color";
@@ -17,6 +17,9 @@ const PRESETS: { id: Preset; label: string; key: string; Icon: typeof Square }[]
 
 export function ViewToolbar() {
   const { preset, projection, setPreset, toggleProjection, fit } = useView();
+  const figureUrl = useStore((s) => s.agent.figureUrl);
+  const compare = useStore((s) => s.compare);
+  const setCompare = useStore((s) => s.setCompare);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
@@ -48,6 +51,12 @@ export function ViewToolbar() {
         );
       })}
       <div className="tb-sep" />
+      {figureUrl && (
+        <button className={`tb-btn${compare ? " active" : ""}`} onClick={() => setCompare(!compare)} data-tip="Compare with source figure" aria-label="Compare with source figure">
+          <Columns2 size={15} strokeWidth={1.6} />
+          <span>Compare</span>
+        </button>
+      )}
       <button className="tb-btn" onClick={fit} data-tip="Fit to design  [0]" aria-label="Fit to design">
         <Maximize2 size={15} strokeWidth={1.6} />
         <span>Fit</span>

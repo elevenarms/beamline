@@ -330,7 +330,8 @@ const ElementNode = memo(function ElementNode({ it, oh, selected, warn, label: l
 // ───────────────────────── camera rig ─────────────────────────
 
 function fitBox(bp: Baseplate, trace: TraceResult | null, sources: Design["sources"] = []): THREE.Box3 {
-  const b = new THREE.Box3(new THREE.Vector3(...toW(0, 0, -bp.optical_height_mm - bp.thickness_mm)), new THREE.Vector3(...toW(bp.width_mm, bp.height_mm, 30)));
+  // note: toW flips y → z, so build the box from points (min/max normalised)
+  const b = new THREE.Box3().setFromPoints([new THREE.Vector3(...toW(0, 0, -bp.optical_height_mm - bp.thickness_mm)), new THREE.Vector3(...toW(bp.width_mm, bp.height_mm, 30))]);
   // beams that leave the plate are included only up to a small margin, so Fit keeps the plate centred
   const cl = (x: number, y: number, m = 25) => toW(Math.min(Math.max(x, -m), bp.width_mm + m), Math.min(Math.max(y, -m), bp.height_mm + m));
   for (const s of trace?.segments ?? []) {
@@ -358,7 +359,8 @@ function fitView(ctl: CameraControlsImpl, box: THREE.Box3, az: number, polar: nu
   const cam = ctl.camera as THREE.OrthographicCamera | THREE.PerspectiveCamera;
   // keep the design clear of the overlays: toolbar (top), view cube (top-right), legend (bottom-left)
   const legend = useView.getState().legendOpen;
-  const inset = { top: 58, bottom: 44, left: legend ? 232 : 24, right: 24 };
+  const wide = viewSize.w > 900;
+  const inset = { top: 58, bottom: legend && !wide ? 250 : 44, left: legend && wide ? 232 : 24, right: 24 };
   const W = Math.max(viewSize.w - inset.left - inset.right, 120), H = Math.max(viewSize.h - inset.top - inset.bottom, 120);
   const o = new THREE.Vector3(Math.sin(polar) * Math.sin(az), Math.cos(polar), Math.sin(polar) * Math.cos(az)).normalize();
   const r = new THREE.Vector3(Math.cos(az), 0, -Math.sin(az));
@@ -469,6 +471,17 @@ function CameraRig({ bp, trace, designKey, sources }: { bp: Baseplate; trace: Tr
       fitView(ctl, new THREE.Box3(c.clone().addScalar(-rr), c.clone().addScalar(rr)), ...curAngles(ctl), true);
     }
   }, [ctl, req, preset]);
+
+  // refit when the viewport is resized substantially (e.g. the comparison split opens)
+  const lastSize = useRef({ w: size.width, h: size.height });
+  useEffect(() => {
+    if (!ctl) return;
+    const d = Math.abs(size.width - lastSize.current.w) + Math.abs(size.height - lastSize.current.h);
+    if (d < 40) return;
+    lastSize.current = { w: size.width, h: size.height };
+    const t = setTimeout(() => fitView(ctl, fitBox(bpRef.current, traceRef.current, srcRef.current), ...curAngles(ctl), true), 120);
+    return () => clearTimeout(t);
+  }, [ctl, size.width, size.height]);
 
   // refit only when a NEW design is loaded (not on re-trace / edits)
   useEffect(() => {

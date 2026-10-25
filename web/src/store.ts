@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { DEFAULT_BASEPLATE } from "./types";
 import type { AgentEvent, Design, Element, MatchRow, Source, TraceResult, VerifyReport } from "./types";
 import * as api from "./api";
 import { useView } from "./scene/viewStore";
@@ -71,6 +72,7 @@ interface State {
   loadCandidate: (index: number) => void;
 }
 
+const AGENT_LAYOUT = "agent_layout";
 let traceTimer: ReturnType<typeof setTimeout> | null = null;
 let traceAbort: AbortController | null = null;
 let agentAbort: AbortController | null = null;
@@ -107,6 +109,7 @@ export const useStore = create<State>((set, get) => {
 
   const consume = async (kind: "design" | "reproduce", gen: AsyncGenerator<AgentEvent>, figureUrl: string | null) => {
     set((s) => ({ agent: { ...emptyAgent, figureUrl: figureUrl ?? (kind === "reproduce" ? s.agent.figureUrl : null), running: true, kind, startedAt: Date.now() }, showFigure: !!figureUrl, compare: !!figureUrl || s.compare && kind === "reproduce" }));
+    if (figureUrl) useView.setState({ legendOpen: false });
     pushLog({ stage: "start", message: kind === "design" ? "Design run started" : "Reproduce-from-figure run started", level: "info" });
     try {
       for await (const ev of gen) {
@@ -129,6 +132,34 @@ export const useStore = create<State>((set, get) => {
             get().loadDesign(ev.design, { trace: ev.trace, report: ev.report });
             pushLog({ stage: "final", message: `Loaded final design "${ev.design.name}" (score ${ev.report.score.toFixed(0)})`, level: "ok" });
             break;
+          case "modules": {
+            const plate = { ...DEFAULT_BASEPLATE, ...(ev.table ?? {}) };
+            const placeholder: Design = { name: AGENT_LAYOUT, description: "Hierarchical design in progress", baseplate: plate, modules: ev.modules ?? [], sources: [], elements: [] };
+            useView.setState({ legendOpen: false });
+            set({ design: placeholder, trace: { segments: [], elements: [], branches: [] }, report: null, selected: null });
+            pushLog({ stage: "plan", message: `Planned ${ev.modules?.length ?? 0} modules on ${plate.width_mm.toFixed(0)} × ${plate.height_mm.toFixed(0)} mm`, level: "info" });
+            break;
+          }
+          case "module_done": {
+            const cur = get().design;
+            const sub = ev.design;
+            const tag = <T extends { group?: string | null }>(x: T): T => ({ ...x, group: x.group ?? ev.module_id });
+            const base: Design = cur && cur.name === AGENT_LAYOUT ? cur : { name: AGENT_LAYOUT, baseplate: sub.baseplate, modules: sub.modules ?? [], sources: [], elements: [] };
+            const mods = [...(base.modules ?? [])];
+            for (const m of sub.modules ?? []) if (!mods.some((x) => x.id === m.id)) mods.push(m);
+            const merged: Design = {
+              ...base,
+              modules: mods,
+              sources: [...base.sources.filter((x) => x.group !== ev.module_id), ...sub.sources.map(tag)],
+              elements: [...(base.elements ?? []).filter((x) => x.group !== ev.module_id), ...(sub.elements ?? []).map(tag)],
+              targets: [...(base.targets ?? []), ...(sub.targets ?? [])],
+            };
+            set({ design: merged });
+            scheduleTrace(0);
+            const title = mods.find((m) => m.id === ev.module_id)?.title ?? ev.module_id;
+            pushLog({ stage: "module", message: `${title} done${ev.report ? `: score ${ev.report.score.toFixed(0)}, ${ev.report.passed ? "PASS" : "FAIL"}` : ""}`, level: ev.report?.passed === false ? "info" : "ok" });
+            break;
+          }
           case "match":
             set((s) => ({ agent: { ...s.agent, match: { rows: ev.rows ?? [], summary: ev.summary ?? { matched: 0, in_figure: 0 } } } }));
             pushLog({ stage: "match", message: `Matched ${ev.summary?.matched ?? 0}/${ev.summary?.in_figure ?? 0} figure components`, level: ev.summary && ev.summary.matched === ev.summary.in_figure ? "ok" : "info" });
@@ -149,12 +180,12 @@ export const useStore = create<State>((set, get) => {
     design: null, trace: null, report: null, traceMs: null, tracing: false, traceError: null,
     selected: null, hoverSeg: null, view: "2d", exaggeration: 3, mock: api.isMock(), leftTab: "workflow",
     showFigure: true, compare: false, agent: emptyAgent, exportOpen: false,
-    setCompare: (v) => set({ compare: v }),
+    setCompare: (v) => { if (v) useView.setState({ legendOpen: false }); set({ compare: v }); },
     soloModule: null,
     setSoloModule: (id) => set({ soloModule: id }),
 
     loadDesign: (d, pre) => {
-      if (get().design?.name !== d.name) useView.setState({ legendOpen: (d.elements?.length ?? 0) <= 30 });
+      if (get().design?.name !== d.name) useView.setState({ legendOpen: (d.elements?.length ?? 0) <= 30 && !get().compare });
       set({ design: d, selected: null });
       if (pre) set({ trace: pre.trace, report: pre.report, traceMs: null, traceError: null });
       else scheduleTrace(0);

@@ -8,6 +8,7 @@ const EXAMPLE_GOALS = [
   "Rb-87 D2 line: deliver ≥ 8 mW of +110 MHz shifted 780 nm light into a single-mode fiber, with a 5 % pickoff for saturated absorption spectroscopy.",
   "532 nm Mach–Zehnder interferometer on a 14×10 inch breadboard with two output photodiodes.",
   "Combine 461 nm and 689 nm Sr beams on a dichroic into one fiber.",
+  "Full ion-trap apparatus: twelve laser subsystems (cooling, repump, interferometer, combiner modules) on a 56 × 44 inch table.",
 ];
 
 export function Thumb({ c, w = 76, h = 44 }: { c: Candidate; w?: number; h?: number }) {
