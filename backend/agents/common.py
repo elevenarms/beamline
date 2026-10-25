@@ -198,6 +198,8 @@ def report_summary(rep: VerifyReport) -> str:
 
 
 POLISH_MIN_S = 28.0
+HARD_MIN_REPAIR_S = 15.0   # don't start a repair LLM call with less than this before the hard deadline
+HARD_MARGIN_S = 2.0        # keep this much for final/match events
 ERROR_OVERRUN_S = 25.0   # failing designs get this much extra time for repair   # only start a warnings-only polish round if this much budget is left
 
 
@@ -262,7 +264,9 @@ async def repair_loop(
     design: Design, tr: TraceResult, rep: VerifyReport, *, goal: str, emit: Emit,
     rounds: int = 3, thinking: str = "low", index_base: int = 0, extra_context: list | None = None,
     deadline: float | None = None, tracker: AgentTracker | None = None, parent_seq: int | None = None,
-    parent_agent: str | None = None,
+    parent_agent: str | None = None, hard_deadline: float | None = None, polish_min_s: float | None = None,
+    t_start: float | None = None, late_after_s: float | None = None,
+    on_stage: Callable[[str], Awaitable[None]] | None = None,
 ) -> tuple[Design, TraceResult, VerifyReport]:
     """Repair until the design passes with no warnings, rounds run out, or the time budget is spent.
     Errors are always worth a round while before the deadline; warnings-only polish rounds start only with
@@ -288,11 +292,20 @@ async def repair_loop(
         n_err, n_warn = _counts(rp)
         if rp.passed and n_warn == 0:
             break
-        remaining = None if deadline is None else deadline - time.monotonic()
+        now = time.monotonic()
+        remaining = None if deadline is None else deadline - now
         polish = rp.passed
-        # a failing design may overrun the budget by ERROR_OVERRUN_S; polishing a passing one may not
-        if remaining is not None and (remaining <= -ERROR_OVERRUN_S or (polish and remaining < POLISH_MIN_S)):
-            await emit({"type": "status", "stage": "repair", "message": "time budget reached, stopping repair"})
+        pmin = POLISH_MIN_S if polish_min_s is None else polish_min_s
+        stop = None
+        # a failing design may overrun the soft budget by ERROR_OVERRUN_S; polishing a passing one may not
+        if remaining is not None and (remaining <= -ERROR_OVERRUN_S or (polish and remaining < pmin)):
+            stop = "time budget reached, stopping repair"
+        if hard_deadline is not None and hard_deadline - now < HARD_MIN_REPAIR_S:
+            stop = f"only {max(0.0, hard_deadline - now):.0f}s left before the hard deadline, stopping repair"
+        if late_after_s is not None and t_start is not None and now - t_start > late_after_s and r > 1:
+            stop = f"{now - t_start:.0f}s elapsed: one repair round max, stopping"
+        if stop:
+            await emit({"type": "status", "stage": "repair", "message": stop})
             break
         if polish:
             what = f"polishing {n_warn} warning{'s' if n_warn != 1 else ''} ({headline(rp)})"
@@ -300,6 +313,10 @@ async def repair_loop(
         else:
             what = f"asking Gemini to fix {n_err} error{'s' if n_err != 1 else ''} ({headline(rp)})"
             budget = 45.0 if remaining is None else max(20.0, remaining + ERROR_OVERRUN_S)
+        if hard_deadline is not None:
+            budget = min(budget, hard_deadline - now - HARD_MARGIN_S)
+        if on_stage:
+            await on_stage(f"repair round {r}" + (" (polish)" if polish else ""))
         await emit({"type": "status", "stage": "repair", "message": f"repair round {r}: {what}"})
         msg = prompts.repair_prompt(goal, d, report_summary(rp), trace_summary(d, t), history)
         aid = f"repair-{r}"

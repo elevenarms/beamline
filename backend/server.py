@@ -30,6 +30,9 @@ app.include_router(cover_router)
 from agents.paper_pdf import router as paper_pdf_router  # noqa: E402  (arXiv PDF proxy)
 
 app.include_router(paper_pdf_router)
+from optics.build_doc_api import router as build_doc_router  # noqa: E402  (build document PDF)
+
+app.include_router(build_doc_router)
 
 
 class DesignBody(BaseModel):
@@ -162,7 +165,8 @@ async def reproduce_endpoint(image: UploadFile = File(...), notes: str = Form(""
     if len(data) > 20 * 1024 * 1024:
         raise HTTPException(413, "image too large (max 20 MB)")
     mime = image.content_type or "image/png"
-    return _stream(lambda emit: reproduce_from_image(data, mime, notes, emit))
+    t_req = time.monotonic()
+    return _stream(lambda emit: reproduce_from_image(data, mime, notes, emit, started_at=t_req))
 
 
 class ReproduceUrlBody(BaseModel):
@@ -190,6 +194,7 @@ async def reproduce_url_endpoint(body: ReproduceUrlBody) -> EventSourceResponse:
     from agents.papers import ALLOWED_HOSTS, fetch_image
     from agents.reproduce import reproduce_from_image
 
+    t_req = time.monotonic()
     u = urlparse(body.image_url)
     if u.scheme != "https" or (u.hostname or "").lower() not in ALLOWED_HOSTS:
         raise HTTPException(400, f"image_url must be https on one of: {', '.join(sorted(ALLOWED_HOSTS))}")
@@ -197,7 +202,9 @@ async def reproduce_url_endpoint(body: ReproduceUrlBody) -> EventSourceResponse:
     async def run(emit: Emit) -> Any:
         await emit({"type": "figure", "url": body.image_url, "citation": body.citation})
         data, mime = await fetch_image(body.image_url)
-        return await reproduce_from_image(data, mime, body.notes, emit)
+        await emit({"type": "status", "stage": "budget", "message": f"figure fetched ({len(data) // 1024} kB)",
+                    "elapsed_s": round(time.monotonic() - t_req, 1), "deadline_s": 115})
+        return await reproduce_from_image(data, mime, body.notes, emit, started_at=t_req)
 
     return _stream(run)
 
