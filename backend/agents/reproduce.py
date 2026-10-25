@@ -70,6 +70,7 @@ EXTRACT_FIRST_CAP_S = 60.0
 HARD_DEADLINE_S = 115.0  # final is always emitted before request start + this
 POLISH_MIN_REPRO_S = 35.0
 LATE_AFTER_S = 75.0      # past this, at most one repair round
+POLISH_IF_BEFORE_S = 65.0  # a design passing with warnings gets one polish round if done before this
 EXTRACT_HARD_S = 150.0   # safety cap while NO pass has landed yet (dense figures can take > 60 s)
 BUDGET_BASE_S, BUDGET_PER_PART_S, BUDGET_MAX_S = 75.0, 3.0, 150.0
 SYNTH_TIMEOUT_S = 70.0
@@ -404,17 +405,22 @@ async def reproduce_from_image(image_bytes: bytes, mime: str, notes: str = "", e
                 "report": dump(rep), "trace": dump(tr)})
     await emit({"type": "status", "stage": "verify", "message": f"synthesized design: {headline(rep)}"})
 
-    if rep.passed:
-        await clock("synthesized design passes; skipping repair")
+    has_warn = any(c.severity == "warning" for c in rep.checks)
+    elapsed = time.monotonic() - t_req
+    polish_once = rep.passed and has_warn and elapsed < POLISH_IF_BEFORE_S
+    if rep.passed and not polish_once:
+        await clock("synthesized design passes; skipping repair" if not has_warn
+                    else f"passes with warnings, {elapsed:.0f}s elapsed; skipping polish")
     else:
-        await clock("repairing the synthesized design")
+        await clock("passes with warnings; one polish round" if polish_once else "repairing the synthesized design")
         compact = {"components": [{k: c[k] for k in ("id", "type", "label", "xy_mm")} for c in graph["components"]],
                    "beams": graph["beams"]}
         goal = ("Reproduce the optical setup in the figure, preserving its topology and relative layout. "
                 f"Extracted graph (xy_mm = suggested table position): {json.dumps(compact, separators=(',', ':'))}"
                 + (f"\nUser notes: {notes}" if notes else ""))
         design, tr, rep = await repair_loop(
-            design, tr, rep, goal=goal, emit=emit, rounds=repair_rounds, thinking=REPAIR_THINKING, index_base=1,
+            design, tr, rep, goal=goal, emit=emit, rounds=1 if polish_once else repair_rounds,
+            thinking=REPAIR_THINKING, index_base=1,
             deadline=deadline, tracker=tracker, parent_seq=seq, parent_agent=synth_aid, hard_deadline=hard,
             polish_min_s=POLISH_MIN_REPRO_S, t_start=t_req, late_after_s=LATE_AFTER_S, on_stage=clock)
     t_end = time.monotonic()
