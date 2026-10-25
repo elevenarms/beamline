@@ -119,6 +119,7 @@ function StatusBar() {
   const tracing = useStore((s) => s.tracing);
   const mock = useStore((s) => s.mock);
   const pending = running && !finalSeen && !(nVerified > 0 && report?.passed);
+  const tuning = useDemo((d) => d.tune.active);
   return (
     <footer className="statusbar">
       <span className="item">Trace <b>{ms == null ? "—" : `${ms.toFixed(0)} ms`}</b>{tracing && <LoaderCircle size={11} className="spin" />}</span>
@@ -126,7 +127,9 @@ function StatusBar() {
       <span className="item">Segments <b>{trace?.segments.length ?? 0}</b></span>
       <span className="item">Branches <b>{trace?.branches.length ?? 0}</b></span>
       <span className="item">Delivered <b>{mW(report?.metrics.delivered_mw)}</b></span>
-      {pending ? (
+      {tuning ? (
+        <span className="item muted">aligning… delivered <b>{mW(report?.metrics.delivered_mw)}</b></span>
+      ) : pending ? (
         <span className="item muted">verifying… <b>{nVerified}</b> candidates</span>
       ) : (
         <>

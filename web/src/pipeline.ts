@@ -149,7 +149,11 @@ export const usePipeline = create<PipelineState>((set, get) => ({
     set({ docUrl: url, docBusy: false });
     usePip.getState().showDoc(url, design.name);
     get().mark("pdf");
-    if (get().clockT0 != null && get().clockEnd == null) set({ clockEnd: performance.now() });
+    if (get().clockT0 != null && get().clockEnd == null) {
+      const t0 = get().clockT0;
+      set({ clockEnd: performance.now() });
+      setTimeout(() => { if (get().clockT0 === t0) set({ clockT0: null }); }, 6000);
+    }
   },
 }));
 

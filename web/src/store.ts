@@ -132,6 +132,7 @@ export const useStore = create<State>((set, get) => {
     pushLog({ stage: "start", message: kind === "design" ? "Design run started" : "Reproduce-from-figure run started", level: "info" });
     useConsole.getState().reset();
     useDemo.getState().reset();
+    if (!flyIn) usePipeline.setState({ clockT0: null });
     try {
       for await (const ev of gen) {
         useConsole.getState().ingest(ev);
@@ -236,6 +237,11 @@ export const useStore = create<State>((set, get) => {
     },
     loadDesign: (d, pre) => {
       set((s) => ({ fitNonce: s.fitNonce + 1 }));
+      // a different design outside a run: clear tuning overlays and the run clock
+      if (!get().agent.running) {
+        useDemo.getState().clearOverlays();
+        usePipeline.setState({ clockT0: null });
+      }
       if (get().design?.name !== d.name) useView.setState({ legendOpen: (d.elements?.length ?? 0) <= 30 && !get().compare });
       set({ design: d, selected: null });
       if (pre) set({ trace: pre.trace, report: pre.report, traceMs: null, traceError: null });

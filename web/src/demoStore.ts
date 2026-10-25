@@ -30,7 +30,7 @@ export interface TuneState {
   summary: { before: number; after: number; cBefore: number | null; cAfter: number | null } | null;
 }
 
-const emptyTune: TuneState = { active: false, order: [], baseline: null, current: null, field: null, value: null, values: [], history: [], baseDelivered: null, coupling: null, flags: {}, summary: null };
+export const emptyTune: TuneState = { active: false, order: [], baseline: null, current: null, field: null, value: null, values: [], history: [], baseDelivered: null, coupling: null, flags: {}, summary: null };
 
 interface DemoState {
   speed: number;
@@ -52,6 +52,7 @@ interface DemoState {
   setSpeed: (s: number) => void;
   setDirector: (v: boolean) => void;
   reset: () => void;
+  clearOverlays: () => void;
   onEvent: (ev: AgentEvent) => void;
   startFly: (d: Design, t: TraceResult) => void;
   lightUp: (delayMs?: number) => void;
@@ -116,6 +117,13 @@ export const useDemo = create<DemoState>((set, get) => ({
 
   setSpeed: (s) => set({ speed: s }),
   setDirector: (v) => set({ director: v }),
+  /** drop tuning overlays (summary, flags, knob) e.g. when another design is loaded */
+  clearOverlays: () => {
+    tuneQueue = [];
+    if (tuneTimer) { clearTimeout(tuneTimer); tuneTimer = null; }
+    tuneAbort?.abort();
+    set({ tune: emptyTune, autoAlign: false });
+  },
   reset: () => {
     tuneQueue = [];
     if (tuneTimer) clearTimeout(tuneTimer);
@@ -325,6 +333,11 @@ function pump() {
       useView.getState().fit();
       skipping = false;
       usePipeline.getState().onTuneFinal((ev.summary as Record<string, unknown> | undefined) ?? null);
+      // auto-dismiss the completion summary, gain flags and knob after ~6 s
+      {
+        const mine = D.getState().tune;
+        setTimeout(() => { if (D.getState().tune === mine || D.getState().tune.summary === mine.summary) D.setState({ tune: emptyTune }); }, 6000);
+      }
       break;
     }
     case "error":

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { CircleCheck, CircleX, Info, LoaderCircle, TriangleAlert } from "lucide-react";
 import { useConsole } from "../consoleStore";
+import { useDemo } from "../demoStore";
 import { useStore } from "../store";
 import type { Check } from "../types";
 import { mW, pct } from "../lib/format";
@@ -61,8 +62,25 @@ export default function VerifyPanel() {
   }, [report, design, trace, filter]);
 
   const running = useStore((s) => s.agent.running);
+  const tuning = useDemo((d) => d.tune.active);
+  const tunePhase = useDemo((d) => d.tune.phase);
   const nVerified = useConsole((s) => s.iterations.length);
   const finalSeen = useConsole((s) => s.rows.some((r) => r.kind === "final"));
+  if (tuning) {
+    return (
+      <div className="section">
+        <div className="section-title">Verify report</div>
+        <div className="verify-head pending">
+          <LoaderCircle size={20} className="spin" />
+          <div>
+            <div className="vh-title">Aligning…</div>
+            <div className="vh-sub">{tunePhase === "detune" ? "as-built misalignment" : "alignment pass in progress"} · delivered <b className="mono">{(report?.metrics.delivered_mw ?? 0).toFixed(2)} mW</b></div>
+          </div>
+          <div />
+        </div>
+      </div>
+    );
+  }
   if (running && !finalSeen && !(nVerified > 0 && report?.passed)) {
     return (
       <div className="section">
