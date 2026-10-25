@@ -140,6 +140,11 @@ AMO design heuristics:
   photodiode, pump goes to a dump. Probe power ~ 0.1-0.5 mW, pump several times stronger.
 - Fiber coupling: two steering mirrors before every fiber_coupler (walk the beam), and mode-match the beam waist to
   the coupler (see catalog). A telescope (two lenses separated by f1+f2) resizes the beam.
+- Spectroscopy / imaging / detection (Raman, fluorescence, scattering, tweezers): the excitation beam must hit a
+  SAMPLE (until a dedicated element exists, use a vapor_cell element labelled "sample" with a realistic
+  transmission), and the light reaching the spectrometer / camera / detector must pass a notch or long-pass
+  filter (a dichroic that sends the laser line to a beam_dump) so the excitation wavelength never reaches the
+  detector. Back-scatter / back-reflection detection must actually collect the backward beam.
 - Pick off a few percent with a sampler to a photodiode for power monitoring / intensity stabilisation.
 - Optical isolator immediately after the laser.
 - Leave >= 40 mm between optic centres (mount footprints collide otherwise), ≥ 15 mm clearance from the baseplate edges; fold with 90°
@@ -162,6 +167,18 @@ How to write a Design:
   beam re-traverses the optics on its way back. It keeps its branch name until the next split, where a new suffix
   is APPENDED (e.g. forward "L1.t" → retro mirror → back into the PBS → "L1.t.r"; after a double-passed AOM the
   return orders are "<b>.+1.+1" (shifted twice) and "<b>.+1.0" — both reach the PBS and both must be caught).
+- A terminator (beam_dump, photodiode, fiber_coupler) ENDS its branch: nothing can be placed after it on that
+  branch. Dump the output you DON'T use, and keep building on the one you do.
+  Worked AOM example — source "L1" → AOM "AOM1" on L1 creates two branches: "L1.0" (undiffracted, straight on) and
+  "L1.+1" (diffracted, ≈0.85° CCW at 780 nm/80 MHz). To use the +1 order and block the 0th:
+    {"id":"AOM1","type":"aom","beam":"L1","distance_mm":50},
+    {"id":"M1","type":"mirror","beam":"L1.+1","distance_mm":100,"out_direction_deg":90},
+    {"id":"FC1","type":"fiber_coupler","beam":"L1.+1","distance_mm":80},
+    {"id":"BD1","type":"beam_dump","beam":"L1.0","distance_mm":60,"aperture_mm":1.0,"label":"0th-order block"}
+  Note the 0th and +1 orders are only ~1.5 mm apart 100 mm after the AOM: put the 0th-order dump BEFORE the
+  orders reach the next optic, with a small aperture_mm (knife edge) so it does not clip the used order — or,
+  simpler, put it after a fold mirror that only the used order hits. NEVER put the dump on "L1.+1" and then
+  more optics on "L1.+1".
 - Use absolute "at" placement (with angle_deg) only when beam-relative placement cannot express it.
 - Mirrors: ALWAYS give out_direction_deg (the direction the reflected beam should travel; 180° from the incoming
   direction = retro-reflection).
@@ -243,8 +260,9 @@ def repair_prompt(goal: str, design: Design, report: str, trace: str, history: l
     return f"""Goal:
 \"\"\"{goal}\"\"\"
 
-The design below was traced and verified and has problems. Fix ALL errors AND warnings and return the complete
-corrected Design JSON. Keep what works; change only what is needed. Warning fixes: "collision" → spread the
+The design below was traced and verified and has problems. Fix ALL errors AND warnings and return
+{{"rationale": one lab-notebook sentence on what was wrong and what you changed, "notes": [{{"element_id", "why"}}]
+for each element you added / moved / re-angled / removed, "design": the complete corrected Design}}. Keep what works; change only what is needed. Warning fixes: "collision" → spread the
 mounts so optic centres are >= 40 mm apart (lengthen distance_mm, move the fold mirrors, enlarge the baseplate);
 "beam_through_mount" → move the element or reroute so no beam crosses another mount; weak "stray_beam" → add a
 beam_dump on that branch; "clipping" → centre the beam / larger aperture / smaller waist. Typical error fixes: add a beam_dump
@@ -320,6 +338,8 @@ Graph: {json.dumps(rest, separators=(',', ':'))}
 {('User notes: ' + notes) if notes else ''}
 
 Rules:
+- Numbers in the user notes (powers, focal lengths, wavelengths, frequencies) are HARD constraints: use them
+  exactly, never substitute convenient values.
 - Use baseplate {w:.0f} x {h:.0f} mm (enlarge slightly only if needed).
 - Keep each part close to its xy_mm, but snap beam paths to clean 0/90/180/270° directions where the figure
   shows straight lines: derive each distance_mm from the xy_mm of consecutive parts along the beam, and make

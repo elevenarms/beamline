@@ -5,7 +5,13 @@
 1. Architect (Gemini, thinking "high", structured output): split the goal into fiber-in/fiber-out modules
    (title, purpose, wavelength, power, size, outputs, fiber links, suggested targets).  Regions are then packed
    deterministically onto a table (shelf packing, 25 mm snap) -- the model only proposes sizes.
-   Emits status(stage=plan) and {"type":"modules","modules":[Module...],"table":Baseplate,"links":[...]}.
+   Power budget: the architect lists every physical laser once and the feed links (fiber / free_space, power);
+   compute_budget() derives each module's input deterministically (laser heads -> root modules; feeds capped at
+   90 % of the sender's input; fiber feeds x0.7), enforce_budget() rescales each module design's sources to it
+   (labels "fed from <module>"), budget_report() adds total_laser_mw / sum_of_module_inputs_mw metrics and
+   "power_budget" warnings to the final report.
+   Emits status(stage=plan) and {"type":"modules","modules":[Module...],"table":Baseplate,"links":[...],
+   "lasers":[...],"budget":{module_id: {input_mw, laser_ids, fed_from, feeds_out, unbudgeted, label}}}.
 2. Every module is designed IN PARALLEL in its local frame (baseplate = region size) with the shared
    single-design machinery: prompts.system_prompt + prompts.candidate_prompt (module-scoped goal), 2 candidates,
    best one -> common.repair_loop.  A module whose candidates all fail gets one retry; else it is left out
@@ -25,9 +31,11 @@ import math
 import re
 import time
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
-from optics.ir import Baseplate, Design, Module, Target
+from optics.ir import Baseplate, Check, Design, Module, Target, TraceResult, VerifyReport
 from optics.merge import local_baseplate, merge_modules
 
 from . import llm, prompts
@@ -60,7 +68,11 @@ class ModuleSpec(BaseModel):
     title: str
     purpose: str = Field(description="what this module does, which optics it needs, in 1-3 sentences")
     wavelength_nm: float
-    input_power_mw: float = Field(description="optical power entering the module (laser head or fiber launch)")
+    laser_ids: list[str] = Field(default_factory=list,
+                                 description="ids of the lasers (from Architecture.lasers) whose HEAD sits in this "
+                                             "module; empty if the module is fed from other modules")
+    input_power_mw: float = Field(description="planned optical power entering the module (recomputed from the "
+                                              "laser powers and feed links by the pipeline)")
     input: str = Field(description="where light enters: 'laser head <model>' or 'fiber from <module_id>'")
     outputs: list[str] = Field(description="each delivered output, e.g. 'fiber to trap: cooling beam'")
     width_mm: float = Field(description="region width needed, 300-600 mm")
@@ -69,17 +81,30 @@ class ModuleSpec(BaseModel):
                                   description="suggested verifier targets on this module's own element ids")
 
 
+class Laser(BaseModel):
+    id: str = Field(description="short id, e.g. laser_1064")
+    model: str = Field(description="real laser, e.g. 'Toptica DL pro 422' or 'Azurlight 1064 nm fiber amplifier'")
+    wavelength_nm: float
+    power_mw: float = Field(description="realistic output power of this ONE physical laser")
+
+
 class FiberLink(BaseModel):
+    """A light feed from one module to another (name kept for compatibility; kind may be free_space)."""
     from_module: str
     to_module: str
     purpose: str
+    kind: Literal["fiber", "free_space"] = "fiber"
+    power_mw: float = Field(0.0, description="power the upstream module sends into this feed (before fiber loss)")
 
 
 class Architecture(BaseModel):
     title: str
     summary: str
+    lasers: list[Laser] = Field(default_factory=list,
+                                description="EVERY physical laser in the apparatus, each listed once")
     modules: list[ModuleSpec] = Field(min_length=3, description="3-8 modules covering the WHOLE apparatus")
-    links: list[FiberLink] = Field(default_factory=list)
+    links: list[FiberLink] = Field(default_factory=list,
+                                   description="every light feed between modules, with its power")
 
 
 ARCH_SYSTEM = f"""You are the lead architect of large atomic-physics (AMO) laser systems: trapped ions, neutral-atom
@@ -103,26 +128,157 @@ coupling), spectroscopy/locking references, beam distribution into several fiber
 moderately sized (8-25 optics). Give realistic wavelengths and powers, a region size per module
 (width 300-600 mm, height 150-450 mm, multiples of 25 mm) that comfortably fits its optics with >= 40 mm
 between optic centres, the fiber links between modules, and 1-4 suggested verifier targets per module
-(min_power_mw / min_coupling on output elements; use ids like FC1, FC2, PD1)."""
+(min_power_mw / min_coupling on output elements; use ids like FC1, FC2, PD1).
+POWER BUDGET (strict): list every physical laser ONCE in `lasers` with its real output power. Each laser head
+sits in exactly one module (its laser_ids). A laser shared by several subsystems (e.g. one 3 W 1064 nm laser
+for several tweezer/lattice paths, or one 422 nm laser for cooling + detection) goes into ONE module that
+splits it and FEEDS the others through `links` (kind "fiber", or "free_space" only if unavoidable) with the
+power sent into each feed. A module's feeds can never add up to more than the light it receives. Fiber feeds
+lose ~30 % in fiber coupling. Never give two modules their own copy of the same laser."""
 
 
-def module_goal(goal: str, spec: ModuleSpec, region: tuple, links: list[FiberLink]) -> str:
+def module_goal(goal: str, spec: ModuleSpec, region: tuple, links: list[FiberLink],
+                budget: dict | None = None) -> str:
     w, h = region[2], region[3]
-    ins = [f"fiber from {l.from_module} ({l.purpose})" for l in links if l.to_module == spec.id]
-    outs = [f"fiber to {l.to_module} ({l.purpose})" for l in links if l.from_module == spec.id]
+    b = budget or {}
+    ins = [f"{l.kind.replace('_', '-')} feed from {l.from_module} ({l.purpose}): "
+           f"{_feed_in(l):.0f} mW arrives" for l in links if l.to_module == spec.id]
+    outs = [f"{l.kind.replace('_', '-')} feed to {l.to_module} ({l.purpose}): send {l.power_mw:.0f} mW into "
+            + ("a fiber_coupler" if l.kind == "fiber" else "a beam_dump labelled 'free-space port to "
+               f"{l.to_module}' at the region edge") for l in links if l.from_module == spec.id]
+    if b.get("label"):
+        src_rule = (f"- POWER: the module's input sources must total EXACTLY {b['input_mw']:.0f} mW "
+                    f"({b['label']}); set each source label to start with \"{b['label']}\". Do not add light.")
+    else:
+        src_rule = f"- POWER: input sources total {spec.input_power_mw:g} mW."
     tg = json.dumps([t.model_dump() for t in spec.targets]) if spec.targets else "(choose sensible ones)"
     return f"""This is ONE MODULE ("{spec.id}": {spec.title}) of a larger apparatus. Overall goal: {goal}
 
 Module purpose: {spec.purpose}
-Wavelength: {spec.wavelength_nm:g} nm. Input: {spec.input} with {spec.input_power_mw:g} mW
-{('(fiber launches: ' + '; '.join(ins) + ')') if ins else ''}
+Wavelength: {spec.wavelength_nm:g} nm. Input: {b.get('label') or spec.input}, {b.get('input_mw', spec.input_power_mw):.0f} mW
+{('(incoming feeds: ' + '; '.join(ins) + ')') if ins else ''}
 Delivered outputs: {'; '.join(spec.outputs + outs) or 'fiber couplers'}.
 HARD CONSTRAINTS:
 - The baseplate is exactly {w:g} x {h:g} mm (this module's region; local frame, origin lower-left). Set
   baseplate.width_mm={w:g}, height_mm={h:g}. Every optic must be >= 15 mm inside it.
 - Sources: the module's own laser head or fiber-launch collimator (e.g. id L1), placed near the left edge.
+{src_rule}
 - Every beam terminates inside the module (fiber_coupler / photodiode / beam_dump). No free-space beam leaves.
 - Suggested targets (keep ids consistent with your elements): {tg}"""
+
+
+# ───────────────────────────── power budget ─────────────────────────────
+
+FIBER_EFF = 0.7          # fiber-coupling efficiency assumed for a fiber feed between modules
+MODULE_PASS = 0.9        # a module can send at most this fraction of its input into outgoing feeds
+
+
+def _feed_in(l: FiberLink) -> float:
+    return l.power_mw * (FIBER_EFF if l.kind == "fiber" else 1.0)
+
+
+def compute_budget(specs: list[ModuleSpec], lasers: list[Laser], links: list[FiberLink]
+                   ) -> tuple[dict[str, dict], list[FiberLink]]:
+    """Deterministic power accounting (the architect's arithmetic is not trusted).
+    Root modules get the full power of the lasers whose heads they host (a laser claimed by several modules
+    is split equally). Modules are then processed in feed order: outgoing feeds are scaled down so they total
+    <= MODULE_PASS x the module's input; a fed module's input = sum of its incoming feeds x FIBER_EFF (fiber)
+    or x1 (free space). Modules with neither a laser nor a feed keep the architect's input and are flagged
+    'unbudgeted' (light from nowhere -> power_budget warning). Returns (budget per module, adjusted links)."""
+    ids = {s.id for s in specs}
+    laser_by_id = {l.id: l for l in lasers}
+    claims: dict[str, list[str]] = {}
+    for s in specs:
+        for lid in s.laser_ids:
+            if lid in laser_by_id:
+                claims.setdefault(lid, []).append(s.id)
+    links = [l.model_copy() for l in links if l.from_module in ids and l.to_module in ids
+             and l.from_module != l.to_module]
+    budget: dict[str, dict] = {}
+    for s in specs:
+        own = [(lid, laser_by_id[lid].power_mw / len(claims[lid])) for lid in s.laser_ids if lid in laser_by_id]
+        budget[s.id] = {"input_mw": sum(p for _, p in own), "laser_ids": [lid for lid, _ in own],
+                        "fed_from": [], "feeds_out": [], "unbudgeted": False, "label": ""}
+    incoming = {s.id: [l for l in links if l.to_module == s.id] for s in specs}
+    done: set[str] = set()
+    order: list[str] = []
+    while len(done) < len(specs):
+        ready = [s.id for s in specs if s.id not in done
+                 and all(l.from_module in done for l in incoming[s.id])]
+        if not ready:      # feed cycle: break it at the first remaining module
+            ready = [next(s.id for s in specs if s.id not in done)]
+        for mid in ready:
+            b = budget[mid]
+            fed = [l for l in incoming[mid] if l.from_module in done]
+            b["input_mw"] += sum(_feed_in(l) for l in fed)
+            b["fed_from"] = [{"module": l.from_module, "kind": l.kind, "power_mw": round(_feed_in(l), 1)}
+                             for l in fed]
+            spec = next(s for s in specs if s.id == mid)
+            if not b["laser_ids"] and not fed:
+                b["unbudgeted"] = True
+                b["input_mw"] = spec.input_power_mw
+            outs = [l for l in links if l.from_module == mid]
+            want = sum(l.power_mw for l in outs)
+            cap = MODULE_PASS * b["input_mw"]
+            if outs and (want > cap or want <= 0):
+                for l in outs:   # scale to the cap (or split it equally if powers were missing)
+                    l.power_mw = cap * (l.power_mw / want if want > 0 else 1 / len(outs))
+            b["feeds_out"] = [{"module": l.to_module, "kind": l.kind, "power_mw": round(l.power_mw, 1)}
+                              for l in outs]
+            parts = [f"laser {', '.join(b['laser_ids'])}"] if b["laser_ids"] else []
+            parts += [f"fed from {f['module']} ({f['kind'].replace('_', '-')})" for f in b["fed_from"]]
+            b["label"] = "; ".join(parts) if parts else ""
+            b["input_mw"] = round(b["input_mw"], 1)
+            done.add(mid)
+            order.append(mid)
+    return budget, links
+
+
+def enforce_budget(d: Design, b: dict | None) -> Design:
+    """Scale a module design's source powers to total exactly its allocated input (and its min_power_mw targets
+    by the same factor); prefix source labels with the feed origin."""
+    if not b or b.get("unbudgeted") or not d.sources:
+        return d
+    total = sum(s.power_mw for s in d.sources)
+    k = b["input_mw"] / total if total > 0 else 1.0
+    srcs = []
+    for s in d.sources:
+        lab = s.label if b["label"] and s.label.startswith(b["label"]) else f"{b['label']}: {s.label}".strip(": ")
+        srcs.append(s.model_copy(update={"power_mw": round(s.power_mw * k, 3), "label": lab[:120]}))
+    tg = [t.model_copy(update={"value": round(float(t.value) * k, 3)})
+          if t.kind == "min_power_mw" and isinstance(t.value, (int, float)) and abs(k - 1) > 1e-3 else t
+          for t in d.targets]
+    return d.model_copy(update={"sources": srcs, "targets": tg})
+
+
+def budget_report(rep: VerifyReport, lasers: list[Laser], budget: dict[str, dict], links: list[FiberLink],
+                  delivered_fiber: dict[str, float]) -> VerifyReport:
+    """Add total_laser_mw / sum_of_module_inputs_mw metrics and power_budget warnings to the merged report.
+    sum_of_module_inputs_mw counts light that ENTERS the table (root modules' laser power + unbudgeted modules);
+    fed modules re-use upstream light, so they add nothing."""
+    total_laser = sum(l.power_mw for l in lasers)
+    fresh = sum(b["input_mw"] for b in budget.values() if b["laser_ids"] or b["unbudgeted"])
+    checks = list(rep.checks)
+    n_warn = 0
+    metrics = {**rep.metrics, "total_laser_mw": total_laser, "sum_of_module_inputs_mw": fresh,
+               "sum_of_all_module_sources_mw": sum(b["input_mw"] for b in budget.values())}
+    checks.append(Check(id="power_budget", severity="info", value=fresh, limit=total_laser,
+                        message=f"light entering modules {fresh:.0f} mW vs lasers {total_laser:.0f} mW"))
+    if fresh > total_laser * 1.01 + 1e-6:
+        n_warn += 1
+        un = [m for m, b in budget.items() if b["unbudgeted"]]
+        checks.append(Check(id="power_budget", severity="warning", value=fresh, limit=total_laser,
+                            message=f"modules draw {fresh:.0f} mW but the lasers only provide {total_laser:.0f} mW"
+                                    + (f" (modules with no laser or feed: {', '.join(un)})" if un else "")))
+    for mid, b in budget.items():
+        promised = sum(f["power_mw"] for f in b["feeds_out"] if f["kind"] == "fiber")
+        if promised > 0 and mid in delivered_fiber and delivered_fiber[mid] < 0.9 * promised:
+            n_warn += 1
+            checks.append(Check(id="power_budget", severity="warning", value=delivered_fiber[mid], limit=promised,
+                                message=f"{mid} couples {delivered_fiber[mid]:.0f} mW into fibers but its feeds "
+                                        f"promise {promised:.0f} mW downstream"))
+    return rep.model_copy(update={"checks": checks, "metrics": metrics,
+                                  "score": max(0.0, rep.score - 5.0 * n_warn)})
 
 
 # ───────────────────────────── region packing ─────────────────────────────
@@ -207,11 +363,11 @@ async def make_architecture(goal: str, emit: Emit, max_modules: int) -> Architec
 
 
 async def _design_module(goal: str, spec: ModuleSpec, mod: Module, table: Baseplate, links: list[FiberLink],
-                         emit: Emit, deadline: float) -> tuple[Design, object, object, dict] | None:
+                         emit: Emit, deadline: float, budget: dict | None = None) -> tuple[Design, object, object, dict] | None:
     t0 = time.monotonic()
     region = mod.region
     bp = local_baseplate(table, region)
-    mgoal = module_goal(goal, spec, region, links)
+    mgoal = module_goal(goal, spec, region, links, budget)
 
     agent_id = f"module:{mod.id}"
 
@@ -234,13 +390,13 @@ async def _design_module(goal: str, spec: ModuleSpec, mod: Module, table: Basepl
     mt = AgentTracker(memit, model=llm.MODEL)
     async with mt.agent(agent_id, "module", f"Module {mod.id} — {spec.title}"[:120], parent="architect",
                         thinking_level=MODULE_THINKING, queued=False):
-        res = await _design_module_body(spec, mod, bp, mgoal, memit, mt, agent_id, deadline, t0)
+        res = await _design_module_body(spec, mod, bp, mgoal, memit, mt, agent_id, deadline, t0, budget)
         if res is None:
             raise llm.LLMError("all candidates failed")
         return res
 
 
-async def _design_module_body(spec, mod, bp, mgoal, memit, mt, agent_id, deadline, t0):
+async def _design_module_body(spec, mod, bp, mgoal, memit, mt, agent_id, deadline, t0, budget):
 
     async def one(i: int) -> tuple:
         d = await asyncio.wait_for(
@@ -248,7 +404,7 @@ async def _design_module_body(spec, mod, bp, mgoal, memit, mt, agent_id, deadlin
                                system=prompts.system_prompt(), thinking=MODULE_THINKING,
                                temperature=(1.0, 0.7, 0.85)[i % 3], tag=f"{mod.id}.cand{i}"),
             timeout=min(CAND_TIMEOUT_S, max(10.0, deadline - time.monotonic())))
-        d = d.model_copy(update={"baseplate": bp, "modules": []})
+        d = enforce_budget(d.model_copy(update={"baseplate": bp, "modules": []}), budget)
         tr, rep = await evaluate_tracked(d, mt, agent_id)
         return d, tr, rep
 
@@ -283,8 +439,9 @@ async def _design_module_body(spec, mod, bp, mgoal, memit, mt, agent_id, deadlin
     d, tr, rep = await repair_loop(d, tr, rep, goal=mgoal, emit=memit, rounds=REPAIR_ROUNDS,
                                    thinking=MODULE_THINKING, deadline=deadline, tracker=mt,
                                    parent_agent=agent_id)
-    if d.baseplate != bp:          # repairs may try to resize; the region is fixed
-        d = d.model_copy(update={"baseplate": bp})
+    fixed = enforce_budget(d.model_copy(update={"baseplate": bp}), budget)
+    if fixed != d:                 # repairs may resize the plate or change input power; region + budget are fixed
+        d = fixed
         tr, rep = evaluate(d)
     t_end = time.monotonic()
     timings = {"candidates_s": round(t_cand - t0, 1), "repair_s": round(t_end - t_cand, 1),
@@ -321,13 +478,16 @@ async def design_hierarchical(goal: str, emit: Emit = noop_emit, max_modules: in
         specs.append(s.model_copy(update={"id": new}))
     links = [l.model_copy(update={"from_module": remap.get(l.from_module, l.from_module),
                                   "to_module": remap.get(l.to_module, l.to_module)}) for l in arch.links]
+    budget, links = compute_budget(specs, arch.lasers, links)
+    specs = [s.model_copy(update={"input_power_mw": budget[s.id]["input_mw"]}) for s in specs]
     table, mods = pack_regions(specs)
     await emit({"type": "status", "stage": "plan",
                 "message": f"architecture: {arch.title} — {len(mods)} modules on a "
                            f"{table.width_mm:.0f}x{table.height_mm:.0f} mm table: "
                            + ", ".join(m.title or m.id for m in mods)})
     await emit({"type": "modules", "modules": [dump(m) for m in mods], "table": dump(table),
-                "links": [dump(l) for l in links], "title": arch.title})
+                "links": [dump(l) for l in links], "title": arch.title,
+                "lasers": [dump(l) for l in arch.lasers], "budget": budget})
     for m in mods:
         await tracker.queued(f"module:{m.id}", "module", f"Module {m.id} — {m.title}"[:120], parent="architect",
                              thinking_level=MODULE_THINKING)
@@ -338,12 +498,13 @@ async def design_hierarchical(goal: str, emit: Emit = noop_emit, max_modules: in
                 "message": f"designing {len(mods)} modules in parallel ({MODULE_CANDIDATES} candidates each)"})
     module_info: dict[str, dict] = {}
     parts: list[tuple[Module, Design]] = []
+    delivered_fiber: dict[str, float] = {}
     acc_lock = asyncio.Lock()
     acc_seq: list[int | None] = [None]   # seq of the latest "modules merged so far" iteration
 
     async def run(spec: ModuleSpec, mod: Module):
         try:
-            res = await _design_module(goal, spec, mod, table, links, emit, deadline)
+            res = await _design_module(goal, spec, mod, table, links, emit, deadline, budget.get(mod.id))
         except Exception as e:  # noqa: BLE001
             log.exception("module %s crashed", mod.id)
             res, err = None, str(e) or type(e).__name__
@@ -356,6 +517,7 @@ async def design_hierarchical(goal: str, emit: Emit = noop_emit, max_modules: in
                         "message": f"[{mod.id}] FAILED ({err[:120]}); leaving it out"})
             return
         d, tr, rep, timings = res
+        delivered_fiber[mod.id] = sum(e.power_out_mw or 0.0 for e in tr.elements if e.type == "fiber_coupler")
         placed = merge_modules(d.name, d.description, table, [(mod, d)])
         ptr, _ = evaluate(placed)
         async with acc_lock:   # one iteration per finished module: the table with every module done so far
@@ -386,6 +548,9 @@ async def design_hierarchical(goal: str, emit: Emit = noop_emit, max_modules: in
                            f"{len(merged.elements)} optics, {len(merged.targets)} targets",
                            (time.perf_counter() - t0) * 1e3)
         tr, rep = await evaluate_tracked(merged, tracker, "merge")
+        rep = budget_report(rep, arch.lasers, {m.id: budget[m.id] for m, _ in parts}, links, delivered_fiber)
+        await tracker.tool("merge", "verify", f"power budget: {rep.metrics['sum_of_module_inputs_mw']:.0f} mW "
+                           f"into modules vs {rep.metrics['total_laser_mw']:.0f} mW of lasers", 0.0)
         await tracker.iteration("merge", f"merged apparatus ({len(parts)} modules)", merged, tr, rep,
                                 parent_seq=acc_seq[0], rationale=headline(rep))
     t_end = time.monotonic()

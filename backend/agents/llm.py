@@ -53,7 +53,7 @@ def client() -> genai.Client:
     global _client
     if _client is None:
         _client = genai.Client(api_key=_api_key(),
-                               http_options=types.HttpOptions(timeout=120_000))
+                               http_options=types.HttpOptions(timeout=180_000))
     return _client
 
 
@@ -110,6 +110,108 @@ def _extract_json(text: str) -> Any:
 
 # ───────────────────────────── core calls ─────────────────────────────
 
+_HEADER = re.compile(r"^\s*(#{1,6}\s+.*|\*\*[^*\n]{1,120}\*\*\s*)$", re.M)
+_call_counter = 0
+STREAM = os.environ.get("BEAMLINE_STREAM", "1") != "0"
+
+
+class _ThoughtBatcher:
+    """Collects streamed thought-summary text and forwards ~250-400 char chunks as `thought` events."""
+
+    def __init__(self, cur):
+        self.cur = cur
+        self.buf = ""
+
+    @staticmethod
+    def clean(text: str) -> str:
+        text = _HEADER.sub("", text)
+        text = text.replace("**", "")
+        return re.sub(r"\s+", " ", text)
+
+    async def add(self, text: str) -> None:
+        if self.cur is None:
+            return
+        self.buf += self.clean(text)
+        while len(self.buf) >= 250:
+            cut = -1
+            for m in re.finditer(r"[.!?;:]\s", self.buf[:400]):
+                if m.end() >= 200:
+                    cut = m.end()
+            if cut < 0:
+                cut = self.buf.rfind(" ", 0, 400)
+                cut = cut if cut > 150 else min(len(self.buf), 400)
+            chunk, self.buf = self.buf[:cut], self.buf[cut:]
+            await self._send(chunk)
+
+    async def flush(self) -> None:
+        if self.cur is not None and self.buf.strip():
+            await self._send(self.buf)
+        self.buf = ""
+
+    async def _send(self, chunk: str) -> None:
+        tracker, agent_id = self.cur
+        try:
+            await tracker.thought(agent_id, chunk)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+async def _emit_call(cur, rec: dict, call_id: str) -> None:
+    if cur is None:
+        return
+    tracker, agent_id = cur
+    try:
+        await tracker.emit({
+            "type": "llm_call", "agent_id": agent_id, "call_id": call_id, "model": MODEL,
+            "thinking_level": rec.get("thinking"), "prompt_tokens": rec.get("prompt_tokens") or 0,
+            "output_tokens": rec.get("output_tokens") or 0, "thought_tokens": rec.get("thought_tokens") or 0,
+            "latency_ms": round(rec.get("latency_s", 0) * 1000, 1),
+            "ttft_ms": rec.get("ttft_ms"), "finish_reason": rec.get("finish") or ("ERROR" if not rec.get("ok") else ""),
+        })
+    except Exception:  # noqa: BLE001
+        pass
+
+
+async def _call_stream(cfg: dict, contents, cur) -> tuple[str, str, Any, float | None]:
+    """Streaming call; forwards thought summaries. Returns (text, finish, usage, ttft_s)."""
+    t0 = time.perf_counter()
+    ttft = None
+    texts: list[str] = []
+    finish, usage = "", None
+    batcher = _ThoughtBatcher(cur)
+    stream = await client().aio.models.generate_content_stream(
+        model=MODEL, contents=contents, config=types.GenerateContentConfig(**cfg))
+    async for chunk in stream:
+        if ttft is None:
+            ttft = time.perf_counter() - t0
+        if chunk.usage_metadata is not None:
+            usage = chunk.usage_metadata
+        cand = (chunk.candidates or [None])[0]
+        if cand is None:
+            continue
+        if cand.finish_reason:
+            finish = str(cand.finish_reason)
+        for p in (cand.content.parts if cand.content and cand.content.parts else []):
+            if not p.text:
+                continue
+            if getattr(p, "thought", False):
+                await batcher.add(p.text)
+            else:
+                texts.append(p.text)
+    await batcher.flush()
+    return "".join(texts), finish, usage, ttft
+
+
+async def _call_once(cfg: dict, contents) -> tuple[str, str, Any, float | None]:
+    resp = await client().aio.models.generate_content(
+        model=MODEL, contents=contents, config=types.GenerateContentConfig(**cfg))
+    cand = (resp.candidates or [None])[0]
+    text = ""
+    if cand is not None and cand.content and cand.content.parts:
+        text = "".join(p.text or "" for p in cand.content.parts if not getattr(p, "thought", False))
+    return text, str(getattr(cand, "finish_reason", None) or ""), resp.usage_metadata, None
+
+
 async def generate(
     contents: list[Any],
     *,
@@ -121,13 +223,19 @@ async def generate(
     max_output_tokens: int = MAX_OUTPUT_TOKENS,
     tag: str = "call",
     retries: int = 2,
+    stream: bool | None = None,
 ) -> str:
-    """One generate_content call; returns the non-thought text. Retries transient errors."""
+    """One model call (streaming with thought summaries by default); returns the non-thought text.
+    Emits `llm_call` / `thought` console events for the current agent (see events.py). Retries transient
+    errors; falls back to non-streaming if the streaming call fails non-transiently."""
+    global _call_counter
+    from .events import current
     if thinking not in ("low", "medium", "high"):
         raise ValueError("thinking must be low|medium|high")
+    use_stream = STREAM if stream is None else stream
     cfg: dict[str, Any] = dict(
         max_output_tokens=max(16000, min(max_output_tokens, MAX_OUTPUT_TOKENS)),
-        thinking_config=types.ThinkingConfig(thinking_level=thinking),
+        thinking_config=types.ThinkingConfig(thinking_level=thinking, include_thoughts=use_stream),
     )
     if system:
         cfg["system_instruction"] = system
@@ -137,45 +245,54 @@ async def generate(
         cfg["response_mime_type"] = "application/json"
     if json_schema is not None:
         cfg["response_json_schema"] = json_schema
+    cur = current()
 
     last_err: Exception | None = None
     for attempt in range(retries + 1):
+        _call_counter += 1
+        call_id = f"{tag}-{_call_counter}"
         t0 = time.perf_counter()
         try:
-            resp = await client().aio.models.generate_content(
-                model=MODEL, contents=contents, config=types.GenerateContentConfig(**cfg))
+            if use_stream:
+                text, finish, u, ttft = await _call_stream(cfg, contents, cur)
+            else:
+                text, finish, u, ttft = await _call_once(cfg, contents)
         except Exception as e:  # noqa: BLE001
             dt = time.perf_counter() - t0
             msg = str(e)
             transient = any(s in msg for s in ("429", "500", "502", "503", "504", "UNAVAILABLE",
                                                  "RESOURCE_EXHAUSTED", "timed out", "Timeout"))
-            rec = {"tag": tag, "ok": False, "latency_s": round(dt, 2), "error": msg[:300]}
+            rec = {"tag": tag, "ok": False, "latency_s": round(dt, 2), "thinking": thinking,
+                   "stream": use_stream, "error": msg[:300]}
             CALL_LOG.append(rec)
+            await _emit_call(cur, rec, call_id)
             log.warning("llm %s failed after %.1fs: %s", tag, dt, msg[:300])
             last_err = e
             if json_schema is not None and ("schema" in msg.lower() or "400" in msg) and not transient:
                 raise _SchemaRejected(msg) from e
+            if use_stream and not transient:
+                log.warning("llm %s: streaming failed, falling back to non-streaming", tag)
+                use_stream = False
+                cfg["thinking_config"] = types.ThinkingConfig(thinking_level=thinking)
+                continue
             if not transient or attempt == retries:
                 raise LLMError(f"{tag}: {msg[:500]}") from e
             await asyncio.sleep(2 * (attempt + 1))
             continue
         dt = time.perf_counter() - t0
-        cand = (resp.candidates or [None])[0]
-        finish = str(getattr(cand, "finish_reason", None) or "")
-        u = resp.usage_metadata
+        finish = finish.replace("FinishReason.", "")
         rec = {
-            "tag": tag, "ok": True, "latency_s": round(dt, 2), "thinking": thinking,
-            "finish": finish.replace("FinishReason.", ""),
+            "tag": tag, "ok": True, "latency_s": round(dt, 2), "thinking": thinking, "stream": use_stream,
+            "ttft_ms": None if ttft is None else round(ttft * 1000, 1),
+            "finish": finish,
             "prompt_tokens": getattr(u, "prompt_token_count", None),
             "output_tokens": getattr(u, "candidates_token_count", None),
             "thought_tokens": getattr(u, "thoughts_token_count", None),
         }
         CALL_LOG.append(rec)
-        log.info("llm %s %.1fs finish=%s in=%s out=%s think=%s", tag, dt, rec["finish"],
+        await _emit_call(cur, rec, call_id)
+        log.info("llm %s %.1fs ttft=%s finish=%s in=%s out=%s think=%s", tag, dt, rec["ttft_ms"], finish,
                  rec["prompt_tokens"], rec["output_tokens"], rec["thought_tokens"])
-        text = ""
-        if cand is not None and cand.content and cand.content.parts:
-            text = "".join(p.text or "" for p in cand.content.parts if not getattr(p, "thought", False))
         if "MAX_TOKENS" in finish:
             raise LLMError(f"{tag}: hit max_output_tokens (thought={rec['thought_tokens']})")
         if finish and "STOP" not in finish:

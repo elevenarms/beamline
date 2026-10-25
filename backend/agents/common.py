@@ -5,13 +5,17 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import time
 from collections import defaultdict
 from typing import Any, Awaitable, Callable
 
+from pydantic import BaseModel, Field
+
 from optics.ir import Check, Design, TraceResult, VerifyReport
 
 from . import llm, prompts
+from .events import AgentTracker
 
 log = logging.getLogger("beamline.agents")
 
@@ -43,6 +47,79 @@ def evaluate(design: Design) -> tuple[TraceResult, VerifyReport]:
         log.exception("verify crashed")
         rep = VerifyReport(passed=False, score=0.0, checks=[Check(
             id="verify_error", severity="error", message=f"verifier crashed: {type(e).__name__}: {e}")])
+    return tr, rep
+
+
+def design_blurb(d: Design) -> str:
+    """One console line describing a freshly generated design."""
+    kinds: dict[str, int] = {}
+    for e in d.elements:
+        kinds[e.type] = kinds.get(e.type, 0) + 1
+    parts = ", ".join(f"{n}x {k.replace('_', ' ')}" for k, n in sorted(kinds.items(), key=lambda x: -x[1]))
+    head = f"Drafted '{d.name}' on a {d.baseplate.width_mm:.0f}x{d.baseplate.height_mm:.0f} mm plate: {parts}."
+    if d.description:
+        head += " " + d.description
+    return head[:400]
+
+
+def trace_tool_summary(tr: TraceResult) -> str:
+    unplaced = [e.id for e in tr.elements if not e.placed]
+    out = f"trace: {len(tr.segments)} segments, {len(tr.branches)} branches"
+    if unplaced:
+        out += f", {len(unplaced)} unplaced ({', '.join(unplaced[:4])}{'…' if len(unplaced) > 4 else ''})"
+    return out
+
+
+def verify_tool_summary(rep: VerifyReport) -> str:
+    errs = [c for c in rep.checks if c.severity == "error"]
+    warns = [c for c in rep.checks if c.severity == "warning"]
+    out = f"verify: score {rep.score:.0f}"
+    if rep.passed and not warns:
+        return out + ", all checks passed"
+    parts = []
+    if errs:
+        parts.append(f"{len(errs)} error{'s' if len(errs) != 1 else ''}")
+    if warns:
+        parts.append(f"{len(warns)} warning{'s' if len(warns) != 1 else ''}")
+    out += ", " + ", ".join(parts)
+    first = (errs or warns)[0]
+    msg = first.message
+    m = re.search(r"on (\S+) \(([\d.]+) mW\)", msg) if first.id == "stray_beam" else None
+    if m:
+        msg = f"{float(m.group(2)):.2g} mW on {m.group(1)}"
+    elif first.element_id and first.element_id not in msg:
+        msg = f"at {first.element_id}: {msg}"
+    return (out + f" — {first.id.replace('_', ' ')} {msg}")[:180]
+
+
+async def evaluate_tracked(design: Design, tracker: AgentTracker | None, agent_id: str
+                           ) -> tuple[TraceResult, VerifyReport]:
+    """evaluate() with `tool` console events for the trace and verify runs."""
+    from optics.trace import trace
+    from optics.verify import verify
+    t0 = time.perf_counter()
+    try:
+        tr = trace(design)
+    except Exception as e:  # noqa: BLE001
+        log.exception("trace crashed")
+        tr = TraceResult(segments=[], elements=[], branches=[])
+        rep = VerifyReport(passed=False, score=0.0, checks=[Check(
+            id="trace_error", severity="error", message=f"tracer crashed: {type(e).__name__}: {e}")])
+        if tracker:
+            await tracker.tool(agent_id, "trace", f"trace crashed: {type(e).__name__}", (time.perf_counter() - t0) * 1e3)
+        return tr, rep
+    t1 = time.perf_counter()
+    if tracker:
+        await tracker.tool(agent_id, "trace", trace_tool_summary(tr), (t1 - t0) * 1e3)
+    t1 = time.perf_counter()
+    try:
+        rep = verify(design, tr)
+    except Exception as e:  # noqa: BLE001
+        log.exception("verify crashed")
+        rep = VerifyReport(passed=False, score=0.0, checks=[Check(
+            id="verify_error", severity="error", message=f"verifier crashed: {type(e).__name__}: {e}")])
+    if tracker:
+        await tracker.tool(agent_id, "verify", verify_tool_summary(rep), (time.perf_counter() - t1) * 1e3)
     return tr, rep
 
 
@@ -120,31 +197,101 @@ def report_summary(rep: VerifyReport) -> str:
     return "\n".join(out)
 
 
-POLISH_MIN_S = 20.0   # only start a warnings-only polish round if this much budget is left
+POLISH_MIN_S = 20.0
+ERROR_OVERRUN_S = 25.0   # failing designs get this much extra time for repair   # only start a warnings-only polish round if this much budget is left
 
 
 def _counts(rep: VerifyReport) -> tuple[int, int]:
     return (sum(c.severity == "error" for c in rep.checks), sum(c.severity == "warning" for c in rep.checks))
 
 
+def _clean(rep: VerifyReport) -> bool:
+    return rep.passed and not any(c.severity == "warning" for c in rep.checks)
+
+
+async def autofix_step(design: Design, tr: TraceResult, rep: VerifyReport, tracker: AgentTracker | None,
+                       agent_id: str, parent_seq: int | None
+                       ) -> tuple[Design, TraceResult, VerifyReport, int | None, bool]:
+    """Deterministic stray-beam termination (optics/autofix.py). Emits a `tool` "autofix" event and an
+    "autofix" iteration when it changed something. Returns (design, trace, report, seq, improved)."""
+    if _clean(rep) or not any(c.id == "stray_beam" for c in rep.checks):
+        return design, tr, rep, parent_seq, False
+    try:
+        from optics.autofix import terminate_strays
+    except Exception:  # noqa: BLE001
+        return design, tr, rep, parent_seq, False
+    t0 = time.perf_counter()
+    try:
+        fixed, changes = terminate_strays(design, tr)
+    except Exception as e:  # noqa: BLE001
+        log.warning("autofix crashed: %s", e)
+        return design, tr, rep, parent_seq, False
+    if not changes:
+        if tracker:
+            await tracker.tool(agent_id, "autofix", "autofix: no safe dump placement found for the stray beams",
+                               (time.perf_counter() - t0) * 1e3)
+        return design, tr, rep, parent_seq, False
+    n_add = sum(c["op"] == "add" for c in changes)
+    nt, nr = evaluate(fixed)
+    if tracker:
+        await tracker.tool(agent_id, "autofix",
+                           f"autofix: added {n_add} beam dump{'s' if n_add != 1 else ''} → score {rep.score:.0f} → "
+                           f"{nr.score:.0f}", (time.perf_counter() - t0) * 1e3)
+    if rank_key(nr) < rank_key(rep):
+        return design, tr, rep, parent_seq, False
+    seq = parent_seq
+    if tracker:
+        seq = await tracker.iteration(agent_id, "autofix", fixed, nt, nr, parent_seq=parent_seq,
+                                      rationale=f"Terminated {n_add} stray beam{'s' if n_add != 1 else ''} with "
+                                                "auto-placed beam dumps (deterministic, no LLM).")
+    return fixed, nt, nr, seq, True
+
+
+class ChangeNote(BaseModel):
+    element_id: str
+    why: str = Field(description="short lab-notebook reason for changing / adding / removing this element")
+
+
+class RepairResult(BaseModel):
+    rationale: str = Field(description="one sentence: what was wrong and what you changed")
+    notes: list[ChangeNote] = Field(default_factory=list)
+    design: Design
+
+
 async def repair_loop(
     design: Design, tr: TraceResult, rep: VerifyReport, *, goal: str, emit: Emit,
     rounds: int = 3, thinking: str = "low", index_base: int = 0, extra_context: list | None = None,
-    deadline: float | None = None,
+    deadline: float | None = None, tracker: AgentTracker | None = None, parent_seq: int | None = None,
+    parent_agent: str | None = None,
 ) -> tuple[Design, TraceResult, VerifyReport]:
     """Repair until the design passes with no warnings, rounds run out, or the time budget is spent.
     Errors are always worth a round while before the deadline; warnings-only polish rounds start only with
-    >= POLISH_MIN_S left and are cut off at the deadline (the passing design is kept)."""
+    >= POLISH_MIN_S left and are cut off at the deadline (the passing design is kept).
+    Each round is a console agent "repair-N" emitting an `iteration` whose parent is the design it repaired."""
+    tracker = tracker or AgentTracker(emit, model=llm.MODEL)
     best = (design, tr, rep)
+    best_seq = parent_seq
     history: list[str] = []
+    next_idx = index_base
     for r in range(1, rounds + 1):
         d, t, rp = best
+        if not _clean(rp):
+            d, t, rp, best_seq, improved = await autofix_step(d, t, rp, tracker, parent_agent or "repair",
+                                                              best_seq)
+            if improved:
+                best = (d, t, rp)
+                next_idx += 1
+                await emit({"type": "candidate", "index": next_idx - 1, "stage": "autofix", "round": r,
+                            "design": dump(d), "report": dump(rp), "trace": dump(t)})
+                await emit({"type": "status", "stage": "repair",
+                            "message": f"autofix terminated stray beams: {headline(rp)}"})
         n_err, n_warn = _counts(rp)
         if rp.passed and n_warn == 0:
             break
         remaining = None if deadline is None else deadline - time.monotonic()
         polish = rp.passed
-        if remaining is not None and (remaining <= 0 or (polish and remaining < POLISH_MIN_S)):
+        # a failing design may overrun the budget by ERROR_OVERRUN_S; polishing a passing one may not
+        if remaining is not None and (remaining <= -ERROR_OVERRUN_S or (polish and remaining < POLISH_MIN_S)):
             await emit({"type": "status", "stage": "repair", "message": "time budget reached, stopping repair"})
             break
         if polish:
@@ -152,15 +299,25 @@ async def repair_loop(
             budget = 45.0 if remaining is None else remaining
         else:
             what = f"asking Gemini to fix {n_err} error{'s' if n_err != 1 else ''} ({headline(rp)})"
-            budget = 45.0 if remaining is None else max(20.0, remaining + 15.0)
+            budget = 45.0 if remaining is None else max(20.0, remaining + ERROR_OVERRUN_S)
         await emit({"type": "status", "stage": "repair", "message": f"repair round {r}: {what}"})
         msg = prompts.repair_prompt(goal, d, report_summary(rp), trace_summary(d, t), history)
+        aid = f"repair-{r}"
+        title = f"Repair {r} — " + ("polish warnings" if polish else f"fix {n_err} error{'s' if n_err != 1 else ''}")
         try:
-            t0 = time.monotonic()
-            new = await asyncio.wait_for(
-                llm.generate_model(Design, (extra_context or []) + [msg], system=prompts.system_prompt(),
-                                   thinking=thinking, tag=f"repair{r}"), timeout=budget)
-            log.info("repair round %d took %.1fs", r, time.monotonic() - t0)
+            async with tracker.agent(aid, "repair", title, parent=parent_agent, thinking_level=thinking):
+                t0 = time.monotonic()
+                res = await asyncio.wait_for(
+                    llm.generate_model(RepairResult, (extra_context or []) + [msg], system=prompts.system_prompt(),
+                                       thinking=thinking, tag=f"repair{r}"), timeout=budget)
+                log.info("repair round %d took %.1fs", r, time.monotonic() - t0)
+                new = res.design
+                if res.rationale:
+                    await tracker.thought(aid, f"Rationale: {res.rationale}")
+                nt, nr = await evaluate_tracked(new, tracker, aid)
+                notes = {n.element_id: n.why for n in res.notes}
+                seq = await tracker.iteration(aid, f"repair {r}", new, nt, nr, parent_seq=best_seq,
+                                              notes=notes, rationale=res.rationale)
         except Exception as e:  # noqa: BLE001
             log.warning("repair round %d failed: %s", r, e)
             reason = "ran out of time" if isinstance(e, (asyncio.TimeoutError, TimeoutError)) else \
@@ -168,8 +325,8 @@ async def repair_loop(
             await emit({"type": "status", "stage": "repair",
                         "message": f"repair round {r} {reason}; keeping the best design so far"})
             continue
-        nt, nr = evaluate(new)
-        await emit({"type": "candidate", "index": index_base + r - 1, "stage": "repair", "round": r,
+        next_idx += 1
+        await emit({"type": "candidate", "index": next_idx - 1, "stage": "repair", "round": r,
                     "design": dump(new), "report": dump(nr), "trace": dump(nt)})
         await emit({"type": "status", "stage": "verify",
                     "message": f"repair round {r}: {headline(nr)}"})
@@ -177,6 +334,7 @@ async def repair_loop(
                        + "; ".join(c.message for c in nr.checks if c.severity != "info")[:600])
         if rank_key(nr) >= rank_key(rp):
             best = (new, nt, nr)
+            best_seq = seq
         else:
             history[-1] += " -> REGRESSED, that attempt was discarded; repair the design shown instead, differently."
     return best

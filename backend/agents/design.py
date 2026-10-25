@@ -10,7 +10,10 @@ from pydantic import BaseModel, Field
 from optics.ir import Design, Target
 
 from . import llm, prompts
-from .common import Emit, headline, dump, evaluate, finalize_event, noop_emit, rank_key, repair_loop
+from .common import (Emit, dump, evaluate_tracked, finalize_event, headline, noop_emit, rank_key,
+                     repair_loop)
+from .events import AgentTracker
+from .common import autofix_step, design_blurb
 
 log = logging.getLogger("beamline.agents.design")
 
@@ -50,12 +53,16 @@ DEFAULT_HINTS = [
 ]
 
 
-async def make_plan(goal: str, emit: Emit) -> Plan | None:
+async def make_plan(goal: str, emit: Emit, tracker: AgentTracker) -> Plan | None:
     await emit({"type": "status", "stage": "plan", "message": "planning requirements and modules"})
     try:
-        plan = await asyncio.wait_for(
-            llm.generate_model(Plan, [prompts.plan_prompt(goal)], system=prompts.system_prompt(),
-                               thinking=PLAN_THINKING, tag="plan"), timeout=PLAN_TIMEOUT_S)
+        async with tracker.agent("planner", "planner", "Planner — requirements, modules, targets",
+                                 thinking_level=PLAN_THINKING):
+            plan = await asyncio.wait_for(
+                llm.generate_model(Plan, [prompts.plan_prompt(goal)], system=prompts.system_prompt(),
+                                   thinking=PLAN_THINKING, tag="plan"), timeout=PLAN_TIMEOUT_S)
+            await tracker.thought("planner", f"Plan: {plan.title}. Modules: "
+                                  + "; ".join(f"{m.name} ({m.purpose})" for m in plan.modules)[:330])
     except Exception as e:  # noqa: BLE001
         log.warning("plan failed: %s", e)
         await emit({"type": "status", "stage": "plan", "message": f"planning failed ({(str(e) or type(e).__name__)[:120]}); designing directly"})
@@ -77,7 +84,8 @@ async def design_from_goal(goal: str, emit: Emit = noop_emit, candidates: int = 
     t_start = time.monotonic()
     deadline = t_start + time_budget_s
     candidates = max(1, min(candidates, 6))
-    plan = await make_plan(goal, emit)
+    tracker = AgentTracker(emit, model=llm.MODEL)
+    plan = await make_plan(goal, emit, tracker)
     t_plan = time.monotonic()
 
     hints = list(plan.approaches if plan and plan.approaches else [])
@@ -87,23 +95,34 @@ async def design_from_goal(goal: str, emit: Emit = noop_emit, candidates: int = 
         hints.append(DEFAULT_HINTS[len(hints) % len(DEFAULT_HINTS)])
 
     await emit({"type": "status", "stage": "design", "message": f"generating {candidates} candidate designs"})
-    results: list[tuple] = []
+    results: list[tuple] = []   # (index, design, trace, report, seq)
+    parent = "planner" if plan else None
 
-    async def run(i: int):
+    async def run(i: int, hint: str, temp: float):
+        aid = f"designer-{i + 1}"
         try:
-            d = await _candidate(i, goal, plan, hints[i], TEMPERATURES[i % len(TEMPERATURES)])
+            async with tracker.agent(aid, "designer", f"Designer {i + 1} — {hint[:70]}", parent=parent,
+                                     thinking_level=CANDIDATE_THINKING, queued=False):
+                d = await _candidate(i, goal, plan, hint, temp)
+                await tracker.thought(aid, design_blurb(d))
+                tr, rep = await evaluate_tracked(d, tracker, aid)
+                seq = await tracker.iteration(aid, f"candidate {i + 1}", d, tr, rep)
+                d, tr, rep, seq, _ = await autofix_step(d, tr, rep, tracker, aid, seq)
         except Exception as e:  # noqa: BLE001
             log.warning("candidate %d failed: %s", i, e)
-            await emit({"type": "status", "stage": "design", "message": f"candidate {i} failed: {str(e)[:160]}"})
+            if not isinstance(e, asyncio.CancelledError):
+                await emit({"type": "status", "stage": "design", "message": f"candidate {i} failed: {str(e)[:160]}"})
             return
-        tr, rep = evaluate(d)
-        results.append((i, d, tr, rep))
+        results.append((i, d, tr, rep, seq))
         await emit({"type": "candidate", "index": i, "stage": "design", "design": dump(d),
                     "report": dump(rep), "trace": dump(tr)})
         await emit({"type": "status", "stage": "verify",
                     "message": f"candidate {i}: {headline(rep)}"})
 
-    tasks = [asyncio.create_task(run(i)) for i in range(candidates)]
+    for i in range(candidates):
+        await tracker.queued(f"designer-{i + 1}", "designer", f"Designer {i + 1} — {hints[i][:70]}", parent=parent,
+                             thinking_level=CANDIDATE_THINKING)
+    tasks = [asyncio.create_task(run(i, hints[i], TEMPERATURES[i % len(TEMPERATURES)])) for i in range(candidates)]
     t_c0 = time.monotonic()
     t_first: float | None = None
     pending = set(tasks)
@@ -122,23 +141,28 @@ async def design_from_goal(goal: str, emit: Emit = noop_emit, candidates: int = 
                     "message": f"moving on with {len(results)} candidates ({len(pending)} still thinking, cancelled)"})
         for t in pending:
             t.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)   # let them emit their "cancelled" state
     t_cand = time.monotonic()
     if not results:
         # last resort: one more attempt without temperature tricks
         await emit({"type": "status", "stage": "design", "message": "all candidates failed; retrying once"})
-        d = await _candidate(0, goal, plan, DEFAULT_HINTS[0], 0.7)
-        tr, rep = evaluate(d)
-        results.append((0, d, tr, rep))
+        async with tracker.agent("designer-retry", "designer", "Designer — retry", parent=parent,
+                                 thinking_level=CANDIDATE_THINKING):
+            d = await _candidate(0, goal, plan, DEFAULT_HINTS[0], 0.7)
+            tr, rep = await evaluate_tracked(d, tracker, "designer-retry")
+            seq = await tracker.iteration("designer-retry", "candidate (retry)", d, tr, rep)
+        results.append((0, d, tr, rep, seq))
         await emit({"type": "candidate", "index": 0, "stage": "design", "design": dump(d),
                     "report": dump(rep), "trace": dump(tr)})
 
     results.sort(key=lambda r: rank_key(r[3]), reverse=True)
-    i, d, tr, rep = results[0]
+    i, d, tr, rep, seq = results[0]
     await emit({"type": "status", "stage": "verify",
                 "message": f"picked candidate {i} as the best ({headline(rep)})"})
 
     d, tr, rep = await repair_loop(d, tr, rep, goal=goal, emit=emit, rounds=repair_rounds,
-                                   thinking=REPAIR_THINKING, index_base=candidates, deadline=deadline)
+                                   thinking=REPAIR_THINKING, index_base=candidates, deadline=deadline,
+                                   tracker=tracker, parent_seq=seq, parent_agent=f"designer-{i + 1}")
     t_end = time.monotonic()
     timings = {"plan_s": round(t_plan - t_start, 1), "candidates_s": round(t_cand - t_plan, 1),
                "repair_s": round(t_end - t_cand, 1), "total_s": round(t_end - t_start, 1)}

@@ -15,7 +15,10 @@ from pydantic import BaseModel, Field
 from optics.ir import Design
 
 from . import llm, prompts
-from .common import Emit, dump, evaluate, finalize_event, headline, noop_emit, repair_loop
+from .common import (Emit, dump, evaluate_tracked, finalize_event, headline, noop_emit, rank_key,
+                     repair_loop)
+from .events import AgentTracker
+from .common import autofix_step, design_blurb
 from .match import match_event
 
 log = logging.getLogger("beamline.agents.reproduce")
@@ -61,9 +64,13 @@ EXTRACT_THINKING = "medium"
 MERGE_THINKING = "low"
 SYNTH_THINKING = "low"
 REPAIR_THINKING = "low"
-EXTRACT_GRACE_S = 10.0   # after the first vision pass lands, wait at most this long for the others
-EXTRACT_HARD_S = 60.0
+EXTRACT_GRACE_S = 20.0   # after the first vision pass lands, wait at most this long for the others
+EXTRACT_HARD_S = 150.0   # safety cap while NO pass has landed yet (dense figures can take > 60 s)
+BUDGET_BASE_S, BUDGET_PER_PART_S, BUDGET_MAX_S = 75.0, 3.0, 150.0
 SYNTH_TIMEOUT_S = 70.0
+SYNTH_N = 2                # parallel synthesizers; best one goes to repair
+SYNTH_TEMPS = [0.7, 1.0, 0.85]
+SYNTH_GRACE_S = 12.0
 MIN_SPACING_MM = 40.0
 # Approximate largest drawn extent (mm) of a mounted part, used as a scale anchor.
 ANCHOR_MM = {"mirror": 38.0, "half_wave_plate": 38.0, "quarter_wave_plate": 38.0}
@@ -188,9 +195,21 @@ def scale_graph(raw: RawGraph, img_wh: tuple[int, int] | None, notes: str = "") 
 
 # ───────────────────────────── LLM steps ─────────────────────────────
 
-async def _extract(i: int, img, notes: str) -> RawGraph:
-    return await llm.generate_model(RawGraph, [img, prompts.extract_prompt(notes, i)], thinking=EXTRACT_THINKING,
-                                    temperature=[0.4, 0.8, 1.0][i % 3], tag=f"extract{i}")
+VISION_TITLES = ["Vision 1 — exhaustive parts list", "Vision 2 — beam connectivity", "Vision 3 — labels & values"]
+
+
+async def _extract(i: int, img, notes: str, tracker: AgentTracker) -> RawGraph:
+    aid = f"vision-{i + 1}"
+    async with tracker.agent(aid, "vision", VISION_TITLES[i % 3], thinking_level=EXTRACT_THINKING, queued=False):
+        g = await llm.generate_model(RawGraph, [img, prompts.extract_prompt(notes, i)], thinking=EXTRACT_THINKING,
+                                     temperature=[0.4, 0.8, 1.0][i % 3], tag=f"extract{i}")
+        kinds: dict[str, int] = {}
+        for c in g.components:
+            kinds[c.type] = kinds.get(c.type, 0) + 1
+        await tracker.thought(aid, f"Saw {len(g.components)} parts ("
+                              + ", ".join(f"{n}x {k}" for k, n in sorted(kinds.items(), key=lambda x: -x[1]))
+                              + f") and {len(g.beams)} beam links.")
+        return g
 
 
 async def _merge(graphs: list[RawGraph], img, notes: str) -> RawGraph:
@@ -207,16 +226,22 @@ async def _merge(graphs: list[RawGraph], img, notes: str) -> RawGraph:
         return min(graphs, key=lambda g: abs(len(g.components) - m))
 
 
-async def _extract_all(img, notes: str, emit: Emit, t0: float) -> RawGraph:
-    tasks = [asyncio.create_task(_extract(i, img, notes)) for i in range(3)]
+async def _extract_all(img, notes: str, emit: Emit, t0: float, tracker: AgentTracker) -> list[RawGraph]:
+    for i in range(3):
+        await tracker.queued(f"vision-{i + 1}", "vision", VISION_TITLES[i], thinking_level=EXTRACT_THINKING)
+    tasks = [asyncio.create_task(_extract(i, img, notes, tracker)) for i in range(3)]
     graphs: list[RawGraph] = []
     errors: list[str] = []
     t_first: float | None = None
     pending = set(tasks)
     while pending:
+        # before any pass lands: wait (up to a generous safety cap) — never cancel the last ones standing;
+        # after the first lands: give the others min(EXTRACT_GRACE_S, remaining)
         left = (EXTRACT_GRACE_S - (time.monotonic() - t_first)) if t_first is not None \
             else (EXTRACT_HARD_S - (time.monotonic() - t0))
         if left <= 0:
+            if not graphs:
+                errors.append(f"no vision pass finished within {EXTRACT_HARD_S:.0f} s")
             break
         done, pending = await asyncio.wait(pending, timeout=left, return_when=asyncio.FIRST_COMPLETED)
         for t in done:
@@ -224,7 +249,7 @@ async def _extract_all(img, notes: str, emit: Emit, t0: float) -> RawGraph:
                 g = t.result()
             except Exception as e:  # noqa: BLE001
                 log.warning("extraction failed: %s", e)
-                errors.append(str(e)[:150])
+                errors.append((str(e) or type(e).__name__)[:150])
                 continue
             if g.components:
                 graphs.append(g)
@@ -235,45 +260,103 @@ async def _extract_all(img, notes: str, emit: Emit, t0: float) -> RawGraph:
                     t_first = time.monotonic()
     for t in pending:
         t.cancel()
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
     if not graphs:
         raise llm.LLMError("all vision extraction passes failed: " + "; ".join(errors))
+    return graphs
+
+
+async def _consensus(graphs: list[RawGraph], img, notes: str, emit: Emit, tracker: AgentTracker) -> RawGraph:
     sigs = [_signature(g) for g in graphs]
+    t0 = time.perf_counter()
     if len(graphs) >= 2 and max(sigs.count(x) for x in sigs) >= 2:
         best_sig = max(sigs, key=sigs.count)
-        await emit({"type": "status", "stage": "extract",
-                    "message": f"{sigs.count(best_sig)}/{len(graphs)} vision passes agree on the parts list"})
-        return next(g for g, sg in zip(graphs, sigs) if sg == best_sig)
+        g = next(g for g, sg in zip(graphs, sigs) if sg == best_sig)
+        msg = f"{sigs.count(best_sig)}/{len(graphs)} vision passes agree on the parts list"
+        await tracker.tool("merge", "merge", f"majority vote: {msg} ({len(g.components)} parts)",
+                           (time.perf_counter() - t0) * 1e3)
+        await emit({"type": "status", "stage": "extract", "message": msg})
+        return g
     await emit({"type": "status", "stage": "extract",
                 "message": f"vision passes disagree ({[len(g.components) for g in graphs]} components); merging"})
-    return await _merge(graphs, img, notes)
+    await tracker.thought("merge", f"Vision passes disagree ({[len(g.components) for g in graphs]} parts); "
+                                   "asking the model to reconcile them against the image.")
+    g = await _merge(graphs, img, notes)
+    await tracker.tool("merge", "merge", f"LLM merge: {len(g.components)} parts, {len(g.beams)} beam links",
+                       (time.perf_counter() - t0) * 1e3)
+    return g
 
 
 async def reproduce_from_image(image_bytes: bytes, mime: str, notes: str = "", emit: Emit = noop_emit,
-                               repair_rounds: int = 3, time_budget_s: float = 75.0) -> Design:
+                               repair_rounds: int = 3, time_budget_s: float = BUDGET_BASE_S) -> Design:
     t0 = time.monotonic()
-    deadline = t0 + time_budget_s
+    tracker = AgentTracker(emit, model=llm.MODEL)
     img = llm.image_part(image_bytes, mime)
     await emit({"type": "status", "stage": "extract", "message": "reading the figure (3 parallel passes)"})
-    raw = await _extract_all(img, notes, emit, t0)
-    graph = scale_graph(raw, image_size(image_bytes), notes)
+    graphs = await _extract_all(img, notes, emit, t0, tracker)
+    async with tracker.agent("merge", "merge", "Merge — consensus graph + scale to mm", thinking_level=None):
+        raw = await _consensus(graphs, img, notes, emit, tracker)
+        ts = time.perf_counter()
+        graph = scale_graph(raw, image_size(image_bytes), notes)
+        w, h = graph["baseplate_mm"]
+        scale_msg = (f"scaled the drawing to a {w:.0f} x {h:.0f} mm baseplate "
+                     f"({graph['scale_mm_per_px']:.2f} mm/px, mounts >= {MIN_SPACING_MM:.0f} mm apart)")
+        await tracker.tool("merge", "scale", "scale: " + scale_msg, (time.perf_counter() - ts) * 1e3)
     t_ext = time.monotonic()
+    # budget scales with figure complexity (time_budget_s is the base)
+    budget = min(BUDGET_MAX_S, time_budget_s + BUDGET_PER_PART_S * len(graph["components"]))
+    deadline = t0 + budget
     await emit({"type": "extraction", "graph": graph})
-    w, h = graph["baseplate_mm"]
-    await emit({"type": "status", "stage": "extract",
-                "message": f"scaled the drawing to a {w:.0f} x {h:.0f} mm baseplate "
-                           f"({graph['scale_mm_per_px']:.2f} mm/px, mounts >= {MIN_SPACING_MM:.0f} mm apart)"})
+    await emit({"type": "status", "stage": "extract", "message": scale_msg})
 
     await emit({"type": "status", "stage": "design", "message": "synthesizing a traceable design from the graph"})
     synth_msg = prompts.synth_prompt(graph, notes)
-    try:
-        design = await asyncio.wait_for(llm.generate_model(
-            Design, [img, synth_msg], system=prompts.system_prompt(), thinking=SYNTH_THINKING, tag="synth"),
-            timeout=SYNTH_TIMEOUT_S)
-    except (asyncio.TimeoutError, TimeoutError):
-        await emit({"type": "status", "stage": "design", "message": "synthesis slow; retrying with low thinking"})
-        design = await llm.generate_model(Design, [img, synth_msg], system=prompts.system_prompt(),
-                                          thinking="low", tag="synth-retry")
-    tr, rep = evaluate(design)
+    synth_results: list[tuple] = []   # (design, trace, report, seq, agent_id)
+
+    async def synth_one(k: int) -> None:
+        aid = f"synth-{k + 1}" if SYNTH_N > 1 else "synth"
+        async with tracker.agent(aid, "synth", f"Synthesizer {k + 1} — graph to traceable design", parent="merge",
+                                 thinking_level=SYNTH_THINKING, queued=False):
+            d = await llm.generate_model(Design, [img, synth_msg], system=prompts.system_prompt(),
+                                         thinking=SYNTH_THINKING, temperature=SYNTH_TEMPS[k % len(SYNTH_TEMPS)],
+                                         tag=f"synth{k}")
+            await tracker.thought(aid, design_blurb(d))
+            t_, r_ = await evaluate_tracked(d, tracker, aid)
+            sq = await tracker.iteration(aid, f"synthesized design {k + 1}" if SYNTH_N > 1 else "synthesized design",
+                                         d, t_, r_)
+            d, t_, r_, sq, _ = await autofix_step(d, t_, r_, tracker, aid, sq)
+        synth_results.append((d, t_, r_, sq, aid))
+        await emit({"type": "status", "stage": "verify", "message": f"synthesizer {k + 1}: {headline(r_)}"})
+
+    for k in range(SYNTH_N):
+        await tracker.queued(f"synth-{k + 1}" if SYNTH_N > 1 else "synth", "synth",
+                             f"Synthesizer {k + 1} — graph to traceable design", parent="merge",
+                             thinking_level=SYNTH_THINKING)
+    tasks = {asyncio.create_task(synth_one(k)) for k in range(SYNTH_N)}
+    ts0, t_first = time.monotonic(), None
+    while tasks:
+        left = (SYNTH_GRACE_S - (time.monotonic() - t_first)) if t_first is not None \
+            else (SYNTH_TIMEOUT_S - (time.monotonic() - ts0))
+        if left <= 0:
+            break
+        done, tasks = await asyncio.wait(tasks, timeout=left, return_when=asyncio.FIRST_COMPLETED)
+        for t in done:
+            if t.exception() is not None:
+                log.warning("synth failed: %s", t.exception())
+        if synth_results and t_first is None:
+            t_first = time.monotonic()
+        if any(r[2].passed and not any(c.severity == "warning" for c in r[2].checks) for r in synth_results):
+            break
+    for t in tasks:
+        t.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+    if not synth_results:
+        await emit({"type": "status", "stage": "design", "message": "synthesis failed; retrying once"})
+        await synth_one(0)
+    synth_results.sort(key=lambda r: rank_key(r[2]), reverse=True)
+    design, tr, rep, seq, synth_aid = synth_results[0]
     t_syn = time.monotonic()
     await emit({"type": "candidate", "index": 0, "stage": "design", "design": dump(design),
                 "report": dump(rep), "trace": dump(tr)})
@@ -285,17 +368,25 @@ async def reproduce_from_image(image_bytes: bytes, mime: str, notes: str = "", e
             f"Extracted graph (xy_mm = suggested table position): {json.dumps(compact, separators=(',', ':'))}"
             + (f"\nUser notes: {notes}" if notes else ""))
     design, tr, rep = await repair_loop(design, tr, rep, goal=goal, emit=emit, rounds=repair_rounds,
-                                        thinking=REPAIR_THINKING, index_base=1, deadline=deadline)
+                                        thinking=REPAIR_THINKING, index_base=1, deadline=deadline,
+                                        tracker=tracker, parent_seq=seq, parent_agent=synth_aid)
     t_end = time.monotonic()
     timings = {"extract_s": round(t_ext - t0, 1), "synth_s": round(t_syn - t_ext, 1),
                "repair_s": round(t_end - t_syn, 1), "total_s": round(t_end - t0, 1)}
     log.info("reproduce timings %s", timings)
     await emit({"type": "status", "stage": "done",
-                "message": f"done in {timings['total_s']}s — score {rep.score:.0f}, passed={rep.passed}",
+                "message": f"done in {timings['total_s']}s (budget {budget:.0f}s) — score {rep.score:.0f}, passed={rep.passed}",
                 "timings": timings})
     await emit(finalize_event(design, tr, rep))
     try:
-        await emit(match_event(graph, design, tr))
+        async with tracker.agent("matcher", "matcher", "Matcher — figure parts vs design elements"):
+            tm = time.perf_counter()
+            ev = match_event(graph, design, tr)
+            sm = ev["summary"]
+            n_extra = sum(r["status"] == "extra" for r in ev["rows"])
+            await tracker.tool("matcher", "match", f"match: {sm['matched']}/{sm['in_figure']} figure components "
+                               f"matched, {n_extra} added by the design", (time.perf_counter() - tm) * 1e3)
+        await emit(ev)
     except Exception as e:  # noqa: BLE001
         log.warning("match failed: %s", e)
     return design

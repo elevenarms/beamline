@@ -69,6 +69,22 @@ async def _main() -> None:
                   f"{len(g.get('parameters', []))} params", flush=True)
             for c in g["components"]:
                 print(f"            {c['id']:<8} {c['type']:<18} {c.get('label', '')[:40]}")
+        elif t == "agent":
+            el = f" {ev['elapsed_ms'] / 1000:.1f}s" if ev.get("elapsed_ms") else ""
+            print(f"[{dt:6.1f}s]   agent {ev['agent_id']:<12} {ev['state']:<9}{el} {ev['title'][:60] if ev['state'] == 'running' else ''}")
+        elif t == "tool":
+            print(f"[{dt:6.1f}s]   tool  {ev['agent_id']:<12} {ev['summary'][:120]}")
+        elif t == "thought":
+            print(f"[{dt:6.1f}s]   think {ev['agent_id']:<12} {ev['text'][:140]}")
+        elif t == "llm_call":
+            print(f"[{dt:6.1f}s]   llm   {ev['agent_id']:<12} {ev['latency_ms'] / 1000:.1f}s ttft={ev['ttft_ms']} "
+                  f"in={ev['prompt_tokens']} out={ev['output_tokens']} think={ev['thought_tokens']} {ev['finish_reason']}")
+        elif t == "iteration":
+            print(f"[{dt:6.1f}s]   iter  #{ev['seq']} {ev['label']} (parent {ev['parent_seq']}) score={ev['report']['score']:.1f} "
+                  f"{len(ev['diff'])} changes" + (f" — {ev['rationale'][:100]}" if ev.get("rationale") else ""))
+            if ev["parent_seq"] is not None:
+                for c in ev["diff"][:6]:
+                    print(f"              {c['op']:<8} {c['element_id']:<10} {(c.get('note') or '')[:110]}")
         elif t == "match":
             sm = ev["summary"]
             print(f"[{dt:6.1f}s] match: {sm['matched']}/{sm['in_figure']} figure components matched")
