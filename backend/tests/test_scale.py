@@ -261,3 +261,33 @@ if __name__ == "__main__":
         if c.severity != "info":
             print(f"  [{c.severity}] {c.id}: {c.message}")
     print("metrics:", {k: round(v, 2) for k, v in rep.metrics.items()})
+
+
+# ───────────────────────────── hierarchical power budget ─────────────────────────────
+
+def test_power_budget_shared_laser():
+    from agents.hierarchical import FiberLink, Laser, ModuleSpec, budget_report, compute_budget, enforce_budget
+    from optics.ir import VerifyReport
+
+    def spec(i, lasers=(), p=1000.0):
+        return ModuleSpec(id=i, title=i, purpose="", wavelength_nm=1064, laser_ids=list(lasers), input_power_mw=p,
+                          input="", outputs=[], width_mm=400, height_mm=200)
+    specs = [spec("dist", ["l1064"]), spec("tw1"), spec("tw2"), spec("tw3"), spec("orphan", p=50)]
+    lasers = [Laser(id="l1064", model="3 W fiber amp", wavelength_nm=1064, power_mw=3000)]
+    links = [FiberLink(from_module="dist", to_module=t, purpose="", power_mw=1900) for t in ("tw1", "tw2", "tw3")]
+    b, links2 = compute_budget(specs, lasers, links)
+    assert b["dist"]["input_mw"] == 3000
+    assert math.isclose(sum(l.power_mw for l in links2), 0.9 * 3000)   # feeds scaled to the cap
+    assert math.isclose(b["tw1"]["input_mw"], 900 * 0.7, abs_tol=0.1)
+    assert b["tw1"]["label"] == "fed from dist (fiber)"
+    assert b["orphan"]["unbudgeted"]
+    d = enforce_budget(load("aom_singlepass_pickoff"), b["tw1"])
+    assert math.isclose(sum(s.power_mw for s in d.sources), 630, abs_tol=0.01)
+    assert d.sources[0].label.startswith("fed from dist")
+    rep = budget_report(VerifyReport(passed=True, score=99, checks=[]), lasers, b, links2,
+                        {"dist": 2600.0})
+    assert rep.metrics["total_laser_mw"] == 3000 and rep.metrics["sum_of_module_inputs_mw"] == 3050
+    assert [c for c in rep.checks if c.id == "power_budget" and c.severity == "warning"]  # the orphan's 50 mW
+    b2, l2 = compute_budget(specs[:4], lasers, links)
+    rep2 = budget_report(VerifyReport(passed=True, score=99, checks=[]), lasers, b2, l2, {"dist": 2600.0})
+    assert not [c for c in rep2.checks if c.severity == "warning"] and rep2.score == 99
