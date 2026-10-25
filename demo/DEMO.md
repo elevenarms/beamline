@@ -26,7 +26,7 @@
 ## Numbers to quote (measured today)
 - Tracer: 121-element apparatus traced + verified in **6.1 ms**; 104 backend tests.
 - Goal → verified design: **~45–85 s**, best-of-4 candidates, scores 97–98.
-- Figure → verified design: **55–92 s**, PASS 95–96, 14–16/16 components matched.
+- Figure → verified design: **41–92 s**, PASS 95–96, 14–16/16 components matched; reliability check after final fixes: **3/3 PASS (41–55 s, run concurrently)**.
 - Real-paper benchmark (8 open-access figures): 3/8 reproduce pass (incl. hard dual-trap optical tweezers, 22 parts), **4/4 goal designs pass**.
 - argon grounding: PyOpticL API hallucination **95 % zero-shot → 0 %** grounded; read 15/15 components and 9/9 printed part numbers from paper figures.
 - Hierarchical: 6 modules in parallel, 96 optics, PASS 98.5, ~100 s.
