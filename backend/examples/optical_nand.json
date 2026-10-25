@@ -1,0 +1,125 @@
+{
+  "name": "optical_nand",
+  "description": "Optical NAND gate (the universal gate) from polarization optics. Input bits are half-wave plates A and B (0 deg = 0, 45 deg = 1). PBS A diverts the rail up through HWP B only when A=1; PBS 1 then sends it to the AND PD when B=1 too. Every other case is merged by a PBS combiner onto the NAND PD, which lights iff NOT(A AND B).",
+  "baseplate": {
+    "width_mm": 457.2,
+    "height_mm": 254.0,
+    "thickness_mm": 25.4,
+    "optical_height_mm": 12.7,
+    "grid_mm": 25.4
+  },
+  "sources": [
+    {
+      "id": "L1",
+      "label": "HeNe laser (logic rail)",
+      "part_number": "HNL050LB",
+      "position": [
+        76.19999999999999,
+        76.19999999999999
+      ],
+      "direction_deg": 0.0,
+      "wavelength_nm": 632.8,
+      "power_mw": 10.0,
+      "waist_mm": 0.4,
+      "polarization": "H"
+    }
+  ],
+  "elements": [
+    {
+      "id": "PICK",
+      "type": "sampler",
+      "label": "5% reference pickoff",
+      "part_number": "BSF10-A",
+      "beam": "L1",
+      "distance_mm": 50.8,
+      "split_ratio": 0.05,
+      "out_direction_deg": 270.0
+    },
+    {
+      "id": "REF",
+      "type": "photodiode",
+      "label": "REF PD (threshold reference)",
+      "part_number": "PDA36A2",
+      "beam": "L1.r",
+      "distance_mm": 50.8
+    },
+    {
+      "id": "A",
+      "type": "half_wave_plate",
+      "label": "A (HWP) input bit: 0 deg = 0, 45 deg = 1",
+      "part_number": "WPH10M-633",
+      "beam": "L1.t",
+      "distance_mm": 50.8,
+      "fast_axis_deg": 0.0
+    },
+    {
+      "id": "PBS_A",
+      "type": "pbs",
+      "label": "PBS A: H (A=0) passes, V (A=1) turns up",
+      "part_number": "PBS201",
+      "beam": "L1.t",
+      "distance_mm": 50.8,
+      "out_direction_deg": 90.0
+    },
+    {
+      "id": "B",
+      "type": "half_wave_plate",
+      "label": "B (HWP) input bit: 0 deg = 0, 45 deg = 1",
+      "part_number": "WPH10M-633",
+      "beam": "L1.t.r",
+      "distance_mm": 38.099999999999994,
+      "fast_axis_deg": 0.0
+    },
+    {
+      "id": "PBS_1",
+      "type": "pbs",
+      "label": "PBS 1: H (A=1,B=1) -> AND, V -> NAND",
+      "part_number": "PBS201",
+      "beam": "L1.t.r",
+      "distance_mm": 38.099999999999994,
+      "out_direction_deg": 0.0
+    },
+    {
+      "id": "AND",
+      "type": "photodiode",
+      "label": "AND PD (A AND B)",
+      "part_number": "PDA36A2",
+      "beam": "L1.t.r.t",
+      "distance_mm": 50.8
+    },
+    {
+      "id": "M2",
+      "type": "mirror",
+      "label": "fold to combiner",
+      "part_number": "BB1-E02",
+      "beam": "L1.t.r.r",
+      "distance_mm": 101.6,
+      "out_direction_deg": 270.0
+    },
+    {
+      "id": "PBS_OR",
+      "type": "pbs",
+      "label": "PBS OR-combiner (H passes, V reflects -> NAND)",
+      "part_number": "PBS201",
+      "beam": "L1.t.t",
+      "distance_mm": 101.6,
+      "out_direction_deg": 270.0
+    },
+    {
+      "id": "NAND",
+      "type": "photodiode",
+      "label": "NAND PD (NOT (A AND B))",
+      "part_number": "PDA36A2",
+      "beam": "L1.t.t.t",
+      "distance_mm": 76.19999999999999
+    }
+  ],
+  "targets": [
+    {
+      "element_id": "REF",
+      "kind": "min_power_mw",
+      "value": 0.4
+    }
+  ],
+  "notes": "Logic inputs: A, B (half_wave_plate fast_axis_deg 0 or 45). Outputs: NAND, AND photodiodes. Run: uv run python -m logic examples/optical_nand.json"
+}

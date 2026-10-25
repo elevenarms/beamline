@@ -1,0 +1,167 @@
+{
+  "name": "optical_half_adder",
+  "description": "Optical calculator: a 1-bit half adder built from polarization optics (directed logic). Input bits are half-wave plates A and B (fast axis 0 deg = bit 0, 45 deg = bit 1, flipping H to V). PBS A sends the rail up (A=1) or right (A=0); both paths cross at the single 45-deg-mounted HWP B, then PBS 1 / PBS 0 route by B. SUM PD lights iff A XOR B, CARRY PD lights iff A AND B. Default: A=1, B=1, so the table shows 1 + 1 = 10 (CARRY lit).",
+  "baseplate": {
+    "width_mm": 533.4,
+    "height_mm": 304.79999999999995,
+    "thickness_mm": 25.4,
+    "optical_height_mm": 12.7,
+    "grid_mm": 25.4
+  },
+  "sources": [
+    {
+      "id": "L1",
+      "label": "HeNe laser (logic rail)",
+      "part_number": "HNL050LB",
+      "position": [
+        76.19999999999999,
+        76.19999999999999
+      ],
+      "direction_deg": 0.0,
+      "wavelength_nm": 632.8,
+      "power_mw": 10.0,
+      "waist_mm": 0.4,
+      "polarization": "H"
+    }
+  ],
+  "elements": [
+    {
+      "id": "PICK",
+      "type": "sampler",
+      "label": "5% reference pickoff",
+      "part_number": "BSF10-A",
+      "beam": "L1",
+      "distance_mm": 50.8,
+      "split_ratio": 0.05,
+      "out_direction_deg": 270.0
+    },
+    {
+      "id": "REF",
+      "type": "photodiode",
+      "label": "REF PD (threshold reference)",
+      "part_number": "PDA36A2",
+      "beam": "L1.r",
+      "distance_mm": 50.8
+    },
+    {
+      "id": "A",
+      "type": "half_wave_plate",
+      "label": "A (HWP) input bit: 0 deg = 0, 45 deg = 1",
+      "part_number": "WPH10M-633",
+      "beam": "L1.t",
+      "distance_mm": 50.8,
+      "fast_axis_deg": 45.0
+    },
+    {
+      "id": "PBS_A",
+      "type": "pbs",
+      "label": "PBS A: H (A=0) passes, V (A=1) turns up",
+      "part_number": "PBS201",
+      "beam": "L1.t",
+      "distance_mm": 50.8,
+      "out_direction_deg": 90.0
+    },
+    {
+      "id": "M1",
+      "type": "mirror",
+      "label": "A=1 rail fold",
+      "part_number": "BB1-E02",
+      "beam": "L1.t.r",
+      "distance_mm": 76.19999999999999,
+      "out_direction_deg": 0.0
+    },
+    {
+      "id": "M0",
+      "type": "mirror",
+      "label": "A=0 rail fold",
+      "part_number": "BB1-E02",
+      "beam": "L1.t.t",
+      "distance_mm": 101.6,
+      "out_direction_deg": 90.0
+    },
+    {
+      "id": "B",
+      "type": "half_wave_plate",
+      "label": "B (HWP) input bit: 0 deg = 0, 45 deg = 1 (both rails cross here)",
+      "part_number": "WPH10M-633",
+      "at": [
+        330.2,
+        152.39999999999998
+      ],
+      "angle_deg": 45.0,
+      "fast_axis_deg": 45.0
+    },
+    {
+      "id": "PBS_1",
+      "type": "pbs",
+      "label": "PBS 1 (A=1 rail): H -> CARRY, V -> SUM",
+      "part_number": "PBS201",
+      "at": [
+        406.4,
+        152.39999999999998
+      ],
+      "angle_deg": 0.0
+    },
+    {
+      "id": "PBS_0",
+      "type": "pbs",
+      "label": "PBS 0 (A=0 rail): V -> SUM, H -> dump",
+      "part_number": "PBS201",
+      "at": [
+        330.2,
+        228.6
+      ],
+      "angle_deg": 180.0
+    },
+    {
+      "id": "HWP_FIX",
+      "type": "half_wave_plate",
+      "label": "fixed HWP 45 deg (V -> H for combining)",
+      "part_number": "WPH10M-633",
+      "beam": "L1.t.t.r",
+      "distance_mm": 38.099999999999994,
+      "fast_axis_deg": 45.0
+    },
+    {
+      "id": "PBS_OR",
+      "type": "pbs",
+      "label": "PBS OR-combiner (H passes, V reflects -> SUM)",
+      "part_number": "PBS201",
+      "beam": "L1.t.t.r",
+      "distance_mm": 38.099999999999994,
+      "out_direction_deg": 90.0
+    },
+    {
+      "id": "SUM",
+      "type": "photodiode",
+      "label": "SUM PD (A XOR B)",
+      "part_number": "PDA36A2",
+      "beam": "L1.t.t.r.t",
+      "distance_mm": 76.19999999999999
+    },
+    {
+      "id": "CARRY",
+      "type": "photodiode",
+      "label": "CARRY PD (A AND B)",
+      "part_number": "PDA36A2",
+      "beam": "L1.t.r.t",
+      "distance_mm": 76.19999999999999
+    },
+    {
+      "id": "DUMP0",
+      "type": "beam_dump",
+      "label": "0 + 0 dump",
+      "part_number": "LB1",
+      "beam": "L1.t.t.t",
+      "distance_mm": 50.8
+    }
+  ],
+  "targets": [
+    {
+      "element_id": "REF",
+      "kind": "min_power_mw",
+      "value": 0.4
+    }
+  ],
+  "notes": "Logic inputs: A, B (half_wave_plate fast_axis_deg 0 or 45). Outputs: SUM, CARRY photodiodes (1 = power > 25% of rail). Truth table: 0+0=00, 0+1=01, 1+0=01, 1+1=10. Run: uv run python -m logic examples/optical_half_adder.json"
+}
