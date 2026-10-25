@@ -62,13 +62,19 @@ def test_arm_ik_and_mujoco_mjcf_compiles_and_steps():
     d = _load("aom_doublepass_fixed")
     xml_str, manifest = build_lab_mjcf(d)
     assert len(manifest["slots"]) == len(d.elements)
+    assert manifest["gantry_z_mm"] == 260.0
+    assert manifest["pick_station_xy_mm"][0] == -180.0
+    assert manifest["rail_range_mm"][0] == -135.0
 
     # Compile in real MuJoCo C engine and step physics
     model = mujoco.MjModel.from_xml_string(xml_str)
     data = mujoco.MjData(model)
-    assert model.nu >= 18  # 2 crib XY + 2 overhead gantry XY + 6 inverted UR5e + 2 gripper + 6 MMS
+    assert model.nu >= 18  # 2 crib XY + 2 overhead gantry XY + 6 inverted UR3e + 2 gripper + 6 MMS
 
     slot0 = manifest["slots"][0]
+    assert slot0["pick_rail_x_mm"] == -125.0
+    for s in manifest["slots"]:
+        assert s["pocket_local_xy_mm"][0] <= 0.0
     data.ctrl[0] = slot0["stage_present_xy_mm"][0] * 0.001
     data.ctrl[1] = slot0["stage_present_xy_mm"][1] * 0.001
     data.ctrl[2] = slot0["place_rail_x_mm"] * 0.001
@@ -116,6 +122,8 @@ def test_lab_endpoints_and_sse_run():
     ]
     types = {e["type"] for e in events}
     assert {"lab_init", "lab_stage", "lab_arm", "lab_place", "lab_mms", "lab_done", "final"} <= types
+    arm_phases = {e["phase"] for e in events if e["type"] == "lab_arm"}
+    assert {"pick", "lift", "pre_place", "place"} <= arm_phases
 
 
 def test_trapped_ion_apparatus_overhead_gantry_run():

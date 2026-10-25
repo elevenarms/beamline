@@ -6,7 +6,7 @@ import { useConsole } from "../consoleStore";
 import { mW } from "../lib/format";
 
 const STEP_SIZES_UM = [0.05, 0.5, 5, 50, 250] as const;
-const SPEED_PRESETS = [1, 2, 3, 5] as const;
+const SPEED_PRESETS = [0.5, 1, 2, 3, 5] as const;
 
 /** Left Mission-Control Column: Run + 1-5x Speed Slider, Overhead Gantry Sliders, Inverted UR5e Joints, Compact X/Y Crib Matrix. */
 export function RoboLabLeftColumn() {
@@ -112,13 +112,13 @@ export function RoboLabLeftColumn() {
           <span style={{ fontSize: 11, fontWeight: 500, whiteSpace: "nowrap" }}>Speed</span>
           <input
             type="range"
-            min={1}
+            min={0.5}
             max={5}
             step={0.5}
             value={playbackSpeed}
             onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
             style={{ flex: 1, minWidth: 50 }}
-            aria-label="Playback speed 1x to 5x"
+            aria-label="Playback speed 0.5x to 5x"
           />
           <div style={{ display: "flex", gap: 2 }}>
             {SPEED_PRESETS.map((sp) => (

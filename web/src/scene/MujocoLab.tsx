@@ -110,7 +110,6 @@ function MotorizedXYCribStage({
   const trayW = Math.max(170, cols * pitch + 28);
   const trayH = Math.max(170, rows * pitch + 28);
   const halfW = ((cols - 1) * pitch) / 2;
-  const halfH = ((rows - 1) * pitch) / 2;
 
   const trayX = pickX + stageSimMm[0];
   const trayY = pickY + stageSimMm[1];
@@ -118,25 +117,25 @@ function MotorizedXYCribStage({
   return (
     <group>
       {/* Fixed Gantry Base & X-Axis Linear Rails */}
-      <mesh position={toW(pickX, pickY, baseZ - 6)}>
-        <boxGeometry args={[trayW + 40, 10, trayH + 40]} />
+      <mesh position={toW(pickX - halfW, pickY, baseZ - 6)}>
+        <boxGeometry args={[trayW + 24, 10, trayH + 24]} />
         <meshStandardMaterial color="#1f242d" roughness={0.6} metalness={0.3} />
         <Edges threshold={20} color="#3b4454" />
       </mesh>
       {[-trayH * 0.38, trayH * 0.38].map((dy) => (
-        <mesh key={dy} position={toW(pickX, pickY + dy, baseZ)} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[3.5, 3.5, trayW + 25, 16]} />
+        <mesh key={dy} position={toW(pickX - halfW, pickY + dy, baseZ)} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[3.5, 3.5, trayW + 16, 16]} />
           <meshStandardMaterial color="#9aa4b2" roughness={0.25} metalness={0.75} />
         </mesh>
       ))}
-      <mesh position={toW(pickX - trayW * 0.5 - 18, pickY, baseZ)}>
+      <mesh position={toW(pickX - halfW - trayW * 0.5 - 18, pickY, baseZ)}>
         <boxGeometry args={[28, 28, 28]} />
         <meshStandardMaterial color="#2b313c" roughness={0.5} metalness={0.4} />
         <Edges threshold={20} color="#f59e0b" />
       </mesh>
 
       {/* Moving X-Carriage + Y-Axis Rails */}
-      <group position={toW(trayX + halfW, pickY, baseZ + 6)}>
+      <group position={toW(trayX - halfW, pickY, baseZ + 6)}>
         <mesh>
           <boxGeometry args={[trayW, 6, trayH + 10]} />
           <meshStandardMaterial color="#28303d" roughness={0.5} metalness={0.35} />
@@ -150,22 +149,20 @@ function MotorizedXYCribStage({
       </group>
 
       {/* Moving X/Y Inventory Crib Tray */}
-      <group position={toW(trayX + halfW, trayY + halfH, tableTop - 3)}>
-        <mesh position={[0, -3, 0]}>
+      <group position={toW(trayX, trayY, tableTop - 3)}>
+        <mesh position={[-halfW, -3, 0]}>
           <boxGeometry args={[trayW, 6, trayH]} />
           <meshStandardMaterial color="#252c37" roughness={0.45} metalness={0.35} />
           <Edges threshold={20} color="#60a5fa" />
         </mesh>
 
         {slots.map((sl) => {
-          const lx = sl.pocket_local_xy_mm[0] - halfW;
-          const ly = sl.pocket_local_xy_mm[1] - halfH;
           const isActive = sl.slot_index === activeSlotIndex;
           const inCrib = sl.state === "in_crib";
           return (
             <group
               key={sl.element_id}
-              position={[lx, 0, -ly]}
+              position={[sl.pocket_local_xy_mm[0], 0, -sl.pocket_local_xy_mm[1]]}
               onClick={(e) => {
                 e.stopPropagation();
                 useLab.getState().indexCribSlot(sl.slot_index);
@@ -222,8 +219,8 @@ function OverheadGantryAndInvertedCobot({
 }) {
   const tableTop = -oh;
   const gantryW = GANTRY_Z_MM + tableTop;
-  const xMin = -180;
-  const xMax = plateW + 60;
+  const xMin = -210;
+  const xMax = plateW + 40;
   const spanX = xMax - xMin;
   const midX = (xMin + xMax) * 0.5;
   const yFront = -45;
@@ -259,7 +256,7 @@ function OverheadGantryAndInvertedCobot({
           key={idx}
           from={toW(cx, cy, tableTop - 25)}
           to={toW(cx, cy, gantryW + 14)}
-          radius={10}
+          radius={8}
           color="#334155"
           edgeColor="#475569"
         />
@@ -298,32 +295,31 @@ function OverheadGantryAndInvertedCobot({
         </mesh>
       </group>
 
-      {/* 3. Overhead Trolley + Inverted UR5e 6-DOF Robot Arm */}
+      {/* 3. Overhead Trolley + Inverted UR3e 6-DOF Robot Arm */}
       <group position={baseW}>
         <mesh position={[0, 4, 0]}>
-          <boxGeometry args={[48, 12, 48]} />
+          <boxGeometry args={[36, 10, 36]} />
           <meshStandardMaterial color="#1e293b" metalness={0.55} roughness={0.35} />
           <Edges threshold={20} color="#38bdf8" />
         </mesh>
       </group>
 
       {/* Inverted Base Turret (Gantry Trolley -> J1/J2 Shoulder) */}
-      <CylinderLink from={baseW} to={shoulderW} radius={20} color="#475569" edgeColor="#1e293b" />
-      <UrJointDrum pos={shoulderW} radius={22} length={42} axis="vertical" yawRad={fk.yaw_rad} />
-      <UrJointDrum pos={shoulderW} radius={19} length={46} axis="horizontal" yawRad={fk.yaw_rad} />
+      <CylinderLink from={baseW} to={shoulderW} radius={13} color="#475569" edgeColor="#1e293b" />
+      <UrJointDrum pos={shoulderW} radius={13} length={26} axis="vertical" yawRad={fk.yaw_rad} />
+      <UrJointDrum pos={shoulderW} radius={13} length={26} axis="horizontal" yawRad={fk.yaw_rad} />
 
-      {/* UR5e Upper Arm Tube (Shoulder J2 -> Elbow J3) */}
-      <CylinderLink from={shoulderW} to={elbowW} radius={14.5} color="#e2e8f0" edgeColor="#64748b" metalness={0.7} roughness={0.22} />
-      <UrJointDrum pos={elbowW} radius={17} length={40} axis="horizontal" yawRad={fk.yaw_rad} />
+      {/* UR3e Upper Arm Tube (Shoulder J2 -> Elbow J3) */}
+      <CylinderLink from={shoulderW} to={elbowW} radius={9.5} color="#e2e8f0" edgeColor="#64748b" metalness={0.7} roughness={0.22} />
+      <UrJointDrum pos={elbowW} radius={10.5} length={22} axis="horizontal" yawRad={fk.yaw_rad} />
 
-      {/* UR5e Forearm Tube (Elbow J3 -> Wrist J4/J5) */}
-      <CylinderLink from={elbowW} to={wristW} radius={12} color="#e2e8f0" edgeColor="#64748b" metalness={0.7} roughness={0.22} />
-      <UrJointDrum pos={wristW} radius={14} length={32} axis="horizontal" yawRad={fk.yaw_rad} />
+      {/* UR3e Forearm Tube (Elbow J3 -> Wrist J4/J5) */}
+      <CylinderLink from={elbowW} to={wristW} radius={8} color="#e2e8f0" edgeColor="#64748b" metalness={0.7} roughness={0.22} />
+      <UrJointDrum pos={wristW} radius={8.5} length={18} axis="horizontal" yawRad={fk.yaw_rad} />
 
-      {/* UR5e Wrist 2/3 & Tool Flange (Wrist -> TCP) */}
-      <CylinderLink from={wristW} to={tipW} radius={9.5} color="#334155" edgeColor="#2589bd" />
-      <UrJointDrum pos={[tipW[0], tipW[1] + 18, tipW[2]]} radius={12} length={22} axis="vertical" yawRad={toolYawRad} />
-
+      {/* UR3e Wrist 2/3 & Tool Flange (Wrist -> TCP) */}
+      <CylinderLink from={wristW} to={tipW} radius={6.5} color="#334155" edgeColor="#2589bd" />
+      <UrJointDrum pos={[tipW[0], tipW[1] + 12, tipW[2]]} radius={8.5} length={16} axis="vertical" yawRad={toolYawRad} />
       {/* 4. End-Effector: Parallel Servo Gripper + Integrated 0x23/MicroManipulatorStepper Delta-3D Toolhead */}
       <group position={tipW} rotation={[0, toolYawRad, 0]}>
         <mesh position={[0, 10, 0]}>
@@ -427,7 +423,7 @@ export default function MujocoLabWorkcell({ oh }: { oh: number }) {
 
   const plateW = design.baseplate?.width_mm ?? 300;
   const plateH = design.baseplate?.height_mm ?? 150;
-  const pickXY: [number, number] = manifest?.pick_station_xy_mm ?? [-145, Math.round(plateH * 0.5)];
+  const pickXY: [number, number] = manifest?.pick_station_xy_mm ?? [-180, Math.round(plateH * 0.5)];
   const cols = manifest?.crib_cols ?? (slots.length > 24 ? 11 : 4);
   const pitch = manifest?.crib_pitch_mm?.[0] ?? (slots.length > 24 ? 34 : 42);
   const carriedSlot = carriedElementId ? (slots.find((s) => s.element_id === carriedElementId) ?? null) : null;

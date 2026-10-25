@@ -26,12 +26,11 @@ DEG2RAD = math.pi / 180.0
 RAD2DEG = 180.0 / math.pi
 
 # Overhead Gantry & Inverted 6-DOF Arm geometry (mm)
-GANTRY_Z_MM = 420.0
-L_BASE_Z_MM = 58.0     # inverted base turret drop from overhead gantry carriage (shoulder at Z = 362 mm)
-L_UPPER_MM = 245.0     # upper arm link
-L_FORE_MM = 215.0      # forearm link
-L_WRIST_MM = 58.0      # wrist + gripper + MicroManipulator toolhead drop to TCP
-
+GANTRY_Z_MM = 260.0
+L_BASE_Z_MM = 32.0     # inverted base turret drop from overhead gantry carriage (shoulder at Z = 228 mm)
+L_UPPER_MM = 135.0     # upper arm link
+L_FORE_MM = 125.0      # forearm link
+L_WRIST_MM = 38.0      # wrist + gripper + MicroManipulator toolhead drop to TCP
 
 def workcell_dims(design: Design) -> dict[str, Any]:
     """Compute adaptive workcell coordinates for any table size (from 300x150 mm up to 1200x900 mm `sr_ion_apparatus`)."""
@@ -40,9 +39,9 @@ def workcell_dims(design: Design) -> dict[str, Any]:
     n_el = len(design.elements)
     cols = 11 if n_el > 24 else 4
     pitch = 34.0 if n_el > 24 else 42.0
-    pick_x = -145.0
+    pick_x = -180.0
     pick_y = round(h * 0.5, 1)
-    rail_min_x = -95.0
+    rail_min_x = -135.0
     rail_max_x = round(max(w, 150.0), 1)
     return {
         "plate_w_mm": w,
@@ -58,13 +57,13 @@ def workcell_dims(design: Design) -> dict[str, Any]:
 
 def clamp_rail_x(x_mm: float, plate_width_mm: float = 300.0) -> float:
     """Clamp the overhead gantry bridge X coordinate along the build plate length."""
-    return round(max(-95.0, min(max(plate_width_mm, 150.0), float(x_mm))), 2)
+    return round(max(-135.0, min(max(plate_width_mm, 150.0), float(x_mm))), 2)
 
 
 def solve_arm_ik(
     target_xyz_mm: tuple[float, float, float],
     tool_yaw_deg: float = 0.0,
-    base_xy_mm: tuple[float, float] = (-95.0, 75.0),
+    base_xy_mm: tuple[float, float] = (-125.0, 75.0),
 ) -> list[float]:
     """Analytical 6-DOF inverse kinematics for the **inverted** overhead-gantry cobot arm.
 
@@ -117,7 +116,7 @@ def solve_arm_ik(
 
 def forward_arm_fk(
     joints_rad: list[float],
-    base_xy_mm: tuple[float, float] = (-95.0, 75.0),
+    base_xy_mm: tuple[float, float] = (-125.0, 75.0),
 ) -> dict[str, list[float] | float]:
     """Compute 3D positions (mm) of inverted overhead base, shoulder, elbow, wrist, and TCP tip."""
     j1, j2, j3, j4, _, j6 = (joints_rad + [0.0] * 6)[:6]
@@ -176,6 +175,7 @@ def build_crib_manifest(design: Design) -> dict[str, Any]:
     el_by_id = {e.id: e for e in design.elements}
     slots: list[dict[str, Any]] = []
     tunable_types = {"half_wave_plate", "quarter_wave_plate", "lens", "mirror", "fiber_coupler", "beamsplitter", "sampler"}
+    rows = max(1, math.ceil(len(order_ids) / cols))
 
     for idx, eid in enumerate(order_ids):
         el = el_by_id.get(eid)
@@ -187,23 +187,22 @@ def build_crib_manifest(design: Design) -> dict[str, Any]:
 
         col = idx % cols
         row = idx // cols
-        pocket_local_xy = (col * pitch_x, row * pitch_y)
+        pocket_local_xy = (-col * pitch_x, (row - (rows - 1) * 0.5) * pitch_y)
         stage_target_xy = (-pocket_local_xy[0], -pocket_local_xy[1])
 
         z_top = design.baseplate.thickness_mm + design.baseplate.optical_height_mm
         pick_z = 22.0
-        transit_z = max(115.0, z_top + 65.0)
+        transit_z = max(85.0, z_top + 42.0)
         adjust_engage_z = z_top + 14.0
 
-        pick_rail_x = -85.0
-        place_rail_x = clamp_rail_x(bench_xy[0] - 35.0, plate_w)
-        # Overhead gantry carriage Y tracks target Y within table bounds so the inverted arm has ideal reach on 900 mm tables
+        pick_rail_x = -125.0
+        place_rail_x = clamp_rail_x(bench_xy[0] - 25.0, plate_w)
+        # Overhead gantry carriage Y tracks target Y within table bounds so the inverted UR3e arm has ~35 mm horizontal reach
         pick_carriage_y = pick_xy[1]
-        place_carriage_y = round(max(40.0, min(plate_h - 40.0, bench_xy[1] - 45.0)), 2) if plate_h > 120.0 else round(plate_h * 0.5, 2)
+        place_carriage_y = round(max(20.0, min(plate_h - 20.0, bench_xy[1] - 25.0)), 2)
 
         pick_base = (pick_rail_x, pick_carriage_y)
         place_base = (place_rail_x, place_carriage_y)
-
         keyframes = {
             "home": solve_arm_ik((pick_xy[0] + 35.0, pick_xy[1], transit_z), 0.0, pick_base),
             "pre_pick": solve_arm_ik((pick_xy[0], pick_xy[1], transit_z), 0.0, pick_base),
@@ -243,7 +242,7 @@ def build_crib_manifest(design: Design) -> dict[str, Any]:
     return {
         "design_name": design.name,
         "pick_station_xy_mm": list(pick_xy),
-        "arm_base_xy_mm": [-85.0, pick_xy[1]],
+        "arm_base_xy_mm": [-125.0, pick_xy[1]],
         "gantry_z_mm": GANTRY_Z_MM,
         "rail_y_mm": pick_xy[1],
         "rail_range_mm": [dims["rail_min_x_mm"], dims["rail_max_x_mm"]],

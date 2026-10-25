@@ -207,11 +207,11 @@ interface LabState {
 
 const DEG2RAD = Math.PI / 180;
 const RAD2DEG = 180 / Math.PI;
-export const GANTRY_Z_MM = 420;
-const L_BASE = 58;
-const L_UPPER = 245;
-const L_FORE = 215;
-const L_WRIST = 58;
+export const GANTRY_Z_MM = 260;
+const L_BASE = 32;
+const L_UPPER = 135;
+const L_FORE = 125;
+const L_WRIST = 38;
 
 const TUNABLE_TYPES: Record<string, true> = {
   half_wave_plate: true,
@@ -238,7 +238,7 @@ const CONSOLE_EVENT_TYPES: Record<string, true> = {
 export function solveArmIkClient(
   targetXyzMm: [number, number, number],
   yawDeg = 0,
-  baseXyMm: [number, number] = [-85, 75],
+  baseXyMm: [number, number] = [-125, 75],
 ): [number, number, number, number, number, number] {
   const [tx, ty, tz] = targetXyzMm;
   const [bx, by] = baseXyMm;
@@ -267,7 +267,7 @@ export function solveArmIkClient(
 /** Compute 3D joint positions (mm) for the inverted overhead-gantry UR5e cobot arm. */
 export function forwardArmFkClient(
   q: [number, number, number, number, number, number],
-  baseXyMm: [number, number] = [-85, 75],
+  baseXyMm: [number, number] = [-125, 75],
 ) {
   const [j1, j2, j3, j4, , j6] = q;
   const [bx, by] = baseXyMm;
@@ -285,7 +285,7 @@ export function forwardArmFkClient(
   const p234 = p23 + j4;
   const tip: [number, number, number] = [
     bx + (rWrist + L_WRIST * Math.sin(p234)) * c1,
-    by + (rWrist + L_WRIST * Math.cos(p234)) * s1,
+    by + (rWrist + L_WRIST * Math.sin(p234)) * s1,
     zWrist - L_WRIST * Math.cos(p234),
   ];
   return {
@@ -432,7 +432,7 @@ async function ensureMujocoWasm(): Promise<MainModule> {
 }
 
 const initialKin = computeDelta3DKinematics([0, 0, 0]);
-const initialHomeQ = solveArmIkClient([-110, 75, 115], 0, [-85, 75]);
+const initialHomeQ = solveArmIkClient([-145, 75, 115], 0, [-125, 75]);
 const urlHasLab = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("lab") === "1";
 
 function loadXmlIntoMujoco(xml: string, initRailX: number, initCarriageY: number) {
@@ -478,8 +478,9 @@ function buildClientFallbackManifest(d: Design): { xml: string; manifest: LabMan
   const h = d.baseplate?.height_mm ?? 150;
   const els = d.elements ?? [];
   const cols = els.length > 24 ? 11 : 4;
+  const rows = Math.max(1, Math.ceil(els.length / cols));
   const pitch = els.length > 24 ? 34 : 42;
-  const pickXy: [number, number] = [-145, Math.round(h * 0.5)];
+  const pickXy: [number, number] = [-180, Math.round(h * 0.5)];
   const zTop = (d.baseplate?.thickness_mm ?? 25.4) + (d.baseplate?.optical_height_mm ?? 12.7);
   const transitZ = Math.max(115, zTop + 65);
   const slots: CribSlot[] = els.map((el, idx) => {
@@ -488,11 +489,11 @@ function buildClientFallbackManifest(d: Design): { xml: string; manifest: LabMan
     const angle = pl?.angle_deg ?? el.angle_deg ?? 0;
     const col = idx % cols;
     const row = Math.floor(idx / cols);
-    const pocketXy: [number, number] = [col * pitch, row * pitch];
+    const pocketXy: [number, number] = [-col * pitch, (row - (rows - 1) * 0.5) * pitch];
     const stageXy: [number, number] = [-pocketXy[0], -pocketXy[1]];
     const isTunable = Boolean(TUNABLE_TYPES[el.type]);
-    const pickRailX = -85;
-    const placeRailX = Math.max(-95, Math.min(w, benchXy[0] - 35));
+    const pickRailX = -125;
+    const placeRailX = Math.max(-135, Math.min(w, benchXy[0] - 35));
     const pickCy = pickXy[1];
     const placeCy = h > 120 ? Math.max(40, Math.min(h - 40, benchXy[1] - 45)) : h * 0.5;
     return {
@@ -536,15 +537,15 @@ function buildClientFallbackManifest(d: Design): { xml: string; manifest: LabMan
       <body name="xy_stage_x"><joint name="crib_x" type="slide" axis="1 0 0"/><geom type="box" size="0.1 0.1 0.01"/>
         <body name="inventory_crib"><joint name="crib_y" type="slide" axis="0 1 0"/><geom type="box" size="0.09 0.09 0.01"/></body>
       </body>
-      <body name="gantry" pos="0 0 0.42">
+      <body name="gantry" pos="0 0 0.26">
         <body name="bridge"><joint name="arm_rail_x" type="slide" axis="1 0 0"/><geom type="box" size="0.02 0.2 0.01"/>
-          <body name="trolley"><joint name="arm_rail_y" type="slide" axis="0 1 0"/><geom type="cylinder" size="0.03 0.02"/>
-            <body name="arm_b1" pos="0 0 -0.058"><joint name="arm_j1" type="hinge" axis="0 0 1"/><geom type="cylinder" size="0.02 0.02"/>
-              <body name="arm_b2"><joint name="arm_j2" type="hinge" axis="0 1 0"/><geom type="capsule" fromto="0 0 0 0 0 -0.245" size="0.016"/>
-                <body name="arm_b3" pos="0 0 -0.245"><joint name="arm_j3" type="hinge" axis="0 1 0"/><geom type="capsule" fromto="0 0 0 0 0 -0.215" size="0.014"/>
-                  <body name="arm_b4" pos="0 0 -0.215"><joint name="arm_j4" type="hinge" axis="0 1 0"/><geom type="cylinder" size="0.012 0.012"/>
-                    <body name="arm_b5" pos="0 0 -0.026"><joint name="arm_j5" type="hinge" axis="1 0 0"/><geom type="cylinder" size="0.01 0.01"/>
-                      <body name="arm_b6" pos="0 0 -0.03"><joint name="arm_j6" type="hinge" axis="0 0 1"/><geom type="cylinder" size="0.012 0.01"/>
+          <body name="trolley"><joint name="arm_rail_y" type="slide" axis="0 1 0"/><geom type="cylinder" size="0.025 0.016"/>
+            <body name="arm_b1" pos="0 0 -0.032"><joint name="arm_j1" type="hinge" axis="0 0 1"/><geom type="cylinder" size="0.013 0.013"/>
+              <body name="arm_b2"><joint name="arm_j2" type="hinge" axis="0 1 0"/><geom type="capsule" fromto="0 0 0 0 0 -0.135" size="0.010"/>
+                <body name="arm_b3" pos="0 0 -0.135"><joint name="arm_j3" type="hinge" axis="0 1 0"/><geom type="capsule" fromto="0 0 0 0 0 -0.125" size="0.0085"/>
+                  <body name="arm_b4" pos="0 0 -0.125"><joint name="arm_j4" type="hinge" axis="0 1 0"/><geom type="cylinder" size="0.0085 0.009"/>
+                    <body name="arm_b5" pos="0 0 -0.018"><joint name="arm_j5" type="hinge" axis="1 0 0"/><geom type="cylinder" size="0.0075 0.008"/>
+                      <body name="arm_b6" pos="0 0 -0.020"><joint name="arm_j6" type="hinge" axis="0 0 1"/><geom type="cylinder" size="0.0085 0.008"/>
                         <body name="gl"><joint name="grip_l" type="slide" axis="0 1 0"/><geom type="box" size="0.004 0.002 0.01"/></body>
                         <body name="gr"><joint name="grip_r" type="slide" axis="0 -1 0"/><geom type="box" size="0.004 0.002 0.01"/></body>
                       </body>
@@ -590,10 +591,10 @@ function buildClientFallbackManifest(d: Design): { xml: string; manifest: LabMan
     manifest: {
       design_name: d.name,
       pick_station_xy_mm: pickXy,
-      arm_base_xy_mm: [-85, pickXy[1]],
+      arm_base_xy_mm: [-125, pickXy[1]],
       gantry_z_mm: GANTRY_Z_MM,
       rail_y_mm: pickXy[1],
-      rail_range_mm: [-95, Math.max(w, 150)],
+      rail_range_mm: [-135, Math.max(w, 150)],
       arm_links_mm: { base_z: L_BASE, upper: L_UPPER, forearm: L_FORE, wrist: L_WRIST },
       crib_cols: cols,
       crib_pitch_mm: [pitch, pitch],
@@ -619,7 +620,21 @@ export const useLab = create<LabState>((set, get) => ({
   phase: "idle",
   statusMessage: "Overhead Gantry + Inverted 6-DOF UR5e + X/Y Crib Stage + 0x23/MicroManipulatorStepper ready",
   playbackSpeed: 2,
-  setPlaybackSpeed: (v: number) => set({ playbackSpeed: Math.max(1, Math.min(5, v)) }),
+  setPlaybackSpeed: (v: number) => {
+    const clamped = Math.max(0.5, Math.min(5, v));
+    set((s) => ({
+      playbackSpeed: clamped,
+      eventLog: [
+        ...s.eventLog.slice(-79),
+        {
+          id: eventSeq++,
+          tag: "SPEED",
+          color: "#fbbf24",
+          text: `[SPEED] Playback speed set to ${clamped}x`,
+        },
+      ],
+    }));
+  },
   eventLog: [
     {
       id: eventSeq++,
@@ -646,9 +661,9 @@ export const useLab = create<LabState>((set, get) => ({
   stageCmdMm: [0, 0],
   stageSimMm: [0, 0],
 
-  railRangeMm: [-95, 1200],
-  railCmdXMm: -85,
-  railSimXMm: -85,
+  railRangeMm: [-135, 1200],
+  railCmdXMm: -125,
+  railSimXMm: -125,
   carriageCmdYMm: 450,
   carriageSimYMm: 450,
 
@@ -825,13 +840,19 @@ export const useLab = create<LabState>((set, get) => ({
       }));
     };
 
+    const nTotal = (baseDesign.elements ?? []).length;
+    const stageDelayMs = nTotal > 40 ? 45 : 90;
+    const armDelayMs = nTotal > 40 ? 55 : 95;
+    const placeDelayMs = nTotal > 40 ? 20 : 40;
+    const mmsDelayMs = nTotal > 40 ? 60 : 75;
+
     const sleepScaled = async (baseMs: number) => {
       let elapsedScaled = 0;
       while (elapsedScaled < baseMs && !ac.signal.aborted) {
         const { promise, resolve } = Promise.withResolvers<void>();
         window.setTimeout(resolve, 16);
         await promise;
-        elapsedScaled += 16 * Math.max(1, get().playbackSpeed);
+        elapsedScaled += 16 * Math.max(0.5, get().playbackSpeed);
       }
     };
 
@@ -897,7 +918,7 @@ export const useLab = create<LabState>((set, get) => ({
           }
 
           if (ev.type === "lab_init" && ev.mjcf_xml && ev.manifest) {
-            const info = loadXmlIntoMujoco(ev.mjcf_xml, -85, ev.manifest.pick_station_xy_mm[1]);
+            const info = loadXmlIntoMujoco(ev.mjcf_xml, -125, ev.manifest.pick_station_xy_mm[1]);
             set({
               wasmReady: true,
               wasmVersion: info.version,
@@ -922,7 +943,7 @@ export const useLab = create<LabState>((set, get) => ({
               "#38bdf8",
               `Slot #${ev.slot_index ?? 0} (${ev.element_id ?? ""}) indexed -> stage (${ev.stage_xy_mm[0].toFixed(0)}, ${ev.stage_xy_mm[1].toFixed(0)}) mm`,
             );
-            await sleepScaled(110);
+            await sleepScaled(stageDelayMs);
           } else if (ev.type === "lab_arm" && ev.element_id && ev.arm_q_rad) {
             const eid = ev.element_id;
             const pState = ev.part_state ?? "carried";
@@ -947,7 +968,7 @@ export const useLab = create<LabState>((set, get) => ({
                 `${ev.phase.toUpperCase()} ${eid} @ Gantry (${(ev.rail_x_mm ?? 0).toFixed(0)}, ${(ev.carriage_y_mm ?? 0).toFixed(0)}) mm`,
               );
             }
-            await sleepScaled(115);
+            await sleepScaled(armDelayMs);
           } else if (ev.type === "lab_place" && ev.design && ev.trace && ev.report) {
             const placedMap: Record<string, true> = {};
             for (const pid of ev.placed_ids ?? []) placedMap[pid] = true;
@@ -962,7 +983,7 @@ export const useLab = create<LabState>((set, get) => ({
               "#34d399",
               `Mounted ${ev.element_id ?? ""} (${(ev.placed_ids ?? []).length}/${ev.total_parts ?? 0}) · rays=${ev.trace.segments.length}`,
             );
-            await sleepScaled(40);
+            await sleepScaled(placeDelayMs);
           } else if (ev.type === "lab_mms" && ev.gcode) {
             const gc = ev.gcode;
             const entry: GcodeLogEntry = {
@@ -999,7 +1020,7 @@ export const useLab = create<LabState>((set, get) => ({
               "#10b981",
               `${gc.unit_id}: ${gc.command} -> (${gc.pos_um[0].toFixed(1)}, ${gc.pos_um[1].toFixed(1)}, ${gc.pos_um[2].toFixed(1)}) µm`,
             );
-            await sleepScaled(28);
+            await sleepScaled(mmsDelayMs);
           } else if (ev.type === "lab_done" && ev.design && ev.trace && ev.report) {
             const finalRep = ev.report;
             useStore.getState().showDesign(ev.design, { trace: ev.trace, report: finalRep });
@@ -1177,7 +1198,7 @@ export const useLab = create<LabState>((set, get) => ({
         mjModule.mj_step(mjModel, mjData);
       }
       // Blend qpos toward commanded targets scaled by playbackSpeed so 1x..5x is visually immediate on the 1.2m gantry
-      const trackAlpha = Math.min(1, dt * 10 * st.playbackSpeed);
+      const trackAlpha = Math.min(1, dt * 18 * st.playbackSpeed);
       qpos[0] += (ctrl[0] - qpos[0]) * trackAlpha;
       qpos[1] += (ctrl[1] - qpos[1]) * trackAlpha;
       qpos[2] += (ctrl[2] - qpos[2]) * trackAlpha;
@@ -1187,7 +1208,7 @@ export const useLab = create<LabState>((set, get) => ({
       }
 
       const nowMs = performance.now();
-      if (nowMs - lastReactSyncMs < 28) return;
+      if (nowMs - lastReactSyncMs < 16) return;
       const simStage: [number, number] = [qpos[0] * 1000, qpos[1] * 1000];
       const simRailX = qpos[2] * 1000;
       const simCarriageY = pickY0 + qpos[3] * 1000;
@@ -1216,8 +1237,8 @@ export const useLab = create<LabState>((set, get) => ({
       }
     } else {
       const nowMs = performance.now();
-      if (nowMs - lastReactSyncMs < 45) return;
-      const alpha = Math.min(1, dt * 12 * st.playbackSpeed);
+      if (nowMs - lastReactSyncMs < 16) return;
+      const alpha = Math.min(1, dt * 18 * st.playbackSpeed);
       const nextStage: [number, number] = [
         st.stageSimMm[0] + (st.stageCmdMm[0] - st.stageSimMm[0]) * alpha,
         st.stageSimMm[1] + (st.stageCmdMm[1] - st.stageSimMm[1]) * alpha,
