@@ -130,6 +130,7 @@ export function traceDesign(design: Design): TraceResponse {
   let segN = 0;
 
   for (const s of design.sources) {
+    if (s.enabled === false) continue;
     const lam = s.wavelength_nm;
     const w0 = s.waist_mm ?? 0.5;
     const zr = (Math.PI * w0 * w0) / (lam * 1e-6);
@@ -287,6 +288,23 @@ export function traceDesign(design: Design): TraceResponse {
         out.push(b);
         break;
       }
+      case "soa": {
+        const b = base();
+        const g0 = 10 ** ((el.small_signal_gain_db ?? 15) / 10);
+        b.power *= g0 / (1 + st.power / (el.saturation_power_mw ?? 5));
+        out.push(b);
+        break;
+      }
+      case "saturable_absorber": {
+        const b = base();
+        const t0 = el.transmission ?? 0.1, ps = el.saturation_power_mw ?? 10;
+        b.power *= t0 + (1 - t0) * (st.power / (st.power + ps));
+        out.push(b);
+        break;
+      }
+      case "sfg_crystal":
+        out.push(base());
+        break;
       case "isolator": {
         const fwd = Math.cos((inDir - (el.angle_deg ?? inDir)) * D2R) > 0;
         if (fwd) {
@@ -375,7 +393,7 @@ export function traceDesign(design: Design): TraceResponse {
 export function verifyDesign(design: Design, trace: TraceResponse["trace"]): TraceResponse["report"] {
   const plate = { ...DEFAULT_BASEPLATE, ...(design.baseplate ?? {}) };
   const checks: Check[] = [];
-  const inputMw = design.sources.reduce((a, s) => a + (s.power_mw ?? 10), 0);
+  const inputMw = design.sources.reduce((a, s) => a + (s.enabled === false ? 0 : s.power_mw ?? 10), 0);
 
   for (const pe of trace.elements) {
     if (!pe.placed || (pe.error && pe.error !== "not illuminated by any beam")) {

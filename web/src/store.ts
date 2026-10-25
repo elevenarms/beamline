@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import { DEFAULT_BASEPLATE } from "./types";
-import type { AgentEvent, Design, Element, MatchRow, Source, TraceResult, VerifyReport } from "./types";
+import type { AgentEvent, Design, Element, FiberLink, MatchRow, Source, TraceResult, VerifyReport } from "./types";
 import * as api from "./api";
 import { useView } from "./scene/viewStore";
+import { useConsole } from "./consoleStore";
 
 export type Selection = { kind: "element" | "source" | "segment"; id: string } | null;
 
@@ -32,6 +33,8 @@ interface AgentState {
   extraction: Record<string, unknown> | null;
   match: { rows: MatchRow[]; summary: { matched: number; in_figure: number } } | null;
   figureUrl: string | null;
+  links: FiberLink[];
+  failed: Record<string, string>;
 }
 
 interface State {
@@ -56,6 +59,9 @@ interface State {
   exportOpen: boolean;
 
   loadDesign: (d: Design, pre?: { trace: TraceResult; report: VerifyReport }) => void;
+  /** swap in a design without refitting the camera or clearing the selection (iteration playback) */
+  showDesign: (d: Design, pre: { trace: TraceResult; report: VerifyReport }) => void;
+  fitNonce: number;
   updateElement: (id: string, patch: Partial<Element>) => void;
   updateSource: (id: string, patch: Partial<Source>) => void;
   replaceDesign: (d: Design) => void;
@@ -69,16 +75,18 @@ interface State {
   runDesign: (goal: string) => Promise<void>;
   runReproduce: (file: File, notes: string) => Promise<void>;
   stopAgent: () => void;
+  runRecorded: (file: string, kind: "design" | "reproduce", figure?: string) => Promise<void>;
   loadCandidate: (index: number) => void;
 }
 
 const AGENT_LAYOUT = "agent_layout";
+const moduleTraces = new Map<string, TraceResult>();
 let traceTimer: ReturnType<typeof setTimeout> | null = null;
 let traceAbort: AbortController | null = null;
 let agentAbort: AbortController | null = null;
 
 const emptyAgent: AgentState = {
-  running: false, kind: null, startedAt: 0, log: [], candidates: [], active: null, extraction: null, match: null, figureUrl: null,
+  running: false, kind: null, startedAt: 0, log: [], candidates: [], active: null, extraction: null, match: null, figureUrl: null, links: [], failed: {},
 };
 
 export const useStore = create<State>((set, get) => {
@@ -111,8 +119,10 @@ export const useStore = create<State>((set, get) => {
     set((s) => ({ agent: { ...emptyAgent, figureUrl: figureUrl ?? (kind === "reproduce" ? s.agent.figureUrl : null), running: true, kind, startedAt: Date.now() }, showFigure: !!figureUrl, compare: !!figureUrl || s.compare && kind === "reproduce" }));
     if (figureUrl) useView.setState({ legendOpen: false });
     pushLog({ stage: "start", message: kind === "design" ? "Design run started" : "Reproduce-from-figure run started", level: "info" });
+    useConsole.getState().reset();
     try {
       for await (const ev of gen) {
+        useConsole.getState().ingest(ev);
         switch (ev.type) {
           case "status":
             pushLog({ stage: ev.stage, message: ev.message, level: ev.stage === "done" ? "ok" : "info" });
@@ -125,18 +135,21 @@ export const useStore = create<State>((set, get) => {
             set((s) => ({ agent: { ...s.agent, candidates: [...s.agent.candidates.filter((c) => c.index !== ev.index), { index: ev.index, design: ev.design, report: ev.report, trace: ev.trace }] } }));
             pushLog({ stage: "candidate", message: `Candidate ${ev.index + 1}: score ${ev.report.score.toFixed(0)}, ${ev.report.passed ? "PASS" : "FAIL"}`, level: ev.report.passed ? "ok" : "info" });
             // preview the first candidate so the canvas comes alive during the run
-            if (get().agent.active == null) { get().loadDesign(ev.design, { trace: ev.trace, report: ev.report }); set((s) => ({ agent: { ...s.agent, active: ev.index } })); }
+            if (get().agent.active == null && useConsole.getState().iterations.length === 0) { get().loadDesign(ev.design, { trace: ev.trace, report: ev.report }); set((s) => ({ agent: { ...s.agent, active: ev.index } })); }
             break;
           case "final":
             set((s) => ({ agent: { ...s.agent, candidates: [...s.agent.candidates, { index: -1, design: ev.design, report: ev.report, trace: ev.trace, final: true }], active: -1 } }));
-            get().loadDesign(ev.design, { trace: ev.trace, report: ev.report });
+            if (useConsole.getState().iterations.length) get().showDesign(ev.design, { trace: ev.trace, report: ev.report });
+            else get().loadDesign(ev.design, { trace: ev.trace, report: ev.report });
             pushLog({ stage: "final", message: `Loaded final design "${ev.design.name}" (score ${ev.report.score.toFixed(0)})`, level: "ok" });
             break;
           case "modules": {
             const plate = { ...DEFAULT_BASEPLATE, ...(ev.table ?? {}) };
-            const placeholder: Design = { name: AGENT_LAYOUT, description: "Hierarchical design in progress", baseplate: plate, modules: ev.modules ?? [], sources: [], elements: [] };
+            moduleTraces.clear();
+            set((st) => ({ agent: { ...st.agent, links: ev.links ?? [], failed: {} } }));
+            const placeholder: Design = { name: AGENT_LAYOUT, description: ev.title ? `${ev.title} (in progress)` : "Hierarchical design in progress", baseplate: plate, modules: ev.modules ?? [], sources: [], elements: [] };
             useView.setState({ legendOpen: false });
-            set({ design: placeholder, trace: { segments: [], elements: [], branches: [] }, report: null, selected: null });
+            set((st) => ({ design: placeholder, trace: { segments: [], elements: [], branches: [] }, report: null, selected: null, fitNonce: st.fitNonce + 1 }));
             pushLog({ stage: "plan", message: `Planned ${ev.modules?.length ?? 0} modules on ${plate.width_mm.toFixed(0)} × ${plate.height_mm.toFixed(0)} mm`, level: "info" });
             break;
           }
@@ -144,7 +157,7 @@ export const useStore = create<State>((set, get) => {
             const cur = get().design;
             const sub = ev.design;
             const tag = <T extends { group?: string | null }>(x: T): T => ({ ...x, group: x.group ?? ev.module_id });
-            const base: Design = cur && cur.name === AGENT_LAYOUT ? cur : { name: AGENT_LAYOUT, baseplate: sub.baseplate, modules: sub.modules ?? [], sources: [], elements: [] };
+            const base: Design = cur && (cur.name === AGENT_LAYOUT || (cur.modules ?? []).some((m) => m.id === ev.module_id)) ? cur : { name: AGENT_LAYOUT, baseplate: sub.baseplate, modules: sub.modules ?? [], sources: [], elements: [] };
             const mods = [...(base.modules ?? [])];
             for (const m of sub.modules ?? []) if (!mods.some((x) => x.id === m.id)) mods.push(m);
             const merged: Design = {
@@ -155,11 +168,26 @@ export const useStore = create<State>((set, get) => {
               targets: [...(base.targets ?? []), ...(sub.targets ?? [])],
             };
             set({ design: merged });
-            scheduleTrace(0);
+            if (ev.trace) {
+              // module trace is already in table coordinates: stitch per-module traces instead of re-tracing
+              const pre = (id: string) => `${ev.module_id}:${id}`;
+              moduleTraces.set(ev.module_id, {
+                segments: ev.trace.segments.map((x) => ({ ...x, id: pre(x.id) })),
+                elements: ev.trace.elements.map((x) => ({ ...x, hits: x.hits.map((h) => ({ ...h, segment_id: pre(h.segment_id) })) })),
+                branches: ev.trace.branches,
+              });
+              const all = [...moduleTraces.values()];
+              set({ trace: { segments: all.flatMap((t) => t.segments), elements: all.flatMap((t) => t.elements), branches: all.flatMap((t) => t.branches) } });
+              if (!get().report && ev.report) set({ report: ev.report });
+            } else scheduleTrace(0);
             const title = mods.find((m) => m.id === ev.module_id)?.title ?? ev.module_id;
             pushLog({ stage: "module", message: `${title} done${ev.report ? `: score ${ev.report.score.toFixed(0)}, ${ev.report.passed ? "PASS" : "FAIL"}` : ""}`, level: ev.report?.passed === false ? "info" : "ok" });
             break;
           }
+          case "module_failed":
+            set((s) => ({ agent: { ...s.agent, failed: { ...s.agent.failed, [ev.module_id]: ev.message } } }));
+            pushLog({ stage: "module", message: `${ev.module_id} failed: ${ev.message}`, level: "error" });
+            break;
           case "match":
             set((s) => ({ agent: { ...s.agent, match: { rows: ev.rows ?? [], summary: ev.summary ?? { matched: 0, in_figure: 0 } } } }));
             pushLog({ stage: "match", message: `Matched ${ev.summary?.matched ?? 0}/${ev.summary?.in_figure ?? 0} figure components`, level: ev.summary && ev.summary.matched === ev.summary.in_figure ? "ok" : "info" });
@@ -172,6 +200,7 @@ export const useStore = create<State>((set, get) => {
     } catch (e) {
       if ((e as Error).name !== "AbortError") pushLog({ stage: "error", message: (e as Error).message, level: "error" });
     } finally {
+      useConsole.getState().finish();
       set((s) => ({ agent: { ...s.agent, running: false } }));
     }
   };
@@ -184,7 +213,14 @@ export const useStore = create<State>((set, get) => {
     soloModule: null,
     setSoloModule: (id) => set({ soloModule: id }),
 
+    fitNonce: 0,
+    showDesign: (d, pre) => {
+      if (traceTimer) clearTimeout(traceTimer);
+      traceAbort?.abort();
+      set({ design: d, trace: pre.trace, report: pre.report, traceMs: null, traceError: null });
+    },
     loadDesign: (d, pre) => {
+      set((s) => ({ fitNonce: s.fitNonce + 1 }));
       if (get().design?.name !== d.name) useView.setState({ legendOpen: (d.elements?.length ?? 0) <= 30 && !get().compare });
       set({ design: d, selected: null });
       if (pre) set({ trace: pre.trace, report: pre.report, traceMs: null, traceError: null });
@@ -221,6 +257,11 @@ export const useStore = create<State>((set, get) => {
       agentAbort = new AbortController();
       const url = URL.createObjectURL(file);
       await consume("reproduce", api.reproduceStream(file, notes, agentAbort.signal), url);
+    },
+    runRecorded: async (file, kind, figure) => {
+      agentAbort?.abort();
+      agentAbort = new AbortController();
+      await consume(kind, api.replayRecorded(file, agentAbort.signal), figure ?? null);
     },
     stopAgent: () => {
       agentAbort?.abort();

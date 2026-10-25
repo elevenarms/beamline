@@ -1,0 +1,32 @@
+data: {"type": "status", "stage": "extract", "message": "reading the figure (3 parallel passes)"}
+
+data: {"type": "agent", "agent_id": "vision-1", "role": "vision", "state": "queued", "title": "Vision 1 \u2014 exhaustive parts list", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": null, "message": null}
+
+data: {"type": "agent", "agent_id": "vision-2", "role": "vision", "state": "queued", "title": "Vision 2 \u2014 beam connectivity", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": null, "message": null}
+
+data: {"type": "agent", "agent_id": "vision-3", "role": "vision", "state": "queued", "title": "Vision 3 \u2014 labels & values", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": null, "message": null}
+
+data: {"type": "agent", "agent_id": "vision-1", "role": "vision", "state": "running", "title": "Vision 1 \u2014 exhaustive parts list", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": null, "message": null}
+
+data: {"type": "agent", "agent_id": "vision-2", "role": "vision", "state": "running", "title": "Vision 2 \u2014 beam connectivity", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": null, "message": null}
+
+data: {"type": "agent", "agent_id": "vision-3", "role": "vision", "state": "running", "title": "Vision 3 \u2014 labels & values", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": null, "message": null}
+
+: ping - 2026-10-25 19:16:55.918029+00:00
+
+: ping - 2026-10-25 19:17:05.920577+00:00
+
+: ping - 2026-10-25 19:17:15.922284+00:00
+
+: ping - 2026-10-25 19:17:25.924464+00:00
+
+: ping - 2026-10-25 19:17:35.926478+00:00
+
+data: {"type": "agent", "agent_id": "vision-2", "role": "vision", "state": "cancelled", "title": "Vision 2 \u2014 beam connectivity", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": 59972.9, "message": "stopped early: enough results from the other agents"}
+
+data: {"type": "agent", "agent_id": "vision-1", "role": "vision", "state": "cancelled", "title": "Vision 1 \u2014 exhaustive parts list", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": 60001.0, "message": "stopped early: enough results from the other agents"}
+
+data: {"type": "agent", "agent_id": "vision-3", "role": "vision", "state": "cancelled", "title": "Vision 3 \u2014 labels & values", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": 59970.8, "message": "stopped early: enough results from the other agents"}
+
+data: {"type": "error", "message": "LLMError: all vision extraction passes failed: "}
+

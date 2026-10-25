@@ -1,18 +1,20 @@
 import { useEffect, useState } from "react";
-import { Braces, FileCode2, ListTree, LoaderCircle, Moon, Sun, Workflow } from "lucide-react";
+import { Braces, FileCode2, ListTree, LoaderCircle, Moon, SquareTerminal, Sun, Workflow } from "lucide-react";
 import { useTheme } from "./lib/theme";
 import "./styles.css";
 import { useStore } from "./store";
 import * as api from "./api";
 import type { ExampleInfo } from "./types";
 import Viewer from "./scene/Viewer";
-import { BeamTooltip, FigureThumb, Legend, ScaleAndCursor, ViewToolbar } from "./scene/Overlays";
+import { BeamTooltip, FigureThumb, Legend, LogicStrip, ScaleAndCursor, ViewToolbar } from "./scene/Overlays";
 import AgentPanel from "./panels/AgentPanel";
 import Inspector from "./panels/Inspector";
 import VerifyPanel, { SCORE_TIP, scoreClass } from "./panels/VerifyPanel";
 import JsonPanel from "./panels/JsonPanel";
 import OutlinePanel from "./panels/OutlinePanel";
 import ComparePane from "./panels/ComparePane";
+import Console from "./panels/Console";
+import { useConsole } from "./consoleStore";
 import ExportModal from "./panels/ExportModal";
 import { mW } from "./lib/format";
 
@@ -70,6 +72,30 @@ function ThemeToggle() {
   );
 }
 
+function ConsoleButton() {
+  const open = useConsole((s) => s.open);
+  const setOpen = useConsole((s) => s.setOpen);
+  const running = useConsole((s) => Object.values(s.agents).filter((a) => a.state === "running").length);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      if (e.key === "`") { e.preventDefault(); useConsole.getState().setOpen(!useConsole.getState().open); }
+      else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && useConsole.getState().iterations.length && useConsole.getState().open) {
+        e.preventDefault();
+        useConsole.getState().step(e.key === "ArrowLeft" ? -1 : 1);
+      }
+    };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, []);
+  return (
+    <button className={`sb-btn${open ? " active" : ""}`} onClick={() => setOpen(!open)} title="Agent console [`]">
+      <SquareTerminal size={12} /> Console{running ? <span className="sb-run mono">{running}</span> : null}
+    </button>
+  );
+}
+
 function StatusBar() {
   const trace = useStore((s) => s.trace);
   const report = useStore((s) => s.report);
@@ -86,6 +112,7 @@ function StatusBar() {
       <span className="item" title={SCORE_TIP}>Score <b className={report ? scoreClass(report.score) : ""}>{report ? report.score.toFixed(0) : "—"}</b></span>
       {report && <span className={report.passed ? "pass" : "fail"}>{report.passed ? "PASS" : "FAIL"}</span>}
       <span className="spacer" />
+      <ConsoleButton />
       <span className="item muted">{mock ? "in-browser tracer" : "backend tracer"} · 1 Top · 2 Iso · 3 Front · 4 Side · P persp · 0 fit</span>
     </footer>
   );
@@ -151,6 +178,7 @@ export default function App() {
           <ViewToolbar />
           <Legend />
           <ScaleAndCursor />
+          <LogicStrip />
           {!showCompare && <FigureThumb />}
           {!design && <div className="canvas-empty">Loading…</div>}
           {traceError && <div className="trace-err">Trace failed: {traceError}</div>}
@@ -162,6 +190,7 @@ export default function App() {
           <VerifyPanel />
         </div>
       </aside>
+      <Console />
       <StatusBar />
       <BeamTooltip />
       <ExportModal />

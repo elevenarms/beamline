@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CircleStop, ImagePlus, LoaderCircle, Play, ScanSearch } from "lucide-react";
+import { CircleStop, History, ImagePlus, LoaderCircle, Play, ScanSearch } from "lucide-react";
 import { useStore, type Candidate } from "../store";
 import { useWlColor } from "../lib/theme";
 import { DEFAULT_BASEPLATE } from "../types";
@@ -110,6 +110,16 @@ export default function AgentPanel() {
             <ScanSearch size={14} /> Reproduce
           </button>
         </div>
+      </div>
+
+      <div className="section recorded">
+        <span className="muted">Recorded runs</span>
+        <button className="btn small" disabled={agent.running} onClick={() => useStore.getState().runRecorded("console_design.sse", "design")} title="Replay a captured live design run (offline-safe)">
+          <History size={13} /> Design run
+        </button>
+        <button className="btn small" disabled={agent.running} onClick={() => useStore.getState().runRecorded("console_reproduce.sse", "reproduce", "/demo/rb_sas_fig2a.png")} title="Replay a captured figure-reproduction run">
+          <History size={13} /> Reproduce run
+        </button>
       </div>
 
       <div className="section">

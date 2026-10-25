@@ -210,6 +210,37 @@ function PartInner({ type, oh, sel, hi, aperture, focal, dim }: PartProps) {
           <Post oh={oh} under={11} />
         </group>
       );
+    case "soa":
+      return (
+        <group>
+          <Box size={[22, 10, 14]} mat={MAT.housing} {...s} />
+          <Box size={[8, 2, 3]} pos={[0, 5.4, 0]} mat={MAT.black} edges={false} />
+          <XCyl r={2.2} len={6} x={-14} mat={MAT.steel} />
+          <XCyl r={2.2} len={6} x={14} mat={MAT.steel} />
+          <Box size={[40, 3, 22]} pos={[0, -6.5, 0]} mat={MAT.anod} />
+          <Post oh={oh} under={8} />
+        </group>
+      );
+    case "sfg_crystal":
+      return (
+        <group>
+          <Box size={[10, 6, 6]} mat={{ ...MAT.glass, color: P.sfgTint, opacity: Math.min(0.75, (MAT.glass as { opacity?: number }).opacity ?? 0.5) + 0.1 }} {...s} />
+          <Box size={[14, 3, 12]} pos={[0, -4.5, 0]} mat={MAT.anod} />
+          <Post oh={oh} under={6} />
+        </group>
+      );
+    case "saturable_absorber":
+      return (
+        <group>
+          <XCyl r={9} len={1.4} mat={{ color: P.absorber, roughness: 0.2, transparent: true, opacity: dim ? 0.2 : 0.7 }} {...s} />
+          <mesh rotation={[0, Math.PI / 2, 0]}>
+            <torusGeometry args={[10.5, 1.5, 10, 40]} />
+            <meshStandardMaterial {...MAT.anod} />
+            <E {...s} />
+          </mesh>
+          <Post oh={oh} under={12} />
+        </group>
+      );
     case "source":
       return (
         <group>
@@ -231,6 +262,7 @@ export function partRadius(type: ElementType | "source"): number {
     case "source": return 34;
     case "fiber_coupler": return 18;
     case "aom": return 18;
+    case "soa": return 20;
     default: return 15;
   }
 }

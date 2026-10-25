@@ -37,5 +37,5 @@ export const SHORT: Record<string, string> = {
   mirror: "Mirror", lens: "Lens", half_wave_plate: "λ/2 plate", quarter_wave_plate: "λ/4 plate", pbs: "PBS",
   beamsplitter: "Beamsplitter", sampler: "Pickoff", dichroic: "Dichroic", aom: "AOM", iris: "Iris",
   fiber_coupler: "Fiber coupler", photodiode: "Photodiode", beam_dump: "Beam dump", vapor_cell: "Vapor cell",
-  isolator: "Isolator",
+  isolator: "Isolator", soa: "SOA", sfg_crystal: "SFG crystal", saturable_absorber: "Sat. absorber",
 };

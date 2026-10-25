@@ -46,6 +46,11 @@ CIRCUITS: dict[str, dict] = {
         "outputs": {"OUT": lambda a, b: a & b},
         "threshold_mw": 0.5,
     },
+    "alloptical_half_adder": {   # one PPLN crystal: CARRY = SFG light, SUM = residual (depleted) IR
+        "inputs": ["A", "B"],
+        "outputs": {"SUM": lambda a, b: a ^ b, "CARRY": lambda a, b: a & b},
+        "threshold_mw": 40.0,
+    },
     "optical_full_adder": {
         "inputs": ["A", "B", "CIN"],
         "outputs": {"SUM": lambda a, b, c: a ^ b ^ c,

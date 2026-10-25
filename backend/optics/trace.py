@@ -97,16 +97,30 @@ not converge are listed in ``TraceResult.nonconverged`` (verify emits
 * **sfg_crystal**: every pair of different incident beams whose centres are
   within max(w1, w2) of each other on the crystal and whose directions agree
   within 5 deg generates a new beam with 1/lambda_out = 1/lambda_1 + 1/lambda_2
-  and P_out[mW] = eta * P1[mW] * P2[mW] * 1e-3 (eta = nl_efficiency_per_w in
-  1/W, default 2.0; 10 mW x 10 mW -> 0.2 mW).  Emitted from the first beam's hit
+  and photon-number-limited power
+      Q_i   = P_i * lambda_i / lambda_out   (input i's photon flux, as power at lambda_out)
+      Q_min = min(Q_1, Q_2)
+      P_out = Q_min * tanh^2( sqrt( eta * P1 * P2 * 1e-3 / Q_min ) )      [mW]
+  (eta = nl_efficiency_per_w in 1/W, default 2.0).  Low power: P_out ~= eta*P1*P2*1e-3
+  (10 mW x 10 mW x 2/W -> 0.198 mW); high power: the weaker input's photons are
+  all converted (P_out -> Q_min).  Smooth, monotonic in both inputs, continuous
+  where the limiting input swaps, no back-conversion.  A PPLN ridge waveguide is
+  ~10-50 /W (1000-5000 %/W); bulk crystals ~0.01 /W.  Emitted from the first beam's hit
   point along the mean direction, on branch "<first beam's branch>.sfg"
   ("...sfg2", ... if that name is taken), inheriting the first beam's
   polarization and q; freq shifts add.  "First" = earlier source in
   design.sources order, then branch name.  The inputs pass through depleted by
-  photon-energy conservation (beam i loses P_out * lambda_out/lambda_i, clamped
-  at its power).  SHG: if nl_efficiency_per_w is set explicitly and exactly one
-  beam hits the crystal, P_out = eta * P1^2 * 1e-3 at lambda/2.  No phase
-  matching, overlap integral or wavelength acceptance is modelled.
+  photon-energy conservation (beam i loses P_out * lambda_out/lambda_i, i.e.
+  one photon per generated photon; clamped at its power).  With matched photon
+  fluxes (P_1*lambda_1 = P_2*lambda_2) and strong conversion both inputs are
+  depleted -- the residual-fundamental XOR of the single-crystal half adder.
+  SHG: if nl_efficiency_per_w is set explicitly and exactly one beam hits the
+  crystal, P_out = P1 * tanh^2(sqrt(eta * P1 * 1e-3)) at lambda/2 -- but only for
+  a crystal that sees a single wavelength in the placement pass (all sources
+  on).  A crystal fed two wavelengths is treated as quasi-phase-matched for
+  that SFG process only, so one input alone generates nothing (no parasitic
+  SHG).  Phase matching is otherwise assumed perfect; no overlap integral or
+  wavelength acceptance is modelled.
   Branches from the crystal: the inputs keep their names; the generated beam
   gets ".sfg".
 * PlacedElement.power_out_mw is also filled for soa and saturable_absorber
@@ -321,6 +335,7 @@ class _El:
     nl_frac: dict = field(default_factory=dict)   # sfg: branch -> pass-through fraction (depletion)
     nl_acc: float = 0.0
     nl_rec: list = field(default_factory=list)    # sfg: (beam, hit, P_clipped, w, q_at_hit)
+    nl_wls: set = field(default_factory=set)      # sfg: wavelengths reaching it in the placement pass
 
     @property
     def positioned(self) -> bool:
@@ -701,6 +716,19 @@ def _run(design: Design, els: list[_El], physics: bool, inject: list | None = No
     return segments, branches, branch_end
 
 
+def _sfg_power(p1: float, l1: float, p2: float, l2: float, lam_out: float, eta: float,
+               shg: bool = False) -> float:
+    """Photon-number-limited SFG/SHG output power in mW (see module docstring)."""
+    if p1 <= 0 or p2 <= 0:
+        return 0.0
+    small = eta * p1 * p2 * 1e-3            # undepleted (low-power) result, mW
+    if shg:
+        q_min = p1                          # two photons -> one: at most all of P1
+    else:
+        q_min = min(p1 * l1, p2 * l2) / lam_out   # weaker photon flux, as power at lambda_out
+    return q_min * math.tanh(math.sqrt(small / q_min)) ** 2
+
+
 def _sfg_generate(design: Design, nl_els: list[_El]):
     """From the inputs recorded on each sfg_crystal in the last run, return
     (generated beams, {crystal id: {branch: pass-through fraction}}, {crystal id: P_generated})."""
@@ -724,14 +752,16 @@ def _sfg_generate(design: Design, nl_els: list[_El]):
                 if _dot(b1.d, b2.d) < math.cos(math.radians(5.0)):
                     continue
                 pairs.append((i, j))
-        if not pairs and len(recs) == 1 and sp.nl_efficiency_per_w is not None:
+        # SHG only for a crystal phase-matched for SHG: eta set explicitly and, with every
+        # source on (placement pass), only one wavelength ever reaches it.
+        if not pairs and len(recs) == 1 and sp.nl_efficiency_per_w is not None and len(el.nl_wls) <= 1:
             pairs.append((0, 0))  # SHG
         total = 0.0
         for i, j in pairs:
             b1, h1, p1, _, q1 = recs[i]
             b2, _, p2, _, _ = recs[j]
             lam_out = 1.0 / (1.0 / b1.wl + 1.0 / b2.wl)
-            p_out = eta * p1 * p2 * 1e-3
+            p_out = _sfg_power(p1, b1.wl, p2, b2.wl, lam_out, eta, shg=(i == j))
             # photon-energy bookkeeping: beam k gives up P_out * lambda_out / lambda_k
             loss[i] += p_out * lam_out / b1.wl
             loss[j] += p_out * lam_out / b2.wl
@@ -784,6 +814,8 @@ def trace(design: Design) -> TraceResult:
         unplaced_left = any(not el.placed and el.error is None for el in els)
         if not sfg_changed and not (progressed and unplaced_left):
             break
+    for el in nl_els:   # the wavelengths each crystal was designed for (all sources on)
+        el.nl_wls = {round(r[0].wl, 3) for r in el.nl_rec}
 
     for el in els:
         if el.placed or el.error:

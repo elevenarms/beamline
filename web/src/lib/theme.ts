@@ -37,6 +37,7 @@ export interface ScenePalette {
   plate: string; grid: string; hole: string; outline: string; edge: string; leader: string;
   sel: string; err: string; warn: string; hover: string;
   anod: string; steel: string; housing: string; glass: string; glassOpacity: number; coat: string; wp: string; black: string; fiber: string;
+  sfgTint: string; absorber: string;
   beamCore: string | null; beamOpacity: number; darkBg: boolean;
   gizmo: { color: string; hover: string; text: string; stroke: string };
 }
@@ -46,6 +47,7 @@ export const PALETTES: Record<Theme, ScenePalette> = {
     plate: "#d5d9de", grid: "#bfc5cc", hole: "#9ba3ab", outline: "#7d858e", edge: "#2a2e33", leader: "#8b939c",
     sel: "#1f5fd1", err: "#c62828", warn: "#b26a00", hover: "#c2410c",
     anod: "#3a3f45", steel: "#b9bfc6", housing: "#e4e6e9", glass: "#cfe1ec", glassOpacity: 0.55, coat: "#d8dde2", wp: "#b9c4f0", black: "#1d2024", fiber: "#d9b44a",
+    sfgTint: "#e6e3c8", absorber: "#4a3f36",
     beamCore: null, beamOpacity: 1, darkBg: false,
     gizmo: { color: "#f7f8f9", hover: "#dfe7f5", text: "#3a3f45", stroke: "#8b939c" },
   },
@@ -53,6 +55,7 @@ export const PALETTES: Record<Theme, ScenePalette> = {
     plate: "#1b1f25", grid: "#2f3640", hole: "#7c8796", outline: "#8b96a5", edge: "#c9d1db", leader: "#8b96a5",
     sel: "#4da3ff", err: "#ff6b6b", warn: "#ffc145", hover: "#ffc145",
     anod: "#262b33", steel: "#7d8794", housing: "#353c46", glass: "#7fb3d5", glassOpacity: 0.3, coat: "#9aa5b1", wp: "#6f7fd6", black: "#0e1013", fiber: "#e0bd52",
+    sfgTint: "#b9b47a", absorber: "#6b5a4b",
     beamCore: "#ffffff", beamOpacity: 1.35, darkBg: true,
     gizmo: { color: "#1b1f25", hover: "#24405f", text: "#f2f4f7", stroke: "#8b96a5" },
   },

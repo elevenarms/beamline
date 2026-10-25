@@ -48,7 +48,7 @@ def test_no_stray_light_or_warnings_any_combo(name):
 
 # ───────────────────── nonlinear all-optical gates (inputs = source enables) ─────────────────────
 
-@pytest.mark.parametrize("name", ["alloptical_nand", "alloptical_and_sfg"])
+@pytest.mark.parametrize("name", ["alloptical_nand", "alloptical_and_sfg", "alloptical_half_adder"])
 def test_alloptical_truth_tables(name):
     spec = CIRCUITS[name]
     rows = truth_table(EXAMPLES / f"{name}.json", spec["inputs"], list(spec["outputs"]))
@@ -79,3 +79,19 @@ def test_source_and_hwp_inputs_mix():
     assert [s.enabled for s in d.sources if s.id in "AB"] == [False, True]
     with pytest.raises(KeyError):
         set_inputs(d, {"NOPE": 1})
+
+
+def test_alloptical_half_adder_contrast_and_default_state():
+    p = EXAMPLES / "alloptical_half_adder.json"
+    d = load(p)
+    # default design state is 1 + 1 = 10 (both lasers on)
+    assert all(src.enabled for src in d.sources)
+    from optics.trace import trace
+    tr = trace(d)
+    pw = {e.id: e.power_out_mw for e in tr.elements if e.type == "photodiode"}
+    assert pw["CARRY"] > 100 and pw["SUM"] < 40
+    lvl = {bits: run(d, dict(zip("AB", bits)))[0] for bits in itertools.product((0, 1), repeat=2)}
+    assert min(lvl[(0, 1)]["SUM"], lvl[(1, 0)]["SUM"]) / lvl[(1, 1)]["SUM"] >= 5.0   # XOR contrast
+    assert lvl[(0, 1)]["CARRY"] == lvl[(1, 0)]["CARRY"] == lvl[(0, 0)]["CARRY"] == 0.0
+    # energy: SUM + CARRY = input power when both on (no losses in this layout)
+    assert lvl[(1, 1)]["SUM"] + lvl[(1, 1)]["CARRY"] == pytest.approx(sum(s.power_mw for s in d.sources))

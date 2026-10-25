@@ -79,8 +79,9 @@ def test_sfg_power_and_wavelength():
     sfg = [s for s in tr.segments if s.branch == "A.t.sfg"]
     assert len(sfg) == 1
     assert sfg[0].wavelength_nm == pytest.approx(1 / (1 / 1064 + 1 / 1550))
-    assert sfg[0].power_mw == pytest.approx(2.0 * 10 * 10 * 1e-3)   # 0.2 mW
-    assert pd(tr) == pytest.approx(0.2)
+    # low-power limit ~ eta*P1*P2 (0.2 mW); the tanh^2 law gives 0.198 mW here
+    assert sfg[0].power_mw == pytest.approx(2.0 * 10 * 10 * 1e-3, rel=0.02)
+    assert pd(tr) == pytest.approx(sfg[0].power_mw)
     # energy conservation: residual IR + red = input
     dump = pd(tr, "BD")
     assert dump + pd(tr) == pytest.approx(20.0, rel=1e-6)
@@ -105,7 +106,7 @@ def test_shg_only_when_efficiency_set():
     assert not [s for s in trace(d(None)).segments if s.branch == "L.sfg"]
     shg = [s for s in trace(d(1.0)).segments if s.branch == "L.sfg"]
     assert shg and shg[0].wavelength_nm == pytest.approx(532.0)
-    assert shg[0].power_mw == pytest.approx(1.0 * 100 * 100 * 1e-3)
+    assert shg[0].power_mw == pytest.approx(100 * math.tanh(math.sqrt(1.0 * 100 * 1e-3)) ** 2)
 
 
 def test_disabled_source_placement_is_stable():
@@ -143,3 +144,45 @@ def test_cascaded_soas_converge():
     p2 = p1 * g0 / (1 + p1 / 5)
     p3 = p2 * (0.05 + 0.95 * p2 / (p2 + 10))
     assert pd(tr) == pytest.approx(p3, rel=1e-6)
+
+
+def test_sfg_low_power_limit_and_photon_bound():
+    from optics.trace import _sfg_power
+    lo = 1 / (1 / 1064 + 1 / 1550)
+    # low power -> eta P1 P2
+    assert _sfg_power(0.1, 1064, 0.1, 1550, lo, 2.0) == pytest.approx(2.0 * 0.01 * 1e-3, rel=1e-4)
+    # monotonic and bounded by the weaker photon flux
+    q_min = min(100 * 1064, 100 * 1550) / lo
+    prev = 0.0
+    for eta in (1, 10, 100, 1000, 1e5):
+        p = _sfg_power(100, 1064, 100, 1550, lo, eta)
+        assert prev < p <= q_min
+        prev = p
+    assert prev == pytest.approx(q_min, rel=1e-6)
+
+
+def test_sfg_strong_depletion_energy_conserved():
+    # matched photon fluxes, high-efficiency waveguide: both inputs mostly depleted
+    pb = 150.0
+    pa = pb * 1550 / 1064
+    d = _sfg_design(pa=pa, pb=pb)
+    for e in d.elements:
+        if e.id == "X":
+            e.nl_efficiency_per_w = 50.0
+    tr = trace(d)
+    assert tr.nonconverged == []
+    residual, red = pd(tr, "BD"), pd(tr)
+    assert residual + red == pytest.approx(pa + pb, rel=1e-6)
+    assert residual < 0.08 * (pa + pb)
+
+
+def test_no_parasitic_shg_in_two_wavelength_crystal():
+    # eta set explicitly (enables SHG for single-wavelength crystals), but this crystal is fed
+    # 1064 + 1550 when all sources are on -> QPM for SFG only: one input alone makes nothing
+    d = _sfg_design(True, False)
+    for e in d.elements:
+        if e.id == "X":
+            e.nl_efficiency_per_w = 50.0
+    tr = trace(d)
+    assert pd(tr) == 0.0
+    assert not [s for s in tr.segments if s.branch.endswith(".sfg")]

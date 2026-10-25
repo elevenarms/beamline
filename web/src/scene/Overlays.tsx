@@ -193,3 +193,46 @@ export function FigureThumb() {
     </div>
   );
 }
+
+const LOGIC_RE = /(logic|nand|adder|all-optical)/i;
+
+/** Logic I/O strip for optical-calculator designs: sources as input switches, photodiodes as output lamps. */
+export function LogicStrip() {
+  const design = useStore((s) => s.design);
+  const trace = useStore((s) => s.trace);
+  const updateSource = useStore((s) => s.updateSource);
+  const select = useStore((s) => s.select);
+  if (!design || !LOGIC_RE.test(`${design.name} ${design.description ?? ""}`)) return null;
+  const maxP = Math.max(1e-9, ...design.sources.map((s) => s.power_mw ?? 10));
+  const labelOf = new Map((design.elements ?? []).map((e) => [e.id, e.label || e.id]));
+  const outs = (trace?.elements ?? []).filter((e) => e.type === "photodiode");
+  return (
+    <div className="logic-strip panel-float" role="group" aria-label="Logic inputs and outputs">
+      <span className="ls-title">In</span>
+      {design.sources.map((s) => {
+        const on = s.enabled !== false;
+        return (
+          <button key={s.id} className={`ls-in${on ? " on" : ""}`} role="switch" aria-checked={on} onClick={() => updateSource(s.id, { enabled: !on })} title={`${s.id}: click to switch ${on ? "off" : "on"}`}>
+            <span className="ls-name">{s.label || s.id}</span>
+            <span className="ls-bit mono">{on ? 1 : 0}</span>
+          </button>
+        );
+      })}
+      <span className="ls-sep" />
+      <span className="ls-title">Out</span>
+      {outs.map((o) => {
+        const p = o.power_out_mw ?? 0;
+        const lit = p > 0.2 * maxP;
+        return (
+          <button key={o.id} className={`ls-out${lit ? " lit" : ""}`} onClick={() => select({ kind: "element", id: o.id })} title={`${o.id}: ${p.toFixed(2)} mW (threshold ${(0.2 * maxP).toFixed(2)} mW)`}>
+            <span className="lamp" />
+            <span className="ls-name">{labelOf.get(o.id) ?? o.id}</span>
+            <span className="ls-bit mono">{lit ? 1 : 0}</span>
+            <span className="mono muted ls-mw">{mW(p)}</span>
+          </button>
+        );
+      })}
+      {outs.length === 0 && <span className="muted">no detectors</span>}
+    </div>
+  );
+}

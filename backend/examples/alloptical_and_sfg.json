@@ -55,10 +55,11 @@
     {
       "id": "XTAL",
       "type": "sfg_crystal",
-      "label": "PPLN crystal (sum-frequency: AND gate)",
+      "label": "PPLN waveguide (sum-frequency: AND gate)",
       "part_number": "MSFG1-0.5",
       "beam": "A.t",
-      "distance_mm": 50.8
+      "distance_mm": 50.8,
+      "nl_efficiency_per_w": 20.0
     },
     {
       "id": "DICH_OUT",
@@ -95,5 +96,15 @@
       "value": 1.0
     }
   ],
-  "notes": "OUT receives eta*P_A*P_B = 2/W (default) x 50 mW x 50 mW = 5 mW of 631 nm only when both inputs are on. nl_efficiency_per_w is left unset on purpose: setting it explicitly also enables single-beam SHG (B alone would make 775 nm, which this red dichroic also reflects)."
+  "notes": "PPLN waveguide, eta = 20 /W (2000 %/W). OUT gets ~35 mW of 631 nm only when both inputs are on (photon-limited SFG, see optics/trace.py). The crystal sees two wavelengths, so it is treated as phase-matched for SFG only: one input alone makes no SHG.",
+  "logic": {
+    "inputs": [
+      "A",
+      "B"
+    ],
+    "outputs": [
+      "OUT"
+    ],
+    "threshold_mw": 0.5
+  }
 }

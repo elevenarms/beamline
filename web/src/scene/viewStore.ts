@@ -26,6 +26,11 @@ interface ViewState {
   /** plan-view zoom is high enough to show per-element labels */
   labelsZoomOk: boolean;
   legendOpen: boolean;
+  tweenUntil: number;
+  tweenMs: number;
+  highlight: Set<string>;
+  highlightUntil: number;
+  startTween: (ids: Set<string>, ms: number) => void;
   setLegendOpen: (v: boolean) => void;
   tooltip: { segId: string; z: number; sx: number; sy: number } | null;
   setPreset: (p: Preset) => void;
@@ -45,6 +50,15 @@ export const useView = create<ViewState>((set, get) => ({
   cursor: null,
   labelsZoomOk: true,
   legendOpen: true,
+  tweenUntil: 0,
+  tweenMs: 500,
+  highlight: new Set(),
+  highlightUntil: 0,
+  startTween: (ids, ms) => {
+    const t = performance.now();
+    set({ tweenUntil: t + 60, tweenMs: ms, highlight: ids, highlightUntil: t + 2000 });
+    setTimeout(() => { if (performance.now() >= useView.getState().highlightUntil - 5) set({ highlight: new Set() }); }, 2010);
+  },
   setLegendOpen: (v) => set({ legendOpen: v }),
   tooltip: null,
   setPreset: (p) =>
@@ -62,3 +76,5 @@ export const useView = create<ViewState>((set, get) => ({
 
 /** DOM nodes the in-canvas frame loop writes to directly (scale bar), avoiding React re-renders */
 export const domRefs: { scaleBar: HTMLDivElement | null; scaleLabel: HTMLSpanElement | null } = { scaleBar: null, scaleLabel: null };
+
+if (import.meta.env.DEV) (window as unknown as { __view: typeof useView }).__view = useView;

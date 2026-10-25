@@ -16,11 +16,15 @@ export type ElementType =
   | "photodiode"
   | "beam_dump"
   | "vapor_cell"
-  | "isolator";
+  | "isolator"
+  | "soa"
+  | "sfg_crystal"
+  | "saturable_absorber";
 
 export const ELEMENT_TYPES: ElementType[] = [
   "mirror", "lens", "half_wave_plate", "quarter_wave_plate", "pbs", "beamsplitter", "sampler",
   "dichroic", "aom", "iris", "fiber_coupler", "photodiode", "beam_dump", "vapor_cell", "isolator",
+  "soa", "sfg_crystal", "saturable_absorber",
 ];
 
 export const TERMINATING = new Set<ElementType>(["fiber_coupler", "photodiode", "beam_dump"]);
@@ -56,6 +60,7 @@ export interface Source {
   waist_mm?: number;
   waist_offset_mm?: number;
   polarization?: PolarizationSpec;
+  enabled?: boolean;
   group?: string | null;
 }
 
@@ -81,6 +86,9 @@ export interface Element {
   acoustic_velocity_m_s?: number | null;
   fiber_mfd_um?: number | null;
   transmission?: number | null;
+  saturation_power_mw?: number | null;
+  small_signal_gain_db?: number | null;
+  nl_efficiency_per_w?: number | null;
   group?: string | null;
 }
 
@@ -199,10 +207,56 @@ export type AgentEvent =
   | { type: "candidate"; index: number; design: Design; report: VerifyReport; trace: TraceResult }
   | { type: "extraction"; graph: Record<string, unknown> }
   | { type: "final"; design: Design; report: VerifyReport; trace: TraceResult }
-  | { type: "modules"; modules: Module[]; table?: Partial<Baseplate> }
-  | { type: "module_done"; module_id: string; design: Design; report?: VerifyReport }
+  | { type: "modules"; modules: Module[]; table?: Partial<Baseplate>; links?: FiberLink[]; title?: string }
+  | { type: "module_done"; module_id: string; design: Design; report?: VerifyReport; trace?: TraceResult }
+  | { type: "module_failed"; module_id: string; message: string }
   | { type: "match"; rows: MatchRow[]; summary: { matched: number; in_figure: number } }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string }
+  | AgentStateEvent
+  | { type: "llm_call"; agent_id: string; call_id: string; model: string; thinking_level: string; prompt_tokens: number; output_tokens: number; thought_tokens: number; latency_ms: number; ttft_ms?: number | null; finish_reason: string }
+  | { type: "thought"; agent_id: string; text: string }
+  | { type: "tool"; agent_id: string; name: string; summary: string; elapsed_ms: number }
+  | IterationEvent;
+
+export interface AgentStateEvent {
+  type: "agent";
+  agent_id: string;
+  role: string;
+  state: "queued" | "running" | "done" | "error" | "cancelled";
+  title: string;
+  parent?: string | null;
+  model?: string | null;
+  thinking_level?: string | null;
+  elapsed_ms?: number | null;
+  message?: string | null;
+}
+
+export interface Change {
+  op: "add" | "remove" | "move" | "rotate" | "param" | "retarget";
+  element_id: string;
+  field?: string | null;
+  from?: unknown;
+  to?: unknown;
+  note?: string | null;
+}
+
+export interface IterationEvent {
+  type: "iteration";
+  agent_id: string;
+  seq: number;
+  label: string;
+  design: Design;
+  trace: TraceResult;
+  report: VerifyReport;
+  parent_seq?: number | null;
+  diff?: Change[];
+}
+
+export interface FiberLink {
+  from_module: string;
+  to_module: string;
+  purpose?: string;
+}
 
 export interface MatchRow {
   figure_label: string;

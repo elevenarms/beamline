@@ -131,6 +131,13 @@ class Module(BaseModel):
     description: str = ""
 
 
+class LogicSpec(BaseModel):
+    """Optical-logic circuits: which sources/waveplates are input bits and which detectors are output bits."""
+    inputs: list[str]                 # element/source ids or labels (e.g. "A", "B", "CIN")
+    outputs: list[str]                # photodiode ids or labels (e.g. "SUM", "CARRY")
+    threshold_mw: float               # an output reads 1 when its detector absorbs more than this
+
+
 class Design(BaseModel):
     name: str
     description: str = ""
@@ -140,6 +147,7 @@ class Design(BaseModel):
     elements: list[Element] = Field(default_factory=list)  # placement order matters per branch
     targets: list[Target] = Field(default_factory=list)
     notes: str = ""
+    logic: LogicSpec | None = None    # set for optical-logic demo circuits
 
 
 # ─────────────────────────────── trace result ────────────────────────────

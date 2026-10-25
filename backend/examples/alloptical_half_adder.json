@@ -1,0 +1,111 @@
+{
+  "name": "alloptical_half_adder",
+  "description": "All-optical half adder in a single chi(2) crystal (published PPLN scheme): A (1064 nm) and B (1550 nm) lasers are overlapped and sent through one quasi-phase-matched PPLN waveguide. CARRY = the 631 nm sum-frequency light (A AND B). SUM = the residual infrared: with matched photon fluxes and strong conversion, both inputs are nearly fully depleted when both are on, so the leftover IR is bright for exactly one input and dim for both (A XOR B). Default state is 1 + 1 = 10.",
+  "baseplate": {
+    "width_mm": 406.4,
+    "height_mm": 304.8,
+    "thickness_mm": 25.4,
+    "optical_height_mm": 12.7,
+    "grid_mm": 25.4
+  },
+  "sources": [
+    {
+      "id": "A",
+      "label": "A",
+      "part_number": "DPSS-1064-300",
+      "position": [
+        76.2,
+        76.2
+      ],
+      "direction_deg": 0.0,
+      "wavelength_nm": 1064.0,
+      "power_mw": 218.5,
+      "waist_mm": 0.5,
+      "polarization": "H",
+      "enabled": true
+    },
+    {
+      "id": "B",
+      "label": "B",
+      "part_number": "FPL1055T",
+      "position": [
+        177.8,
+        228.6
+      ],
+      "direction_deg": -90.0,
+      "wavelength_nm": 1550.0,
+      "power_mw": 150.0,
+      "waist_mm": 0.5,
+      "polarization": "H",
+      "enabled": true
+    }
+  ],
+  "elements": [
+    {
+      "id": "DICH_IN",
+      "type": "dichroic",
+      "label": "1550 reflect / 1064 pass: overlaps A and B",
+      "part_number": "DMLP1180",
+      "beam": "A",
+      "distance_mm": 101.6,
+      "out_direction_deg": -90.0,
+      "cutoff_nm": 1300.0,
+      "reflect": "above"
+    },
+    {
+      "id": "PPLN",
+      "type": "sfg_crystal",
+      "label": "PPLN waveguide, QPM for 1064 + 1550 -> 631 nm",
+      "part_number": "MSFG1-0.5",
+      "beam": "A.t",
+      "distance_mm": 50.8,
+      "nl_efficiency_per_w": 50.0
+    },
+    {
+      "id": "DICH_OUT",
+      "type": "dichroic",
+      "label": "631 nm reflect / IR pass",
+      "part_number": "DMLP805",
+      "beam": "A.t",
+      "distance_mm": 50.8,
+      "out_direction_deg": 90.0,
+      "cutoff_nm": 800.0,
+      "reflect": "below"
+    },
+    {
+      "id": "CARRY",
+      "type": "photodiode",
+      "label": "CARRY",
+      "part_number": "PDA36A2",
+      "beam": "A.t.sfg.r",
+      "distance_mm": 50.8
+    },
+    {
+      "id": "SUM",
+      "type": "photodiode",
+      "label": "SUM",
+      "part_number": "PDA20CS2",
+      "beam": "A.t.t",
+      "distance_mm": 50.8
+    }
+  ],
+  "targets": [
+    {
+      "element_id": "CARRY",
+      "kind": "min_power_mw",
+      "value": 100.0
+    }
+  ],
+  "notes": "Photon fluxes matched (P_A/P_B = 1550/1064, 218.5 / 150.0 mW) so both inputs deplete together. eta = 50 /W (5000 %/W) is an optimistic long PPLN ridge waveguide. Default: A = B = 1 -> SUM 0, CARRY 1 (1 + 1 = 10). Logic threshold 40 mW.",
+  "logic": {
+    "inputs": [
+      "A",
+      "B"
+    ],
+    "outputs": [
+      "SUM",
+      "CARRY"
+    ],
+    "threshold_mw": 40.0
+  }
+}

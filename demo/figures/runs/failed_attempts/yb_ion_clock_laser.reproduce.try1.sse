@@ -1,0 +1,14 @@
+data: {"type": "status", "stage": "extract", "message": "reading the figure (3 parallel passes)"}
+
+: ping - 2026-10-25 19:13:13.639184+00:00
+
+: ping - 2026-10-25 19:13:23.640297+00:00
+
+: ping - 2026-10-25 19:13:33.641418+00:00
+
+: ping - 2026-10-25 19:13:43.642358+00:00
+
+: ping - 2026-10-25 19:13:53.644711+00:00
+
+data: {"type": "error", "message": "LLMError: all vision extraction passes failed: "}
+

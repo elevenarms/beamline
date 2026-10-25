@@ -1,0 +1,70 @@
+data: {"type": "status", "stage": "extract", "message": "reading the figure (3 parallel passes)"}
+
+data: {"type": "agent", "agent_id": "vision-1", "role": "vision", "state": "queued", "title": "Vision 1 \u2014 exhaustive parts list", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": null, "message": null}
+
+data: {"type": "agent", "agent_id": "vision-2", "role": "vision", "state": "queued", "title": "Vision 2 \u2014 beam connectivity", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": null, "message": null}
+
+data: {"type": "agent", "agent_id": "vision-3", "role": "vision", "state": "queued", "title": "Vision 3 \u2014 labels & values", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": null, "message": null}
+
+data: {"type": "agent", "agent_id": "vision-1", "role": "vision", "state": "running", "title": "Vision 1 \u2014 exhaustive parts list", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": null, "message": null}
+
+data: {"type": "agent", "agent_id": "vision-2", "role": "vision", "state": "running", "title": "Vision 2 \u2014 beam connectivity", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": null, "message": null}
+
+data: {"type": "agent", "agent_id": "vision-3", "role": "vision", "state": "running", "title": "Vision 3 \u2014 labels & values", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": null, "message": null}
+
+: ping - 2026-10-25 19:16:01.512436+00:00
+
+data: {"type": "llm_call", "agent_id": "vision-3", "call_id": "extract2#0-3", "model": "gemini-4-argon", "thinking_level": "medium", "prompt_tokens": 2297, "output_tokens": 1804, "thought_tokens": 0, "latency_ms": 16920.0, "ttft_ms": 3724.0, "finish_reason": "STOP"}
+
+data: {"type": "thought", "agent_id": "vision-3", "text": "Saw 16 parts (7x mirror, 3x half_wave_plate, 2x pbs, 1x laser, 1x sampler, 1x vapor_cell, 1x photodiode) and 15 beam links."}
+
+data: {"type": "agent", "agent_id": "vision-3", "role": "vision", "state": "done", "title": "Vision 3 \u2014 labels & values", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": 16917.7, "message": null}
+
+data: {"type": "status", "stage": "extract", "message": "vision pass 1: 16 components, 15 beam links"}
+
+data: {"type": "llm_call", "agent_id": "vision-2", "call_id": "extract1#0-2", "model": "gemini-4-argon", "thinking_level": "medium", "prompt_tokens": 2296, "output_tokens": 2013, "thought_tokens": 0, "latency_ms": 18730.0, "ttft_ms": 3952.1, "finish_reason": "STOP"}
+
+data: {"type": "thought", "agent_id": "vision-2", "text": "Saw 16 parts (7x mirror, 3x half_wave_plate, 2x pbs, 1x laser, 1x sampler, 1x vapor_cell, 1x photodiode) and 15 beam links."}
+
+data: {"type": "agent", "agent_id": "vision-2", "role": "vision", "state": "done", "title": "Vision 2 \u2014 beam connectivity", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": 18727.9, "message": null}
+
+data: {"type": "status", "stage": "extract", "message": "vision pass 2: 16 components, 15 beam links"}
+
+: ping - 2026-10-25 19:16:11.514259+00:00
+
+data: {"type": "llm_call", "agent_id": "vision-1", "call_id": "extract0#0-1", "model": "gemini-4-argon", "thinking_level": "medium", "prompt_tokens": 2299, "output_tokens": 1633, "thought_tokens": 0, "latency_ms": 20820.0, "ttft_ms": 7045.8, "finish_reason": "STOP"}
+
+data: {"type": "thought", "agent_id": "vision-1", "text": "Saw 16 parts (7x mirror, 3x half_wave_plate, 2x pbs, 1x laser, 1x sampler, 1x vapor_cell, 1x photodiode) and 15 beam links."}
+
+data: {"type": "agent", "agent_id": "vision-1", "role": "vision", "state": "done", "title": "Vision 1 \u2014 exhaustive parts list", "parent": null, "model": "gemini-4-argon", "thinking_level": "medium", "elapsed_ms": 20819.4, "message": null}
+
+data: {"type": "status", "stage": "extract", "message": "vision pass 3: 16 components, 15 beam links"}
+
+data: {"type": "agent", "agent_id": "merge", "role": "merge", "state": "queued", "title": "Merge \u2014 consensus graph + scale to mm", "parent": null, "model": null, "thinking_level": null, "elapsed_ms": null, "message": null}
+
+data: {"type": "agent", "agent_id": "merge", "role": "merge", "state": "running", "title": "Merge \u2014 consensus graph + scale to mm", "parent": null, "model": null, "thinking_level": null, "elapsed_ms": null, "message": null}
+
+data: {"type": "tool", "agent_id": "merge", "name": "merge", "summary": "majority vote: 3/3 vision passes agree on the parts list (16 parts)", "elapsed_ms": 0.01}
+
+data: {"type": "status", "stage": "extract", "message": "3/3 vision passes agree on the parts list"}
+
+data: {"type": "tool", "agent_id": "merge", "name": "scale", "summary": "scale: scaled the drawing to a 485 x 205 mm baseplate (0.49 mm/px, mounts >= 40 mm apart)", "elapsed_ms": 0.11}
+
+data: {"type": "agent", "agent_id": "merge", "role": "merge", "state": "done", "title": "Merge \u2014 consensus graph + scale to mm", "parent": null, "model": null, "thinking_level": null, "elapsed_ms": 0.1, "message": null}
+
+data: {"type": "extraction", "graph": {"title": "a) 1\" mounted optics", "components": [{"id": "IN", "type": "laser", "label": "input", "approx_xy": [0.908, 0.055], "box_2d": [920, 895, 969, 922], "xy_mm": [443, 30]}, {"id": "HWP1", "type": "half_wave_plate", "label": "lambda/2", "approx_xy": [0.91, 0.478], "box_2d": [485, 855, 560, 966], "xy_mm": [444, 111]}, {"id": "PBS1", "type": "pbs", "label": "PBS", "approx_xy": [0.91, 0.735], "box_2d": [213, 875, 317, 945], "xy_mm": [443, 161]}, {"id": "M1", "type": "mirror", "label": "mirror", "approx_xy": [0.701, 0.794], "box_2d": [71, 648, 340, 753], "xy_mm": [337, 173]}, {"id": "BS", "type": "sampler", "label": "beam sampler", "approx_xy": [0.733, 0.605], "box_2d": [323, 704, 467, 761], "xy_mm": [353, 136]}, {"id": "HWP2", "type": "half_wave_plate", "label": "lambda/2", "approx_xy": [0.623, 0.63], "box_2d": [223, 608, 517, 637], "xy_mm": [297, 141]}, {"id": "M2", "type": "mirror", "label": "mirror", "approx_xy": [0.54, 0.688], "box_2d": [177, 489, 448, 592], "xy_mm": [256, 152]}, {"id": "M3", "type": "mirror", "label": "mirror", "approx_xy": [0.588, 0.361], "box_2d": [504, 535, 775, 640], "xy_mm": [280, 89]}, {"id": "M4", "type": "mirror", "label": "mirror", "approx_xy": [0.747, 0.15], "box_2d": [715, 695, 985, 799], "xy_mm": [361, 48]}, {"id": "HWP3", "type": "half_wave_plate", "label": "lambda/2", "approx_xy": [0.502, 0.209], "box_2d": [644, 488, 938, 517], "xy_mm": [236, 60]}, {"id": "M5", "type": "mirror", "label": "mirror", "approx_xy": [0.196, 0.147], "box_2d": [717, 144, 988, 247], "xy_mm": [80, 48]}, {"id": "PBS2", "type": "pbs", "label": "PBS", "approx_xy": [0.218, 0.42], "box_2d": [490, 198, 669, 239], "xy_mm": [92, 100]}, {"id": "CELL", "type": "vapor_cell", "label": "Rb cell", "approx_xy": [0.379, 0.443], "box_2d": [442, 294, 673, 463], "xy_mm": [173, 105]}, {"id": "PD", "type": "photodiode", "label": "PD", "approx_xy": [0.102, 0.419], "box_2d": [423, 78, 738, 126], "xy_mm": [33, 100]}, {"id": "M_ALT1", "type": "mirror", "label": "mirror (faded)", "approx_xy": [0.934, 0.184], "box_2d": [679, 881, 952, 987], "xy_mm": [456, 55]}, {"id": "M_ALT2", "type": "mirror", "label": "mirror (faded)", "approx_xy": [0.834, 0.303], "box_2d": [562, 782, 831, 886], "xy_mm": [405, 78]}], "beams": [{"from": "IN", "to": "HWP1"}, {"from": "HWP1", "to": "PBS1"}, {"from": "PBS1", "to": "M1", "label": "branch"}, {"from": "M1", "to": "BS"}, {"from": "BS", "to": "HWP2", "label": "10%"}, {"from": "HWP2", "to": "M2"}, {"from": "M2", "to": "M3"}, {"from": "M3", "to": "CELL", "label": "probe"}, {"from": "CELL", "to": "PBS2", "label": "probe"}, {"from": "PBS2", "to": "PD", "label": "probe"}, {"from": "BS", "to": "M4", "label": "90%"}, {"from": "M4", "to": "HWP3", "label": "90%"}, {"from": "HWP3", "to": "M5", "label": "pump"}, {"from": "M5", "to": "PBS2", "label": "pump"}, {"from": "PBS2", "to": "CELL", "label": "pump"}], "parameters": [{"name": "optic_diameter", "value": "1", "unit": "inch", "evidence": "a) 1\" mounted optics"}, {"name": "sampler_probe_fraction", "value": "10", "unit": "%", "evidence": "10%"}, {"name": "sampler_pump_fraction", "value": "90", "unit": "%", "evidence": "90%"}], "notes": "Saturation absorption spectroscopy / pump-probe branch using 1\" mounted optics and a Rb cell in an insulating mount. Faded components (HWP3 and two mirrors at bottom right) show optional/alternative routing.", "scale_mm_per_px": 0.4883, "baseplate_mm": [485, 205]}}
+
+data: {"type": "status", "stage": "extract", "message": "scaled the drawing to a 485 x 205 mm baseplate (0.49 mm/px, mounts >= 40 mm apart)"}
+
+data: {"type": "status", "stage": "design", "message": "synthesizing a traceable design from the graph"}
+
+data: {"type": "agent", "agent_id": "synth", "role": "synth", "state": "queued", "title": "Synthesizer \u2014 graph to traceable design", "parent": "merge", "model": "gemini-4-argon", "thinking_level": "low", "elapsed_ms": null, "message": null}
+
+data: {"type": "agent", "agent_id": "synth", "role": "synth", "state": "running", "title": "Synthesizer \u2014 graph to traceable design", "parent": "merge", "model": "gemini-4-argon", "thinking_level": "low", "elapsed_ms": null, "message": null}
+
+: ping - 2026-10-25 19:16:21.514691+00:00
+
+: ping - 2026-10-25 19:16:31.516329+00:00
+
+: ping - 2026-10-25 19:16:41.518218+00:00
+

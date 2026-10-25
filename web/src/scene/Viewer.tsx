@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { CameraControls, GizmoHelper, GizmoViewcube, Html, Line, OrthographicCamera, PerspectiveCamera } from "@react-three/drei";
@@ -270,18 +270,51 @@ function ringPoints(c: Vec2, r: number, h: number): [number, number, number][] {
   return pts;
 }
 
-type NodeProps = { it: Item; oh: number; selected: boolean; warn: "error" | "warning" | null; label?: LabelPos; labelsOn: boolean; dim: boolean };
+type NodeProps = { it: Item; oh: number; selected: boolean; warn: "error" | "warning" | null; label?: LabelPos; labelsOn: boolean; dim: boolean; pulse?: boolean };
 const sameNode = (a: NodeProps, b: NodeProps) =>
-  a.oh === b.oh && a.selected === b.selected && a.warn === b.warn && a.labelsOn === b.labelsOn && a.dim === b.dim &&
+  a.oh === b.oh && a.pulse === b.pulse && a.selected === b.selected && a.warn === b.warn && a.labelsOn === b.labelsOn && a.dim === b.dim &&
   a.it.id === b.it.id && a.it.type === b.it.type && a.it.angle === b.it.angle && a.it.pos[0] === b.it.pos[0] && a.it.pos[1] === b.it.pos[1] &&
   a.it.el?.aperture_mm === b.it.el?.aperture_mm && a.it.el?.focal_length_mm === b.it.el?.focal_length_mm && a.it.pe?.error === b.it.pe?.error &&
   a.label?.at[0] === b.label?.at[0] && a.label?.at[1] === b.label?.at[1] && a.label?.cost === b.label?.cost;
 
 const LABEL_MAX_COST = 30;
-const ElementNode = memo(function ElementNode({ it, oh, selected, warn, label: labelPos, labelsOn, dim }: NodeProps) {
+const easeInOut = (k: number) => (k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2);
+
+const ElementNode = memo(function ElementNode({ it, oh, selected, warn, label: labelPos, labelsOn, dim, pulse }: NodeProps) {
   const select = useStore((s) => s.select);
   const focus = useView((v) => v.focus);
   const [hover, setHover] = useState(false);
+  // iteration playback: tween moved/rotated parts, scale-in added ones (pose is driven via the ref)
+  const gref = useRef<THREE.Group>(null);
+  const shown = useRef<{ x: number; y: number; a: number } | null>(null);
+  const anim = useRef<{ fx: number; fy: number; fa: number; t0: number; ms: number; grow: boolean } | null>(null);
+  useLayoutEffect(() => {
+    const g = gref.current;
+    if (!g) return;
+    const v = useView.getState();
+    const tween = performance.now() < v.tweenUntil;
+    const cur = shown.current;
+    if (tween && (!cur || cur.x !== it.pos[0] || cur.y !== it.pos[1] || cur.a !== it.angle)) {
+      let da = it.angle - (cur?.a ?? it.angle);
+      da = ((da + 540) % 360) - 180; // shortest rotation
+      anim.current = { fx: cur?.x ?? it.pos[0], fy: cur?.y ?? it.pos[1], fa: it.angle - da, t0: performance.now(), ms: v.tweenMs, grow: !cur };
+    } else if (!anim.current) {
+      g.position.set(...toW(it.pos[0], it.pos[1]));
+      g.rotation.set(0, it.angle * D2R, 0);
+      g.scale.setScalar(1);
+    }
+    shown.current = { x: it.pos[0], y: it.pos[1], a: it.angle };
+  }, [it.pos, it.angle]);
+  useFrame(() => {
+    const A = anim.current, g = gref.current;
+    if (!A || !g) return;
+    const k = Math.min(1, (performance.now() - A.t0) / A.ms), e = easeInOut(k);
+    const x = A.fx + (it.pos[0] - A.fx) * e, y = A.fy + (it.pos[1] - A.fy) * e, a = A.fa + (it.angle - A.fa) * e;
+    g.position.set(x, 0, -y);
+    g.rotation.set(0, a * D2R, 0);
+    g.scale.setScalar(A.grow ? 0.3 + 0.7 * e : 1);
+    if (k >= 1) anim.current = null;
+  });
   // decluttering: labels show when zoomed in and not overlapping, or always on hover / selection
   const label = labelPos && (selected || hover || (labelsOn && !dim && labelPos.cost < LABEL_MAX_COST)) ? labelPos : undefined;
   const c = itemCenter(it);
@@ -293,8 +326,7 @@ const ElementNode = memo(function ElementNode({ it, oh, selected, warn, label: l
   return (
     <group>
       <group
-        position={toW(it.pos[0], it.pos[1])}
-        rotation={[0, it.angle * D2R, 0]}
+        ref={gref}
         onClick={(e) => { e.stopPropagation(); select({ kind: it.kind, id: it.id }); }}
         onDoubleClick={(e) => { e.stopPropagation(); focus(c[0], c[1], r); }}
         onPointerOver={(e) => { e.stopPropagation(); setHover(true); document.body.style.cursor = "pointer"; }}
@@ -305,6 +337,7 @@ const ElementNode = memo(function ElementNode({ it, oh, selected, warn, label: l
       {(selected || warn) && (
         <Line points={ringPoints(c, r + 4, -oh + 0.3)} color={selected ? P.sel : warn === "error" ? P.err : P.warn} lineWidth={selected ? 1.8 : 1.2} dashed={!selected} dashSize={3} gapSize={2} />
       )}
+      {pulse && <Line points={ringPoints(c, r + 8, -oh + 0.4)} color={P.sel} lineWidth={2.2} />}
       {label && (
         <>
           {plan ? (
@@ -359,8 +392,15 @@ function fitView(ctl: CameraControlsImpl, box: THREE.Box3, az: number, polar: nu
   const cam = ctl.camera as THREE.OrthographicCamera | THREE.PerspectiveCamera;
   // keep the design clear of the overlays: toolbar (top), view cube (top-right), legend (bottom-left)
   const legend = useView.getState().legendOpen;
-  const wide = viewSize.w > 900;
-  const inset = { top: 58, bottom: legend && !wide ? 250 : 44, left: legend && wide ? 232 : 24, right: 24 };
+  // the legend sits bottom-left: reserve its width on the left or its height at the bottom, whichever keeps more area
+  const inset = { top: 58, bottom: 44, left: 24, right: 24 };
+  const lg = legend ? document.querySelector(".viewport .legend")?.getBoundingClientRect() : null;
+  if (lg && lg.width > 0) {
+    const w0 = viewSize.w - 48, h0 = viewSize.h - 102;
+    const leftArea = (w0 - lg.width) * h0, bottomArea = w0 * (h0 - lg.height);
+    if (leftArea >= bottomArea) inset.left = lg.width + 20;
+    else inset.bottom = lg.height + 20;
+  }
   const W = Math.max(viewSize.w - inset.left - inset.right, 120), H = Math.max(viewSize.h - inset.top - inset.bottom, 120);
   const o = new THREE.Vector3(Math.sin(polar) * Math.sin(az), Math.cos(polar), Math.sin(polar) * Math.cos(az)).normalize();
   const r = new THREE.Vector3(Math.cos(az), 0, -Math.sin(az));
@@ -517,7 +557,7 @@ function ScaleBarWriter() {
       return;
     }
     const pxPerMm = (camera as THREE.OrthographicCamera).zoom;
-    const ok = pxPerMm >= 1.45;
+    const ok = pxPerMm >= 1.0;
     if (useView.getState().labelsZoomOk !== ok) useView.setState({ labelsZoomOk: ok });
     const want = 110 / pxPerMm;
     const L = NICE.find((v) => v >= want * 0.6) ?? 500;
@@ -540,40 +580,92 @@ function ModuleRegions({ design, items, oh, solo }: { design: Design; items: Ite
   const P = usePalette();
   const focusBox = useView((v) => v.focusBox);
   const filled = useMemo(() => new Set(items.map((i) => i.group)), [items]);
+  const failed = useStore((s) => s.agent.failed);
+  const links = useStore((s) => s.agent.links);
+  const byId = new Map((design.modules ?? []).map((m) => [m.id, m]));
   const h = -oh + 0.25;
   return (
     <group>
       {(design.modules ?? []).map((m) => {
         const [x, y, w, hh] = m.region;
-        const planned = !filled.has(m.id);
+        const fail = failed[m.id];
+        const planned = !filled.has(m.id) && !fail;
         const faded = !!solo && solo !== m.id;
         return (
           <group key={m.id}>
             <Line
               points={[toW(x, y, h), toW(x + w, y, h), toW(x + w, y + hh, h), toW(x, y + hh, h), toW(x, y, h)]}
-              color={planned ? P.warn : P.outline}
-              lineWidth={planned ? 1.6 : 1}
-              dashed={planned}
+              color={fail ? P.err : planned ? P.warn : P.outline}
+              lineWidth={planned || fail ? 1.6 : 1}
+              dashed={planned || !!fail}
               dashSize={6}
               gapSize={4}
               transparent
               opacity={faded ? 0.3 : 0.9}
             />
-            {planned && (
+            {(planned || fail) && (
               <mesh position={[x + w / 2, h - 0.05, -(y + hh / 2)]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
                 <planeGeometry args={[w, hh]} />
-                <meshBasicMaterial color={P.warn} transparent opacity={0.07} depthWrite={false} />
+                <meshBasicMaterial color={fail ? P.err : P.warn} transparent opacity={fail ? 0.12 : 0.07} depthWrite={false} />
               </mesh>
             )}
-            <Html position={toW(x + 3, y + hh - 3, h)} zIndexRange={[8, 0]} style={{ pointerEvents: "auto" }}>
-              <div className={`mlabel${planned ? " planned" : ""}${faded ? " faded" : ""}`} onClick={() => focusBox(x, y, w, hh)} title={m.description || m.title || m.id}>
-                {m.title || m.id}{planned ? " · planned" : ""}
+            {fail && <Hatch x={x} y={y} w={w} h={hh} z={h} color={P.err} />}
+            <Html position={toW(x, y + hh, h)} zIndexRange={[8, 0]} style={{ pointerEvents: "auto", transform: "translate(0, calc(-100% - 2px))" }}>
+              <div className={`mlabel${planned ? " planned" : ""}${fail ? " failed" : ""}${faded ? " faded" : ""}`} onClick={() => focusBox(x, y, w, hh)} title={fail ? `Failed: ${fail}` : m.description || m.title || m.id}>
+                {m.title || m.id}{planned ? " · planned" : ""}{fail ? " · failed" : ""}
+                {fail && <div className="mlabel-msg">{fail.slice(0, 120)}</div>}
               </div>
             </Html>
           </group>
         );
       })}
+      {links.map((l, i) => {
+        const a = byId.get(l.from_module), b = byId.get(l.to_module);
+        if (!a || !b) return null;
+        const ca: Vec2 = [a.region[0] + a.region[2] / 2, a.region[1] + a.region[3] / 2];
+        const cb: Vec2 = [b.region[0] + b.region[2] / 2, b.region[1] + b.region[3] / 2];
+        const mid: Vec2 = [(ca[0] + cb[0]) / 2, (ca[1] + cb[1]) / 2];
+        const dx = cb[0] - ca[0], dy = cb[1] - ca[1], L = Math.hypot(dx, dy) || 1;
+        const ctrl: Vec2 = [mid[0] - (dy / L) * L * 0.18, mid[1] + (dx / L) * L * 0.18];
+        const pts: [number, number, number][] = [];
+        for (let k = 0; k <= 32; k++) {
+          const t = k / 32, u = 1 - t;
+          pts.push(toW(u * u * ca[0] + 2 * u * t * ctrl[0] + t * t * cb[0], u * u * ca[1] + 2 * u * t * ctrl[1] + t * t * cb[1], 4));
+        }
+        return (
+          <group key={i}>
+            <Line points={pts} color={P.fiber} lineWidth={1.6} dashed dashSize={8} gapSize={5} transparent opacity={0.85} />
+            {l.purpose && (
+              <Html position={toW(0.25 * ca[0] + 0.5 * ctrl[0] + 0.25 * cb[0], 0.25 * ca[1] + 0.5 * ctrl[1] + 0.25 * cb[1], 4)} center zIndexRange={[7, 0]}>
+                <div className="link-label" title={`${l.from_module} → ${l.to_module}`}>{l.purpose}</div>
+              </Html>
+            )}
+          </group>
+        );
+      })}
     </group>
+  );
+}
+
+function Hatch({ x, y, w, h, z, color }: { x: number; y: number; w: number; h: number; z: number; color: string }) {
+  const geo = useMemo(() => {
+    const v: number[] = [];
+    const step = 18;
+    for (let d = -h; d < w; d += step) {
+      // 45° lines clipped to the rectangle
+      const x0 = Math.max(0, d), y0 = Math.max(0, -d);
+      const len = Math.min(w - x0, h - y0);
+      if (len <= 0) continue;
+      v.push(x + x0, z, -(y + y0), x + x0 + len, z, -(y + y0 + len));
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(v, 3));
+    return g;
+  }, [x, y, w, h, z]);
+  return (
+    <lineSegments geometry={geo} raycast={() => null}>
+      <lineBasicMaterial color={color} transparent opacity={0.45} />
+    </lineSegments>
   );
 }
 
@@ -604,14 +696,16 @@ export default function Viewer() {
   const solo = useStore((s) => s.soloModule);
   const plan = useView((v) => v.preset === "top" && v.projection === "ortho");
   const zoomOk = useView((v) => v.labelsZoomOk);
-  const labelsOn = plan ? zoomOk : items.length <= 60;
+  const labelsOn = plan ? zoomOk || items.length <= 40 : items.length <= 60;
   const segs = trace?.segments ?? EMPTY_SEGS;
   const dimSet = useMemo(() => {
     if (!solo || !design) return null;
     const srcGroup = new Map(design.sources.map((x) => [x.id, x.group ?? null]));
     return new Set(segs.filter((x) => srcGroup.get(x.source_id) !== solo).map((x) => x.id));
   }, [solo, design, segs]);
-  const designKey = design ? `${design.name}|${bp.width_mm}|${bp.height_mm}` : "";
+  const fitNonce = useStore((s) => s.fitNonce);
+  const designKey = design ? `${fitNonce}|${bp.width_mm}|${bp.height_mm}` : "";
+  const highlight = useView((v) => v.highlight);
   const selSeg = selected?.kind === "segment" ? selected.id : null;
   const selBranch = selSeg ? trace?.segments.find((s) => s.id === selSeg)?.branch : null;
 
@@ -653,6 +747,7 @@ export default function Viewer() {
           label={labels.get(it.id)}
           labelsOn={labelsOn}
           dim={!!solo && it.group !== solo}
+          pulse={highlight.has(it.id)}
         />
       ))}
       <GizmoHelper alignment="top-right" margin={[62, 62]}>

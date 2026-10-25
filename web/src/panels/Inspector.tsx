@@ -66,6 +66,15 @@ const PARAMS: Partial<Record<ElementType, { key: NumKey; label: string; unit: st
   ],
   vapor_cell: [{ key: "transmission", label: "Transmission", unit: "", step: 0.01, min: 0, max: 1, slider: [0, 1] }],
   isolator: [{ key: "transmission", label: "Transmission", unit: "", step: 0.01, min: 0, max: 1, slider: [0, 1] }],
+  soa: [
+    { key: "small_signal_gain_db", label: "Small-signal gain G₀", unit: "dB", step: 0.5, slider: [0, 30] },
+    { key: "saturation_power_mw", label: "Saturation power", unit: "mW", step: 0.5, slider: [0.5, 50] },
+  ],
+  sfg_crystal: [{ key: "nl_efficiency_per_w", label: "NL efficiency η", unit: "1/W", step: 0.1, slider: [0, 10] }],
+  saturable_absorber: [
+    { key: "transmission", label: "Small-signal T₀", unit: "", step: 0.01, min: 0, max: 1, slider: [0, 1] },
+    { key: "saturation_power_mw", label: "Saturation power", unit: "mW", step: 0.5, slider: [0.5, 50] },
+  ],
 };
 
 function ElementInspector({ el }: { el: Element }) {
@@ -181,6 +190,14 @@ function SourceInspector({ src }: { src: Source }) {
       <div className="insp-sub">{[src.label, src.part_number].filter(Boolean).join(" · ") || "laser"}</div>
       <table className="props">
         <tbody>
+          <tr>
+            <td>Output</td>
+            <td className="v">
+              <button className={`switch${src.enabled === false ? "" : " on"}`} role="switch" aria-checked={src.enabled !== false} onClick={() => set({ enabled: src.enabled === false })}>
+                <span className="mono">{src.enabled === false ? "0" : "1"}</span>{src.enabled === false ? "OFF" : "ON"}
+              </button>
+            </td>
+          </tr>
           <tr><td>x</td><td><NumField value={src.position[0]} onChange={(v) => set({ position: [v ?? 0, src.position[1]] })} unit="mm" /></td></tr>
           <tr><td>y</td><td><NumField value={src.position[1]} onChange={(v) => set({ position: [src.position[0], v ?? 0] })} unit="mm" /></td></tr>
           <SliderRow label="Direction" value={src.direction_deg} min={0} max={360} step={0.5} unit="°" onChange={(v) => set({ direction_deg: v ?? 0 })} />

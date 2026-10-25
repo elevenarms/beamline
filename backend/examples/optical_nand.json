@@ -121,5 +121,16 @@
       "value": 0.4
     }
   ],
-  "notes": "Logic inputs: A, B (half_wave_plate fast_axis_deg 0 or 45). Outputs: NAND, AND photodiodes. Run: uv run python -m logic examples/optical_nand.json"
+  "notes": "Logic inputs: A, B (half_wave_plate fast_axis_deg 0 or 45). Outputs: NAND, AND photodiodes. Run: uv run python -m logic examples/optical_nand.json",
+  "logic": {
+    "inputs": [
+      "A",
+      "B"
+    ],
+    "outputs": [
+      "NAND",
+      "AND"
+    ],
+    "threshold_mw": 2.0
+  }
 }

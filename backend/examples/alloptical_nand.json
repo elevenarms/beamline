@@ -130,5 +130,15 @@
       "value": 0.15
     }
   ],
-  "notes": "Logic levels at OUT (threshold 0.15 mW): 00 ~6 mW, 01/10 ~0.23 mW (1), 11 ~0.07 mW (0). Default state A=1, B=0 (OUT lit); toggle sources A/B (enabled) to run the truth table."
+  "notes": "Logic levels at OUT (threshold 0.15 mW): 00 ~6 mW, 01/10 ~0.23 mW (1), 11 ~0.07 mW (0). Default state A=1, B=0 (OUT lit); toggle sources A/B (enabled) to run the truth table.",
+  "logic": {
+    "inputs": [
+      "A",
+      "B"
+    ],
+    "outputs": [
+      "OUT"
+    ],
+    "threshold_mw": 0.15
+  }
 }

@@ -336,5 +336,17 @@
       "value": 0.4
     }
   ],
-  "notes": "Logic inputs: A, B, CIN (half_wave_plate fast_axis_deg 0 or 45). Outputs: SUM, COUT photodiodes (1 = power > 20% of source power; lit levels are 2.4-9.5 mW, dark is 0). Run: uv run python -m logic examples/optical_full_adder.json"
+  "notes": "Logic inputs: A, B, CIN (half_wave_plate fast_axis_deg 0 or 45). Outputs: SUM, COUT photodiodes (1 = power > 20% of source power; lit levels are 2.4-9.5 mW, dark is 0). Run: uv run python -m logic examples/optical_full_adder.json",
+  "logic": {
+    "inputs": [
+      "A",
+      "B",
+      "CIN"
+    ],
+    "outputs": [
+      "SUM",
+      "COUT"
+    ],
+    "threshold_mw": 2.0
+  }
 }

@@ -74,10 +74,27 @@ export const srTwoColor: Design = {
   ],
 };
 
+export const opticalAnd: Design = {
+  name: "all_optical_and",
+  description: "All-optical logic: inputs A and B combine on a 50:50 splitter; a saturable absorber thresholds the sum so OUT is lit only for A·B.",
+  baseplate: { width_mm: 355.6, height_mm: 203.2, thickness_mm: 25.4, optical_height_mm: 12.7, grid_mm: 25.4 },
+  sources: [
+    { id: "A", label: "A", position: [70, 110], direction_deg: 0, wavelength_nm: 1550, power_mw: 10, waist_mm: 0.5, polarization: "H" },
+    { id: "B", label: "B", position: [150, 70], direction_deg: 90, wavelength_nm: 1550, power_mw: 10, waist_mm: 0.5, polarization: "H" },
+  ],
+  elements: [
+    { id: "BS1", type: "beamsplitter", label: "Combiner 50:50", at: [150, 110], angle_deg: 0, split_ratio: 0.5 },
+    { id: "SA1", type: "saturable_absorber", label: "Threshold", at: [230, 110], transmission: 0.05, saturation_power_mw: 10 },
+    { id: "OUT", type: "photodiode", label: "OUT", at: [310, 110], angle_deg: 180 },
+    { id: "BD1", type: "beam_dump", at: [150, 180], angle_deg: 270 },
+  ],
+};
+
 export const MOCK_EXAMPLES: { name: string; title: string; design: Design }[] = [
   { name: rbAomFiber.name, title: "Rb 780 nm · AOM → fiber (mock)", design: rbAomFiber },
   { name: machZehnder.name, title: "532 nm Mach–Zehnder (mock)", design: machZehnder },
   { name: srTwoColor.name, title: "Sr 461 + 689 nm combiner (mock)", design: srTwoColor },
+  { name: opticalAnd.name, title: "All-optical AND gate (mock)", design: opticalAnd },
 ];
 
 // ───────── big synthetic apparatus: tiles the fixtures above into labelled modules ─────────

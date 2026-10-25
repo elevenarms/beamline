@@ -197,3 +197,22 @@ export function reproduceStream(image: File, notes: string, signal?: AbortSignal
     signal,
   );
 }
+
+// ───────── recorded runs (demo fallback): replay a captured SSE file with natural pacing ─────────
+export async function* replayRecorded(file: string, signal?: AbortSignal): AsyncGenerator<AgentEvent> {
+  const r = await fetch(`/demo/${file}`, { signal });
+  if (!r.ok) { yield { type: "error", message: `recording ${file} not found` }; return; }
+  const text = (await r.text()).replace(/\r\n/g, "\n");
+  const events = text.split(/\n\n+/).map((b) => b.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim()).join("\n")).filter(Boolean);
+  const wait = (ms: number) => new Promise<void>((res, rej) => {
+    const t = setTimeout(res, ms);
+    signal?.addEventListener("abort", () => { clearTimeout(t); rej(new DOMException("aborted", "AbortError")); });
+  });
+  for (const raw of events) {
+    let ev: AgentEvent;
+    try { ev = JSON.parse(raw) as AgentEvent; } catch { continue; }
+    yield ev;
+    const pace: Record<string, number> = { iteration: 1100, candidate: 500, llm_call: 450, agent: 220, thought: 350, tool: 250, status: 300, module_done: 900, modules: 800 };
+    await wait(pace[ev.type] ?? 200);
+  }
+}

@@ -1,0 +1,92 @@
+[
+  {
+    "slug": "raman_backscatter",
+    "title": "Backscatter Raman spectroscopy setup with CCD spectrometer",
+    "citation": "Toommm (Wikimedia Commons), adapted from T. Schmid & P. Dariz, \"Raman Microspectroscopic Imaging of Binder Remnants in Historical Mortars...\", Heritage 2(2), 1662-1683 (2019)",
+    "url": "https://commons.wikimedia.org/wiki/File:Setup_Raman_Spectroscopy_adapted_from_Thomas_Schmid_and_Petra_Dariz_in_Heritage_2(2)_(2019)_1662-1683.png",
+    "license": "CC BY 4.0",
+    "difficulty": "easy",
+    "notes_for_reproduce": "Backscatter (180 deg) Raman bench. Excitation laser (generic figure; assume 532 nm, 50 mW CW) -> 45 deg beamsplitter (reflects laser down) -> focusing optics onto sample. Backscattered light returns through the beamsplitter, then a long-pass/notch filter that blocks the laser line, then a lens focusing onto the spectrometer entrance slit (Czerny-Turner: collimating mirror, grating, focusing mirror, CCD). Wavelength/power not given in the figure; values assumed.",
+    "design_goal": "Build a 532 nm backscatter Raman spectroscopy bench: a 50 mW laser is reflected by a dichroic/edge beamsplitter down through a focusing lens onto a sample, and the backscattered light passes back through the beamsplitter and a long-pass filter into a lens that focuses it onto a fiber-coupled spectrometer."
+  },
+  {
+    "slug": "pump_probe_delay",
+    "title": "Ultrafast pump-probe setup with retroreflector delay line",
+    "citation": "Joachim Terschluesen, \"Pump probe setup.svg\", Wikimedia Commons",
+    "url": "https://commons.wikimedia.org/wiki/File:Pump_probe_setup.svg",
+    "license": "CC0 1.0 (public domain dedication)",
+    "difficulty": "easy",
+    "notes_for_reproduce": "Generic pump-probe. Pulsed laser (assume 800 nm Ti:sapphire, 100 mW avg) -> 50:50 beamsplitter. Reflected arm goes up into a two-mirror retroreflector on a translation stage (delay), then a fold mirror sends it to the sample (probe). Transmitted arm makes a fixed U-shaped detour via two mirrors at the bottom and a fold mirror to the sample (pump). Both beams cross at a small angle at the sample.",
+    "design_goal": "Design an 800 nm ultrafast pump-probe bench: split a 100 mW pulsed beam 50:50, send the probe through a two-mirror retroreflecting delay line on a translation stage, route the pump through a fixed path, and cross both beams at a small angle on a sample, with the transmitted probe on a photodiode and the pump dumped."
+  },
+  {
+    "slug": "pdh_thin_disk_lock",
+    "title": "PDH lock of an injection-seeded Yb:YAG thin-disk laser (Trojan-free scheme)",
+    "citation": "M. Zeyen, L. Affolter, M. A. Ahmed, et al., \"Pound-Drever-Hall locking scheme free from Trojan operating points\", Rev. Sci. Instrum. (2023), doi:10.1063/5.0130508; arXiv:2210.05501, Fig. (optical sketch, simplified)",
+    "url": "https://arxiv.org/abs/2210.05501",
+    "license": "CC BY 4.0 (arXiv)",
+    "difficulty": "medium",
+    "notes_for_reproduce": "1030 nm injection-seeded Yb:YAG thin-disk laser (TDL) resonator. Seed laser enters from below into a PBS, is reflected toward the TDL through a quarter-wave plate (double pass rotates polarization so the returning TDL output transmits through the PBS). After the PBS, a high-reflector (HR) mirror couples out the 1030 nm pulses (upward); leakage through the HR goes to a fast photodiode for the PDH error signal. A PD behind the TDL monitors intra-resonator intensity. Seed is phase-modulated at half the FSR (nu_M = delta_f/2). Electronics (mixer, phase shifter, LP filter, PID, HV amp to piezo) are not optics.",
+    "design_goal": "Design a Pound-Drever-Hall injection-locking bench at 1030 nm: a seed laser is injected via a polarizing beamsplitter and quarter-wave plate into a laser resonator, the resonator output transmits through the PBS to a high-reflector out-coupler, and the HR leakage is detected on a fast photodiode for the PDH error signal."
+  },
+  {
+    "slug": "sr_ion_trap_lasers",
+    "title": "Laser beam delivery for a Sr+ / Th3+ ion trap (422/1092/405/461/690/984 nm)",
+    "citation": "G. Zitzer, J. Tiedau, M. V. Okhapkin, et al., \"Sympathetic cooling of trapped Th3+ alpha-recoil ions for laser spectroscopy\", Phys. Rev. A 109, 033116 (2024), doi:10.1103/PhysRevA.109.033116; arXiv:2312.05106, Fig. 2",
+    "url": "https://arxiv.org/abs/2312.05106",
+    "license": "CC BY 4.0 (arXiv)",
+    "difficulty": "medium",
+    "notes_for_reproduce": "Six lasers converge on a linear Paul trap at the center. 422 nm ECDL (Sr+ Doppler cooling) and 1092 nm DFB repumper come from opposite sides and overlap at the trap. Sr photoionization: 461 nm (5 mW) and 405 nm (2 mW) ECDLs overlapped on a mirror, ~1 mm beam at trap. Th3+ spectroscopy: 690 nm ECDL through an AOM (pulse shaping, ~30 uW) and 984 nm ECDL through AOM + fiber EOM (~50 uW). A dichroic in the imaging path transmits 422 nm. Pick-offs of 422, 690, 984, 1092 and a Rb-stabilized 782 nm ECDL go to a transfer cavity for frequency stabilization. Model the trap as a photodiode/beam dump target at the center.",
+    "design_goal": "Design the laser delivery bench for a trapped Sr+ ion experiment: a 422 nm cooling laser and a 1092 nm repumper enter the trap center from opposite sides, 461 nm and 405 nm photoionization beams are combined on a dichroic and sent to the trap, and a few-percent pickoff of the 422 nm beam goes to a fiber for a wavelength-lock transfer cavity."
+  },
+  {
+    "slug": "mot_lcvr_laser_system",
+    "title": "87Rb MOT laser system with tapered amplifiers, AOMs and LCVR polarization switching",
+    "citation": "B. Piest, V. Vollenkemper, J. Böhm, et al., \"Red- and blue-detuned magneto-optical trapping with liquid crystal variable retarders\", Rev. Sci. Instrum. 92 (2021), doi:10.1063/5.0071619; arXiv:2109.14277, laser-system figure",
+    "url": "https://arxiv.org/abs/2109.14277",
+    "license": "CC BY 4.0 (arXiv)",
+    "difficulty": "medium",
+    "notes_for_reproduce": "87Rb D2 at 780.24 nm. Two ECDLs (ECDL1 cooling F=2->F'=3, ECDL2 repump F=1->F'=2), each amplified by a tapered amplifier (TA, up to 1 W), then mirror(s) -> AOM -> half-wave plate -> PBS. One PBS port of each goes through an LCVR (with half-wave plates either side) into PM fiber inputs FS input 1 / FS input 2 of a 2x4 fiber splitter; the other PBS ports are combined on a third PBS and coupled into a 'Detection' fiber. Fiber splitter outputs a-d go to MOT collimators with quarter-wave plates. Model fibers as fiber_couplers; LCVR as a half_wave_plate.",
+    "design_goal": "Design a 780 nm Rb MOT laser distribution bench: two 1 W lasers (cooling and repump) each pass an 80 MHz AOM, a half-wave plate and a PBS; one output of each is polarization-adjusted and coupled into its own fiber to the MOT, and the other outputs are combined on a third PBS into a detection fiber."
+  },
+  {
+    "slug": "dual_trap_tweezers",
+    "title": "Steerable dual-trap optical tweezers with confocal back-scatter QPD detection",
+    "citation": "M. A. Ashraf & P. Pullarkat, \"Steerable dual-trap optical tweezers with confocal position detection using back-scattered light\", arXiv:2411.16256 (2024), Fig. (design schematics, panel a)",
+    "url": "https://arxiv.org/abs/2411.16256",
+    "license": "CC BY 4.0 (arXiv)",
+    "difficulty": "hard",
+    "notes_for_reproduce": "1064 nm CW laser, 3 W max, 1.8 mm beam, H-polarized TEM00. Beam expander L1 (f=-50 mm) + L2 (f=+100 mm). HWP sets the split; PBS1 splits into two traps. Each arm reflects off a piezo tip/tilt mirror (TTM1, TTM2; PI S-335); arms recombine on PBS2. Relay telescope L3 (f=250 mm) + L4 (f=500 mm) images TTMs onto the objective back focal plane. Short-pass dichroic DM (cutoff 903 nm, reflects 1064) sends beams up into a 100x 1.3 NA oil objective (obj) making traps B1/B2. Back-scattered light returns the same way; 10:90 (R:T) non-polarizing beamsplitters BS1/BS2 pick off returning light to L5/L6 (f=250 mm) which focus onto quadrant photodiodes QPD1/QPD2 behind 1 mm pinholes PH1/PH2 (confocal). Visible illumination passes through DM to a camera.",
+    "design_goal": "Design a 1064 nm dual-trap optical tweezers bench: expand a 3 W laser with a -50/+100 mm telescope, split it with a half-wave plate and PBS into two arms with steering mirrors, recombine on a second PBS, relay with a 250/500 mm lens pair to a short-pass dichroic that reflects the beams into a high-NA objective, and pick off the back-scattered light of each trap with a 10:90 beamsplitter onto its own lens-focused quadrant photodiode."
+  },
+  {
+    "slug": "yb_ion_clock_laser",
+    "title": "Cavity-stabilized 871/435.5 nm interrogation laser for the 171Yb+ E2 clock transition",
+    "citation": "Y. Zuo, S. Cao, S. Dai, et al., \"Development and Evaluation of a Narrow Linewidth Laser System for 171Yb+ E2 Transition\", arXiv:2303.00361 (2023), Fig. 4",
+    "url": "https://arxiv.org/abs/2303.00361",
+    "license": "CC BY 4.0 (arXiv)",
+    "difficulty": "hard",
+    "notes_for_reproduce": "871 nm Toptica DL pro -> isolator -> split: most light to TA + SHG producing 435.5 nm to the experiment; a pick-off through a polarizer/PBS, AOM1 (80 MHz, fiber noise cancellation with APD1), Faraday rotator into a PM fiber to the ULE-cavity breadboard. Cavity breadboard: fiber coupler -> Faraday isolator -> Glan-Taylor polarizer (GT) -> 20 MHz EOM -> BS splitting to power-stabilization PD4 and residual-amplitude-modulation PD3 -> PBS + quarter-wave plate -> 10 cm ULE cavity; reflected beam goes back through PBS to PDH photodiode PD2; transmitted light to PD1 and CCD. A second branch with AOM2 and FR goes to a beat-note fiber; another to a wavelength meter. Electronics (FALC, mixers) are not optics.",
+    "design_goal": "Design a Pound-Drever-Hall laser-stabilization breadboard at 871 nm: light from a fiber passes an isolator, polarizer and 20 MHz EOM, a beamsplitter picks off light for power-stabilization and RAM photodiodes, then a PBS and quarter-wave plate send it into a 10 cm ULE cavity, with the cavity reflection detected on a PDH photodiode and the transmission on a second photodiode."
+  },
+  {
+    "slug": "hom_tomography",
+    "title": "Hong-Ou-Mandel quantum state tomography with SPDC photon sources",
+    "citation": "Y. Tsujimoto, R. Ikuta, K. Wakui, et al., \"Quantum state tomography of qudits via Hong-Ou-Mandel interference\", Phys. Rev. Applied 19, 014008 (2023), doi:10.1103/PhysRevApplied.19.014008; arXiv:2205.11160, Fig. (experiment)",
+    "url": "https://arxiv.org/abs/2205.11160",
+    "license": "CC BY 4.0 (arXiv)",
+    "difficulty": "hard",
+    "notes_for_reproduce": "1550 nm pulsed laser -> SHG (PPLN) to 775 nm -> HWP + PBS split into two pump arms (target arm via motion-stage delay). Each 775 nm pump drives SPDC in a PPLN waveguide (PPLN/W1, PPLN/W2) producing 1550-ish photon pairs; short-pass filters (SPF) and dichroic mirrors (DM) separate pump; heralding photons go to D3/D4; signal photons are fiber-coupled and sent to the HOM-QST stage. A cw 1535 nm laser (with shutter) is combined via DM into the probe arm. HOM-QST: each input passes PBS, HWP, QWP (state preparation), then both meet on a 50:50 half beamsplitter (HBS); outputs fiber-coupled to SNSPDs D1, D2. VHG = volume holographic grating filters. 3D-rendered figure (not 2D symbols).",
+    "design_goal": "Design a Hong-Ou-Mandel interference bench at 1550 nm: two fiber-coupled single-photon inputs each pass a PBS, half-wave plate and quarter-wave plate for state preparation, one arm has a translation-stage delay, both meet on a 50:50 non-polarizing beamsplitter, and the two outputs are coupled into fibers to single-photon detectors."
+  },
+  {
+    "slug": "maldi_ion_source_goal_only",
+    "title": "MALDI-TOF ion-source laser optics (goal-only; no CC-licensed figure found)",
+    "citation": "n/a - design goal written from standard MALDI practice (355 nm Nd:YAG THG, variable attenuator, focusing onto target)",
+    "url": null,
+    "license": "n/a (no figure used)",
+    "difficulty": "medium",
+    "notes_for_reproduce": "No figure: every MALDI optical-bench schematic found was in patents (US6707031, US6762405, EP1783816) or paywalled papers with unclear licenses, so skipped per licensing rules.",
+    "design_goal": "Design the laser optics for a MALDI-TOF ion source: a 355 nm pulsed Nd:YAG beam passes a variable attenuator (half-wave plate plus polarizing beamsplitter, dumping the rejected light), a 5% sampler to an energy-monitor photodiode, a 3x Galilean beam expander and two steering mirrors, then a 150 mm focusing lens onto the sample target."
+  }
+]

@@ -1,0 +1,1208 @@
+{
+ "dual_trap_tweezers.design.sse": {
+  "wall_s": "84",
+  "n_candidates": 0,
+  "errors": [],
+  "timings": {
+   "plan_s": 33.5,
+   "modules_s": 50.9,
+   "merge_verify_s": 0.02,
+   "total_s": 84.4
+  },
+  "repair_msgs": [
+   "[qpd_backscatter_detection] best of 2 candidates: score 100 \u2014 all checks passed",
+   "[qpd_backscatter_detection] done in 26.0s: score 100 \u2014 all checks passed (13 optics)",
+   "[dual_trap_interferometer] best of 2 candidates: score 23 \u2014 unplaced: FC2: branch 'L1.t.r.r.t' never existed; existing branches: L1, L1.t, L1.t.t, L1.t.t.t, L1. (+2 more)",
+   "[dual_trap_interferometer] repair round 1: asking Gemini to fix 3 errors (score 23 \u2014 unplaced: FC2: branch 'L1.t.r.r.t' never existed; existing branches: L1, L1.t, L1.t.t, L1.t.t.t, L1. (+2 more))",
+   "[relay_and_objective_launch] best of 2 candidates: score 0 \u2014 unplaced: mirror M1: needs out_direction_deg (desired outgoing direction) or angle_deg (surface norm (+16 more)",
+   "[relay_and_objective_launch] repair round 1: asking Gemini to fix 17 errors (score 0 \u2014 unplaced: mirror M1: needs out_direction_deg (desired outgoing direction) or angle_deg (surface norm (+16 more))",
+   "[laser_source_1064] best of 1 candidates: score 99 \u2014 all checks passed",
+   "[laser_source_1064] done in 33.2s: score 99 \u2014 all checks passed (13 optics)",
+   "[relay_and_objective_launch] repair round 1: score 100 \u2014 all checks passed",
+   "[relay_and_objective_launch] done in 46.6s: score 100 \u2014 all checks passed (14 optics)",
+   "[dual_trap_interferometer] repair round 1: score 100 \u2014 all checks passed",
+   "[dual_trap_interferometer] done in 50.9s: score 100 \u2014 all checks passed (18 optics)"
+  ],
+  "score": 99.48041739292182,
+  "passed": true,
+  "n_elements": 58,
+  "n_sources": 4,
+  "types": {
+   "isolator": 1,
+   "lens": 10,
+   "sampler": 3,
+   "photodiode": 7,
+   "half_wave_plate": 5,
+   "pbs": 6,
+   "beam_dump": 3,
+   "mirror": 14,
+   "fiber_coupler": 5,
+   "beamsplitter": 3,
+   "dichroic": 1
+  },
+  "checks": [],
+  "info": [
+   "relay_and_objective_launch.BD1 receives no light",
+   "relay_and_objective_launch.BD2 receives no light",
+   "met: laser_source_1064.FC1: 2339.240 mW (need \u2265 1500.000)",
+   "met: laser_source_1064.FC1: coupling 95.6% (need \u2265 65.0%)"
+  ],
+  "metrics": {
+   "input_mw": 5740.0,
+   "delivered_mw": 5143.52,
+   "dumped_mw": 175.64,
+   "stray_mw": 0.0,
+   "n_elements": 58.0,
+   "n_segments": 59.0,
+   "target.laser_source_1064.FC1.min_power_mw": 2339.24,
+   "target.laser_source_1064.FC1.min_coupling": 0.96,
+   "target.laser_source_1064.PD1.min_power_mw": 138.0,
+   "target.dual_trap_interferometer.FC1.min_power_mw": 865.16,
+   "target.dual_trap_interferometer.FC2.min_power_mw": 871.03,
+   "target.dual_trap_interferometer.PD1.min_power_mw": 36.0,
+   "target.relay_and_objective_launch.FC1.min_power_mw": 768.32,
+   "target.relay_and_objective_launch.FC2.min_power_mw": 72.27,
+   "target.relay_and_objective_launch.PD1.min_power_mw": 13.5,
+   "target.qpd_backscatter_detection.PD1.min_power_mw": 18.0,
+   "target.qpd_backscatter_detection.PD2.min_power_mw": 18.0,
+   "target.qpd_backscatter_detection.PD3.min_power_mw": 2.0,
+   "target.qpd_backscatter_detection.PD4.min_power_mw": 2.0,
+   "delivered_fraction": 0.9
+  },
+  "name": "1064 nm Dual-Trap Optical Tweezers and Back-Scatter Quadrant Photodiode Bench",
+  "plate": [
+   1500.0,
+   725.0
+  ],
+  "unplaced": [],
+  "branches": [
+   "laser_source_1064.L1",
+   "laser_source_1064.L1.t",
+   "laser_source_1064.L1.t.t",
+   "laser_source_1064.L1.t.r",
+   "laser_source_1064.L1.r",
+   "dual_trap_interferometer.L1",
+   "dual_trap_interferometer.L1.t",
+   "dual_trap_interferometer.L1.t.t",
+   "dual_trap_interferometer.L1.t.t.t",
+   "dual_trap_interferometer.L1.t.t.t.r",
+   "dual_trap_interferometer.L1.t.r",
+   "dual_trap_interferometer.L1.t.r.r",
+   "dual_trap_interferometer.L1.t.r.r.t",
+   "dual_trap_interferometer.L1.r",
+   "relay_and_objective_launch.L1",
+   "relay_and_objective_launch.L1.t",
+   "relay_and_objective_launch.L1.t.t",
+   "relay_and_objective_launch.L1.t.t.r",
+   "relay_and_objective_launch.L1.t.r",
+   "relay_and_objective_launch.L1.t.r.t",
+   "relay_and_objective_launch.L1.t.r.r",
+   "qpd_backscatter_detection.L1",
+   "qpd_backscatter_detection.L1.t",
+   "qpd_backscatter_detection.L1.t.t",
+   "qpd_backscatter_detection.L1.t.r",
+   "qpd_backscatter_detection.L1.r",
+   "qpd_backscatter_detection.L1.r.t",
+   "qpd_backscatter_detection.L1.r.r"
+  ]
+ },
+ "dual_trap_tweezers.reproduce.sse": {
+  "wall_s": "80",
+  "n_candidates": 2,
+  "errors": [],
+  "timings": {
+   "extract_s": 30.2,
+   "synth_s": 28.2,
+   "repair_s": 22.2,
+   "total_s": 80.6
+  },
+  "repair_msgs": [
+   "synthesized design: score 45 \u2014 unplaced: VisCam: branch 'VisIllum.t' never existed; existing branches: Laser, Laser.t, Laser.t.t, L (+1 more)",
+   "repair round 1: asking Gemini to fix 2 errors (score 45 \u2014 unplaced: VisCam: branch 'VisIllum.t' never existed; existing branches: Laser, Laser.t, Laser.t.t, L (+1 more))",
+   "repair round 1: score 96 \u2014 all checks passed"
+  ],
+  "extraction": {
+   "n_components": 22,
+   "types": {
+    "laser": 2,
+    "lens": 7,
+    "half_wave_plate": 1,
+    "pbs": 2,
+    "beamsplitter": 2,
+    "mirror": 2,
+    "dichroic": 1,
+    "iris": 2,
+    "photodiode": 2,
+    "other": 1
+   },
+   "keys": [
+    "title",
+    "components",
+    "beams",
+    "parameters",
+    "notes",
+    "scale_mm_per_px",
+    "baseplate_mm"
+   ]
+  },
+  "score": 95.9090909090909,
+  "passed": true,
+  "n_elements": 22,
+  "n_sources": 2,
+  "types": {
+   "lens": 7,
+   "half_wave_plate": 1,
+   "pbs": 2,
+   "beamsplitter": 2,
+   "iris": 2,
+   "photodiode": 3,
+   "mirror": 2,
+   "dichroic": 2,
+   "beam_dump": 1
+  },
+  "checks": [],
+  "info": [
+   "met: QPD1: 5.000 mW (need \u2265 2.000)",
+   "met: QPD2: 5.000 mW (need \u2265 2.000)",
+   "met: VisCam: 10.000 mW (need \u2265 4.000)"
+  ],
+  "metrics": {
+   "input_mw": 110.0,
+   "delivered_mw": 20.0,
+   "dumped_mw": 90.0,
+   "stray_mw": 0.0,
+   "n_elements": 22.0,
+   "n_segments": 32.0,
+   "target.QPD1.min_power_mw": 5.0,
+   "target.QPD2.min_power_mw": 5.0,
+   "target.VisCam.min_power_mw": 10.0,
+   "delivered_fraction": 0.18
+  },
+  "name": "dual_beam_optical_tweezers",
+  "plate": [
+   950.0,
+   550.0
+  ],
+  "unplaced": [],
+  "branches": [
+   "Laser",
+   "Laser.t",
+   "Laser.t.t",
+   "Laser.t.t.t",
+   "Laser.t.t.t.r",
+   "Laser.t.t.t.r.r",
+   "Laser.t.r",
+   "Laser.r",
+   "Laser.r.t",
+   "Laser.r.t.r",
+   "Laser.r.t.r.r",
+   "Laser.r.t.r.r.r",
+   "Laser.r.r",
+   "VisIllum",
+   "VisIllum.t",
+   "VisIllum.t.t"
+  ]
+ },
+ "hom_tomography.reproduce.sse": {
+  "wall_s": "119",
+  "n_candidates": 1,
+  "errors": [],
+  "timings": {
+   "extract_s": 75.6,
+   "synth_s": 43.0,
+   "repair_s": 0.0,
+   "total_s": 118.6
+  },
+  "repair_msgs": [
+   "synthesized design: score 18 \u2014 clipping: FC_out1: 16.3% clipped (beam radius 3.15 mm, offset 0.00 mm) (+2 more)",
+   "time budget reached, stopping repair"
+  ],
+  "extraction": {
+   "n_components": 51,
+   "types": {
+    "laser": 2,
+    "fiber_coupler": 8,
+    "lens": 6,
+    "other": 8,
+    "half_wave_plate": 4,
+    "pbs": 3,
+    "mirror": 10,
+    "dichroic": 3,
+    "photodiode": 4,
+    "quarter_wave_plate": 2,
+    "beamsplitter": 1
+   },
+   "keys": [
+    "title",
+    "components",
+    "beams",
+    "parameters",
+    "notes",
+    "scale_mm_per_px",
+    "baseplate_mm"
+   ]
+  },
+  "score": 18.224886725634462,
+  "passed": false,
+  "n_elements": 41,
+  "n_sources": 4,
+  "types": {
+   "lens": 6,
+   "half_wave_plate": 4,
+   "pbs": 3,
+   "mirror": 14,
+   "beamsplitter": 3,
+   "fiber_coupler": 2,
+   "photodiode": 4,
+   "dichroic": 1,
+   "beam_dump": 2,
+   "quarter_wave_plate": 2
+  },
+  "checks": [
+   [
+    "error",
+    "clipping",
+    "FC_out1: 16.3% clipped (beam radius 3.15 mm, offset 0.00 mm)"
+   ],
+   [
+    "warning",
+    "clipping",
+    "FC_out2: 3.5% clipped (beam radius 2.32 mm, offset 0.00 mm)"
+   ],
+   [
+    "error",
+    "target",
+    "unmet: FC_out1: 0.011 mW (need \u2265 4.000)"
+   ],
+   [
+    "error",
+    "target",
+    "unmet: FC_out2: 0.138 mW (need \u2265 5.000)"
+   ]
+  ],
+  "info": [
+   "BD_pbs2 receives no light",
+   "BD_pbs3 receives no light",
+   "met: D3: 10.000 mW (need \u2265 4.000)",
+   "met: D4: 15.000 mW (need \u2265 5.000)"
+  ],
+  "metrics": {
+   "input_mw": 70.0,
+   "delivered_mw": 45.15,
+   "dumped_mw": 0.0,
+   "stray_mw": 0.0,
+   "n_elements": 41.0,
+   "n_segments": 52.0,
+   "target.D3.min_power_mw": 10.0,
+   "target.FC_out1.min_power_mw": 0.01,
+   "target.D4.min_power_mw": 15.0,
+   "target.FC_out2.min_power_mw": 0.14,
+   "target.D1.min_power_mw": 10.0,
+   "target.D2.min_power_mw": 10.0,
+   "delivered_fraction": 0.64
+  },
+  "name": "hom_qst_photon_preparation",
+  "plate": [
+   1000.0,
+   350.0
+  ],
+  "unplaced": [],
+  "branches": [
+   "FC_in1",
+   "FC_in1.t",
+   "FC_in1.t.t",
+   "FC_in1.t.r",
+   "FC_in1.r",
+   "FC_in1.r.t",
+   "FC_in1.r.t.t",
+   "FC_in1.r.t.r",
+   "FC_in2",
+   "FC_in2.r",
+   "FC_in2.r.t",
+   "FC_in2.r.r",
+   "FC_hom1",
+   "FC_hom1.t",
+   "FC_hom1.t.t",
+   "FC_hom1.t.r",
+   "FC_hom2",
+   "FC_hom2.t",
+   "FC_hom2.t.t",
+   "FC_hom2.t.r"
+  ]
+ },
+ "maldi_ion_source_goal_only.design.sse": {
+  "wall_s": "50",
+  "n_candidates": 0,
+  "errors": [],
+  "timings": {
+   "plan_s": 27.0,
+   "modules_s": 23.5,
+   "merge_verify_s": 0.01,
+   "total_s": 50.5
+  },
+  "repair_msgs": [
+   "[maldi_expander_delivery] best of 2 candidates: score 99 \u2014 all checks passed",
+   "[maldi_expander_delivery] done in 23.3s: score 99 \u2014 all checks passed (10 optics)",
+   "[uv_source_attenuator] best of 2 candidates: score 99 \u2014 all checks passed",
+   "[uv_source_attenuator] done in 23.4s: score 99 \u2014 all checks passed (13 optics)",
+   "[tof_trigger_diagnostics] best of 2 candidates: score 100 \u2014 all checks passed",
+   "[tof_trigger_diagnostics] done in 23.5s: score 100 \u2014 all checks passed (9 optics)"
+  ],
+  "score": 99.20888460657736,
+  "passed": true,
+  "n_elements": 32,
+  "n_sources": 3,
+  "types": {
+   "isolator": 1,
+   "half_wave_plate": 3,
+   "pbs": 3,
+   "beam_dump": 2,
+   "sampler": 3,
+   "photodiode": 4,
+   "beamsplitter": 1,
+   "mirror": 8,
+   "fiber_coupler": 4,
+   "lens": 3
+  },
+  "checks": [],
+  "info": [
+   "met: uv_source_attenuator.FC_main: 65.458 mW (need \u2265 35.000)",
+   "met: uv_source_attenuator.FC_main: coupling 99.8% (need \u2265 65.0%)",
+   "met: uv_source_attenuator.FC_aux: 11.555 mW (need \u2265 5.000)",
+   "met: uv_source_attenuator.PD_energy: 4.062 mW (need \u2265 2.000)"
+  ],
+  "metrics": {
+   "input_mw": 153.0,
+   "delivered_mw": 128.79,
+   "dumped_mw": 16.03,
+   "stray_mw": 0.0,
+   "n_elements": 32.0,
+   "n_segments": 32.0,
+   "target.uv_source_attenuator.FC_main.min_power_mw": 65.46,
+   "target.uv_source_attenuator.FC_main.min_coupling": 1.0,
+   "target.uv_source_attenuator.FC_aux.min_power_mw": 11.56,
+   "target.uv_source_attenuator.PD_energy.min_power_mw": 4.06,
+   "target.maldi_expander_delivery.PD_target_mon.min_power_mw": 1.99,
+   "target.maldi_expander_delivery.FC_target.min_power_mw": 37.74,
+   "target.maldi_expander_delivery.FC_target.polarization": 1.0,
+   "target.tof_trigger_diagnostics.PD_tof_trig.min_power_mw": 3.8,
+   "target.tof_trigger_diagnostics.FC_diag.min_power_mw": 4.0,
+   "target.tof_trigger_diagnostics.FC_diag.min_coupling": 1.0,
+   "delivered_fraction": 0.84
+  },
+  "name": "355 nm Pulsed Nd:YAG MALDI-TOF Ion Source Optical System",
+  "plate": [
+   600.0,
+   1100.0
+  ],
+  "unplaced": [],
+  "branches": [
+   "uv_source_attenuator.L1",
+   "uv_source_attenuator.L1.t",
+   "uv_source_attenuator.L1.t.t",
+   "uv_source_attenuator.L1.t.t.t",
+   "uv_source_attenuator.L1.t.t.r",
+   "uv_source_attenuator.L1.t.r",
+   "uv_source_attenuator.L1.r",
+   "maldi_expander_delivery.L1",
+   "maldi_expander_delivery.L1.t",
+   "maldi_expander_delivery.L1.t.t",
+   "maldi_expander_delivery.L1.t.r",
+   "maldi_expander_delivery.L1.r",
+   "tof_trigger_diagnostics.L1",
+   "tof_trigger_diagnostics.L1.t",
+   "tof_trigger_diagnostics.L1.r",
+   "tof_trigger_diagnostics.L1.r.t",
+   "tof_trigger_diagnostics.L1.r.r"
+  ]
+ },
+ "mot_lcvr_laser_system.reproduce.sse": {
+  "wall_s": "90",
+  "n_candidates": 1,
+  "errors": [],
+  "timings": {
+   "extract_s": 30.4,
+   "synth_s": 25.7,
+   "repair_s": 33.9,
+   "total_s": 90.0
+  },
+  "repair_msgs": [
+   "synthesized design: score 0 \u2014 unplaced: M3: branch 'ECDL2.+1' absorbed at BD2 before this element was reached (elements on a branc (+14 more)",
+   "repair round 1: asking Gemini to fix 15 errors (score 0 \u2014 unplaced: M3: branch 'ECDL2.+1' absorbed at BD2 before this element was reached (elements on a branc (+14 more))",
+   "repair round 1 ran out of time; keeping the best design so far",
+   "time budget reached, stopping repair"
+  ],
+  "extraction": {
+   "n_components": 30,
+   "types": {
+    "laser": 2,
+    "other": 4,
+    "mirror": 5,
+    "aom": 2,
+    "half_wave_plate": 6,
+    "pbs": 3,
+    "fiber_coupler": 3,
+    "beamsplitter": 1,
+    "quarter_wave_plate": 4
+   },
+   "keys": [
+    "title",
+    "components",
+    "beams",
+    "parameters",
+    "notes",
+    "scale_mm_per_px",
+    "baseplate_mm"
+   ]
+  },
+  "score": 0.0,
+  "passed": false,
+  "n_elements": 22,
+  "n_sources": 2,
+  "types": {
+   "mirror": 5,
+   "aom": 2,
+   "half_wave_plate": 7,
+   "pbs": 3,
+   "fiber_coupler": 3,
+   "beam_dump": 2
+  },
+  "checks": [
+   [
+    "error",
+    "unplaced",
+    "M3: branch 'ECDL2.+1' absorbed at BD2 before this element was reached (elements on a branch are placed in list order)"
+   ],
+   [
+    "error",
+    "unplaced",
+    "M4: branch 'ECDL2.+1' absorbed at BD2 before this element was reached (elements on a branch are placed in list order; earlier unplaced on this branch: M3)"
+   ],
+   [
+    "error",
+    "unplaced",
+    "HWP2: branch 'ECDL2.+1' absorbed at BD2 before this element was reached (elements on a branch are placed in list order; earlier unplaced on this branch: M3, M4)"
+   ],
+   [
+    "error",
+    "unplaced",
+    "PBS2: branch 'ECDL2.+1' absorbed at BD2 before this element was reached (elements on a branch are placed in list order; earlier unplaced on this branch: M3, M4, HWP2)"
+   ],
+   [
+    "error",
+    "unplaced",
+    "HWP_LCVR2_a: branch 'ECDL2.+1.t' never existed; existing branches: ECDL1, ECDL1.0, ECDL1.+1, ECDL1.+1.t, ECDL1.+1.r, ECDL2, ECDL2.0, ECDL2.+1"
+   ],
+   [
+    "error",
+    "unplaced",
+    "HWP_LCVR2_b: branch 'ECDL2.+1.t' never existed; existing branches: ECDL1, ECDL1.0, ECDL1.+1, ECDL1.+1.t, ECDL1.+1.r, ECDL2, ECDL2.0, ECDL2.+1"
+   ],
+   [
+    "error",
+    "unplaced",
+    "FC_FS2: branch 'ECDL2.+1.t' never existed; existing branches: ECDL1, ECDL1.0, ECDL1.+1, ECDL1.+1.t, ECDL1.+1.r, ECDL2, ECDL2.0, ECDL2.+1"
+   ],
+   [
+    "error",
+    "unplaced",
+    "M5: branch 'ECDL2.+1.r' never existed; existing branches: ECDL1, ECDL1.0, ECDL1.+1, ECDL1.+1.t, ECDL1.+1.r, ECDL2, ECDL2.0, ECDL2.+1"
+   ],
+   [
+    "error",
+    "unplaced",
+    "HWP_DET: branch 'ECDL2.+1.r' never existed; existing branches: ECDL1, ECDL1.0, ECDL1.+1, ECDL1.+1.t, ECDL1.+1.r, ECDL2, ECDL2.0, ECDL2.+1"
+   ],
+   [
+    "error",
+    "unplaced",
+    "PBS3: branch 'ECDL2.+1.r' never existed; existing branches: ECDL1, ECDL1.0, ECDL1.+1, ECDL1.+1.t, ECDL1.+1.r, ECDL2, ECDL2.0, ECDL2.+1"
+   ],
+   [
+    "error",
+    "unplaced",
+    "FC_DET: branch 'ECDL2.+1.r.t' never existed; existing branches: ECDL1, ECDL1.0, ECDL1.+1, ECDL1.+1.t, ECDL1.+1.r, ECDL2, ECDL2.0, ECDL2.+1"
+   ],
+   [
+    "warning",
+    "clipping",
+    "FC_FS1: 7.5% clipped (beam radius 0.93 mm, offset 5.68 mm)"
+   ],
+   [
+    "error",
+    "stray_beam",
+    "laser safety: unterminated beam on ECDL1.0.r (18.75 mW) leaves the table from (200,328) at -88\u00b0; add a beam dump"
+   ],
+   [
+    "error",
+    "stray_beam",
+    "laser safety: unterminated beam on ECDL1.+1.r (106.25 mW) leaves the table from (198,330) at -89\u00b0; add a beam dump"
+   ],
+   [
+    "error",
+    "target",
+    "unmet: FC_FS2: 0.000 mW (need \u2265 100.000)"
+   ],
+   [
+    "error",
+    "target",
+    "unmet: FC_DET: 0.000 mW (need \u2265 30.000)"
+   ]
+  ],
+  "info": [
+   "BD1 receives no light",
+   "met: FC_FS1: 308.537 mW (need \u2265 100.000)"
+  ],
+  "metrics": {
+   "input_mw": 1000.0,
+   "delivered_mw": 308.54,
+   "dumped_mw": 500.0,
+   "stray_mw": 125.0,
+   "n_elements": 22.0,
+   "n_segments": 18.0,
+   "target.FC_FS1.min_power_mw": 308.54,
+   "target.FC_FS2.min_power_mw": 0.0,
+   "target.FC_DET.min_power_mw": 0.0,
+   "delivered_fraction": 0.31
+  },
+  "name": "rb87_cooling_repump_lcvr",
+  "plate": [
+   700.0,
+   470.0
+  ],
+  "unplaced": [
+   "M3:M3: branch 'ECDL2.+1' absorbed at BD2 before this element was reached (elements on a branch are placed in list order)",
+   "M4:M4: branch 'ECDL2.+1' absorbed at BD2 before this element was reached (elements on a branch are placed in list order; earlier unplaced on this branch: M3)",
+   "HWP2:HWP2: branch 'ECDL2.+1' absorbed at BD2 before this element was reached (elements on a branch are placed in list order; earlier unplaced on this branch: M3, M4)",
+   "PBS2:PBS2: branch 'ECDL2.+1' absorbed at BD2 before this element was reached (elements on a branch are placed in list order; earlier unplaced on this branch: M3, M4, HWP2)",
+   "HWP_LCVR2_a:HWP_LCVR2_a: branch 'ECDL2.+1.t' never existed; existing branches: ECDL1, ECDL1.0, ECDL1.+1, ECDL1.+1.t, ECDL1.+1.r, ECDL2, ECDL2.0, ECDL2.+1",
+   "HWP_LCVR2_b:HWP_LCVR2_b: branch 'ECDL2.+1.t' never existed; existing branches: ECDL1, ECDL1.0, ECDL1.+1, ECDL1.+1.t, ECDL1.+1.r, ECDL2, ECDL2.0, ECDL2.+1",
+   "FC_FS2:FC_FS2: branch 'ECDL2.+1.t' never existed; existing branches: ECDL1, ECDL1.0, ECDL1.+1, ECDL1.+1.t, ECDL1.+1.r, ECDL2, ECDL2.0, ECDL2.+1",
+   "M5:M5: branch 'ECDL2.+1.r' never existed; existing branches: ECDL1, ECDL1.0, ECDL1.+1, ECDL1.+1.t, ECDL1.+1.r, ECDL2, ECDL2.0, ECDL2.+1"
+  ],
+  "branches": [
+   "ECDL1",
+   "ECDL1.0",
+   "ECDL1.0.t",
+   "ECDL1.0.r",
+   "ECDL1.+1",
+   "ECDL1.+1.t",
+   "ECDL1.+1.r",
+   "ECDL2",
+   "ECDL2.0",
+   "ECDL2.+1"
+  ]
+ },
+ "pdh_thin_disk_lock.design.sse": {
+  "wall_s": "52",
+  "n_candidates": 4,
+  "errors": [],
+  "timings": {
+   "plan_s": 23.4,
+   "candidates_s": 28.3,
+   "repair_s": 0.0,
+   "total_s": 51.7
+  },
+  "repair_msgs": [
+   "candidate 0: score 100 \u2014 all checks passed",
+   "candidate 1: score 99 \u2014 all checks passed",
+   "candidate 2: score 100 \u2014 all checks passed",
+   "candidate 3: score 0 \u2014 off table: S1 at (-5,205) is outside the 450x300 mm baseplate (+3 more)",
+   "picked candidate 2 as the best (score 100 \u2014 all checks passed)"
+  ],
+  "score": 99.5962132143411,
+  "passed": true,
+  "n_elements": 14,
+  "n_sources": 1,
+  "types": {
+   "isolator": 1,
+   "half_wave_plate": 1,
+   "mirror": 5,
+   "pbs": 1,
+   "beam_dump": 1,
+   "quarter_wave_plate": 1,
+   "lens": 1,
+   "sampler": 1,
+   "photodiode": 1,
+   "fiber_coupler": 1
+  },
+  "checks": [],
+  "info": [
+   "BD1 receives no light",
+   "met: PD1: 2.300 mW (need \u2265 1.500)",
+   "met: FC1: 43.662 mW (need \u2265 25.000)",
+   "met: FC1: coupling 99.9% (need \u2265 75.0%)"
+  ],
+  "metrics": {
+   "input_mw": 50.0,
+   "delivered_mw": 45.96,
+   "dumped_mw": 0.0,
+   "stray_mw": 0.0,
+   "n_elements": 14.0,
+   "n_segments": 17.0,
+   "target.PD1.min_power_mw": 2.3,
+   "target.FC1.min_power_mw": 43.66,
+   "target.FC1.min_coupling": 1.0,
+   "target.FC1.polarization": 1.0,
+   "delivered_fraction": 0.92
+  },
+  "name": "pdh_injection_locking_1030nm_folded",
+  "plate": [
+   450.0,
+   300.0
+  ],
+  "unplaced": [],
+  "branches": [
+   "L1",
+   "L1.r",
+   "L1.r.t",
+   "L1.r.t.t",
+   "L1.r.t.r"
+  ]
+ },
+ "pdh_thin_disk_lock.reproduce.sse": {
+  "wall_s": "41",
+  "n_candidates": 1,
+  "errors": [],
+  "timings": {
+   "extract_s": 17.0,
+   "synth_s": 23.6,
+   "repair_s": 0.0,
+   "total_s": 40.6
+  },
+  "repair_msgs": [
+   "synthesized design: score 95 \u2014 all checks passed"
+  ],
+  "extraction": {
+   "n_components": 14,
+   "types": {
+    "laser": 2,
+    "photodiode": 2,
+    "quarter_wave_plate": 1,
+    "pbs": 1,
+    "mirror": 1,
+    "other": 7
+   },
+   "keys": [
+    "title",
+    "components",
+    "beams",
+    "parameters",
+    "notes",
+    "scale_mm_per_px",
+    "baseplate_mm"
+   ]
+  },
+  "score": 95.475625,
+  "passed": true,
+  "n_elements": 9,
+  "n_sources": 1,
+  "types": {
+   "pbs": 1,
+   "quarter_wave_plate": 1,
+   "beamsplitter": 1,
+   "mirror": 1,
+   "photodiode": 2,
+   "sampler": 1,
+   "beam_dump": 2
+  },
+  "checks": [],
+  "info": [
+   "met: PD_INTRA: 2.500 mW (need \u2265 1.000)",
+   "met: PD_FAST: 2.256 mW (need \u2265 1.000)"
+  ],
+  "metrics": {
+   "input_mw": 50.0,
+   "delivered_mw": 4.76,
+   "dumped_mw": 45.24,
+   "stray_mw": 0.0,
+   "n_elements": 9.0,
+   "n_segments": 12.0,
+   "target.PD_INTRA.min_power_mw": 2.5,
+   "target.PD_FAST.min_power_mw": 2.26,
+   "delivered_fraction": 0.1
+  },
+  "name": "tdl_injection_seeded_pdh",
+  "plate": [
+   490.0,
+   220.0
+  ],
+  "unplaced": [],
+  "branches": [
+   "SEED",
+   "SEED.r",
+   "SEED.r.t",
+   "SEED.r.r",
+   "SEED.r.r.t",
+   "SEED.r.r.r",
+   "SEED.r.r.r.t",
+   "SEED.r.r.r.t.t",
+   "SEED.r.r.r.t.r"
+  ]
+ },
+ "pump_probe_delay.reproduce.sse": {
+  "wall_s": "55",
+  "n_candidates": 3,
+  "errors": [],
+  "timings": {
+   "extract_s": 20.3,
+   "synth_s": 12.7,
+   "repair_s": 22.7,
+   "total_s": 55.8
+  },
+  "repair_msgs": [
+   "synthesized design: score 72 \u2014 stray beam: laser safety: unterminated beam on Laser.t (50.00 mW) leaves the table from (226,30) at 18",
+   "repair round 1: asking Gemini to fix 1 error (score 72 \u2014 stray beam: laser safety: unterminated beam on Laser.t (50.00 mW) leaves the table from (226,30) at 18)",
+   "repair round 1: score 0 \u2014 unplaced: mirror M_pump1: out_direction_deg 0.0 equals the incoming direction 0.0; a mirror cannot d (+3 more)",
+   "repair round 2: asking Gemini to fix 1 error (score 72 \u2014 stray beam: laser safety: unterminated beam on Laser.t (50.00 mW) leaves the table from (226,30) at 18)",
+   "repair round 2: score 100 \u2014 all checks passed"
+  ],
+  "extraction": {
+   "n_components": 9,
+   "types": {
+    "laser": 1,
+    "beamsplitter": 1,
+    "mirror": 6,
+    "photodiode": 1
+   },
+   "keys": [
+    "title",
+    "components",
+    "beams",
+    "parameters",
+    "notes",
+    "scale_mm_per_px",
+    "baseplate_mm"
+   ]
+  },
+  "score": 100.0,
+  "passed": true,
+  "n_elements": 8,
+  "n_sources": 1,
+  "types": {
+   "beamsplitter": 1,
+   "mirror": 6,
+   "photodiode": 1
+  },
+  "checks": [],
+  "info": [
+   "met: Sample: 100.000 mW (need \u2265 50.000)"
+  ],
+  "metrics": {
+   "input_mw": 100.0,
+   "delivered_mw": 100.0,
+   "dumped_mw": 0.0,
+   "stray_mw": 0.0,
+   "n_elements": 8.0,
+   "n_segments": 9.0,
+   "target.Sample.min_power_mw": 100.0,
+   "delivered_fraction": 1.0
+  },
+  "name": "ultrafast_pump_probe_setup",
+  "plate": [
+   365.0,
+   215.0
+  ],
+  "unplaced": [],
+  "branches": [
+   "Laser",
+   "Laser.t",
+   "Laser.r"
+  ]
+ },
+ "raman_backscatter.reproduce.sse": {
+  "wall_s": "46",
+  "n_candidates": 2,
+  "errors": [],
+  "timings": {
+   "extract_s": 18.4,
+   "synth_s": 14.4,
+   "repair_s": 13.9,
+   "total_s": 46.7
+  },
+  "repair_msgs": [
+   "synthesized design: score 70 \u2014 target: unmet: CCD: 0.000 mW (need \u2265 5.000)",
+   "repair round 1: asking Gemini to fix 1 error (score 70 \u2014 target: unmet: CCD: 0.000 mW (need \u2265 5.000))",
+   "repair round 1: score 96 \u2014 all checks passed"
+  ],
+  "extraction": {
+   "n_components": 11,
+   "types": {
+    "laser": 1,
+    "beamsplitter": 1,
+    "lens": 2,
+    "other": 3,
+    "iris": 1,
+    "mirror": 2,
+    "photodiode": 1
+   },
+   "keys": [
+    "title",
+    "components",
+    "beams",
+    "parameters",
+    "notes",
+    "scale_mm_per_px",
+    "baseplate_mm"
+   ]
+  },
+  "score": 96.25,
+  "passed": true,
+  "n_elements": 12,
+  "n_sources": 1,
+  "types": {
+   "beamsplitter": 1,
+   "beam_dump": 2,
+   "lens": 2,
+   "mirror": 4,
+   "dichroic": 1,
+   "iris": 1,
+   "photodiode": 1
+  },
+  "checks": [],
+  "info": [
+   "met: CCD: 12.500 mW (need \u2265 5.000)"
+  ],
+  "metrics": {
+   "input_mw": 50.0,
+   "delivered_mw": 12.5,
+   "dumped_mw": 37.5,
+   "stray_mw": 0.0,
+   "n_elements": 12.0,
+   "n_segments": 14.0,
+   "target.CCD.min_power_mw": 12.5,
+   "delivered_fraction": 0.25
+  },
+  "name": "backscatter_raman_spectroscopy",
+  "plate": [
+   200.0,
+   340.0
+  ],
+  "unplaced": [],
+  "branches": [
+   "Laser",
+   "Laser.t",
+   "Laser.r",
+   "Laser.r.t",
+   "Laser.r.t.t",
+   "Laser.r.r"
+  ]
+ },
+ "sr_ion_trap_lasers.design.sse": {
+  "wall_s": "68",
+  "n_candidates": 3,
+  "errors": [],
+  "timings": {
+   "plan_s": 25.7,
+   "candidates_s": 42.1,
+   "repair_s": 0.0,
+   "total_s": 67.7
+  },
+  "repair_msgs": [
+   "candidate 0: score 48 \u2014 stray beam: laser safety: unterminated beam on L_1092.r.r (18.00 mW) leaves the table from (200,200) a (+1 more)",
+   "candidate 1: score 0 \u2014 unplaced: PD_1092: branch 'L_1092.t.r' never existed; existing branches: L_1092, L_422, L_422.t, L_4 (+8 more)",
+   "candidate 2: score 75 \u2014 all checks passed",
+   "picked candidate 2 as the best (score 75 \u2014 all checks passed)",
+   "time budget reached, stopping repair"
+  ],
+  "score": 74.72949725003582,
+  "passed": true,
+  "n_elements": 21,
+  "n_sources": 4,
+  "types": {
+   "isolator": 2,
+   "sampler": 1,
+   "mirror": 7,
+   "fiber_coupler": 1,
+   "half_wave_plate": 2,
+   "dichroic": 3,
+   "photodiode": 3,
+   "lens": 2
+  },
+  "checks": [
+   [
+    "warning",
+    "collision",
+    "HWP_422 and DM_WEST footprints overlap (0.0 mm apart)"
+   ],
+   [
+    "warning",
+    "beam_through_mount",
+    "beam L_422.t passes through DM_WEST's mount without interacting"
+   ],
+   [
+    "warning",
+    "beam_through_mount",
+    "beam L_422.t passes through DM_WEST's mount without interacting"
+   ],
+   [
+    "warning",
+    "beam_through_mount",
+    "beam L_1092.t passes through HWP_422's mount without interacting"
+   ],
+   [
+    "warning",
+    "beam_through_mount",
+    "beam L_1092.t.r passes through HWP_422's mount without interacting"
+   ]
+  ],
+  "info": [
+   "met: FC_LOCK: 0.874 mW (need \u2265 0.500)",
+   "met: FC_LOCK: coupling 95.0% (need \u2265 70.0%)",
+   "met: PD_422: 17.480 mW (need \u2265 15.000)",
+   "met: PD_1092: 18.400 mW (need \u2265 15.000)"
+  ],
+  "metrics": {
+   "input_mw": 60.0,
+   "delivered_mw": 56.75,
+   "dumped_mw": 0.0,
+   "stray_mw": 0.0,
+   "n_elements": 21.0,
+   "n_segments": 25.0,
+   "target.FC_LOCK.min_power_mw": 0.87,
+   "target.FC_LOCK.min_coupling": 0.95,
+   "target.PD_422.min_power_mw": 17.48,
+   "target.PD_1092.min_power_mw": 18.4,
+   "target.PD_PI.min_power_mw": 20.0,
+   "delivered_fraction": 0.95
+  },
+  "name": "sr_ion_trap_modular_bench",
+  "plate": [
+   500.0,
+   350.0
+  ],
+  "unplaced": [],
+  "branches": [
+   "L_422",
+   "L_422.t",
+   "L_422.t.r",
+   "L_422.r",
+   "L_1092",
+   "L_1092.t",
+   "L_1092.t.r",
+   "L_461",
+   "L_461.t",
+   "L_405",
+   "L_405.r"
+  ]
+ },
+ "sr_ion_trap_lasers.reproduce.sse": {
+  "wall_s": "104",
+  "n_candidates": 1,
+  "errors": [],
+  "timings": {
+   "extract_s": 54.1,
+   "synth_s": 49.5,
+   "repair_s": 0.0,
+   "total_s": 103.6
+  },
+  "repair_msgs": [
+   "synthesized design: score 0 \u2014 stray beam: laser safety: unterminated beam on L_422.t.r.0.t (2.43 mW) leaves the table from (90,497)  (+9 more)",
+   "time budget reached, stopping repair"
+  ],
+  "extraction": {
+   "n_components": 21,
+   "types": {
+    "laser": 7,
+    "aom": 2,
+    "other": 1,
+    "mirror": 6,
+    "dichroic": 3,
+    "photodiode": 2
+   },
+   "keys": [
+    "title",
+    "components",
+    "beams",
+    "parameters",
+    "notes",
+    "scale_mm_per_px",
+    "baseplate_mm"
+   ]
+  },
+  "score": 0.0,
+  "passed": false,
+  "n_elements": 27,
+  "n_sources": 7,
+  "types": {
+   "sampler": 4,
+   "mirror": 10,
+   "aom": 2,
+   "dichroic": 3,
+   "photodiode": 6,
+   "beam_dump": 2
+  },
+  "checks": [
+   [
+    "error",
+    "stray_beam",
+    "laser safety: unterminated beam on L_422.t.r.0.t (2.43 mW) leaves the table from (90,497) at 180\u00b0; add a beam dump"
+   ],
+   [
+    "warning",
+    "stray_beam",
+    "weak unterminated beam on L_422.t.r.0.r (0.270 mW)"
+   ],
+   [
+    "error",
+    "stray_beam",
+    "laser safety: unterminated beam on L_422.t.r.+1.t (9.72 mW) leaves the table from (91,496) at -180\u00b0; add a beam dump"
+   ],
+   [
+    "error",
+    "stray_beam",
+    "laser safety: unterminated beam on L_422.t.r.+1.r (1.08 mW) leaves the table from (91,496) at 90\u00b0; add a beam dump"
+   ],
+   [
+    "error",
+    "stray_beam",
+    "laser safety: unterminated beam on L_984.t.+1.t (10.80 mW) leaves the table from (614,335) at 179\u00b0; add a beam dump"
+   ],
+   [
+    "error",
+    "stray_beam",
+    "laser safety: unterminated beam on L_1092.t.r.0.t (3.24 mW) leaves the table from (683,70) at -90\u00b0; add a beam dump"
+   ],
+   [
+    "warning",
+    "stray_beam",
+    "weak unterminated beam on L_1092.t.r.0.r (0.360 mW)"
+   ],
+   [
+    "error",
+    "stray_beam",
+    "laser safety: unterminated beam on L_1092.t.r.+1.t (12.96 mW) leaves the table from (682,71) at -91\u00b0; add a beam dump"
+   ],
+   [
+    "error",
+    "stray_beam",
+    "laser safety: unterminated beam on L_1092.t.r.+1.r (1.44 mW) leaves the table from (682,71) at 1\u00b0; add a beam dump"
+   ],
+   [
+    "error",
+    "stray_beam",
+    "laser safety: unterminated beam on L_405 (2.00 mW) leaves the table from (490,509) at -45\u00b0; add a beam dump"
+   ],
+   [
+    "warning",
+    "collision",
+    "TC_E and TC_N footprints overlap (32.0 mm apart)"
+   ],
+   [
+    "warning",
+    "collision",
+    "TRAP_E and TRAP footprints overlap (20.3 mm apart)"
+   ],
+   [
+    "warning",
+    "beam_through_mount",
+    "beam L_690.r passes through M_782_TC's mount without interacting"
+   ],
+   [
+    "warning",
+    "beam_through_mount",
+    "beam L_984.t.+1.t passes through M_690_2's mount without interacting"
+   ],
+   [
+    "warning",
+    "beam_through_mount",
+    "beam L_984.t.+1.t passes through TRAP's mount without interacting"
+   ],
+   [
+    "warning",
+    "beam_through_mount",
+    "beam L_405 passes through M_984's mount without interacting"
+   ],
+   [
+    "warning",
+    "beam_through_mount",
+    "beam L_782 passes through M_422_TC's mount without interacting"
+   ],
+   [
+    "error",
+    "target",
+    "unmet: TRAP_W: 9.000 mW (need \u2265 10.000)"
+   ],
+   [
+    "error",
+    "target",
+    "unmet: TRAP_E: 2.700 mW (need \u2265 12.000)"
+   ]
+  ],
+  "info": [
+   "BD_422_T receives no light",
+   "BD_1092_T receives no light",
+   "met: TRAP: 5.000 mW (need \u2265 3.000)",
+   "met: TC: 6.500 mW (need \u2265 3.000)"
+  ],
+  "metrics": {
+   "input_mw": 72.0,
+   "delivered_mw": 26.7,
+   "dumped_mw": 0.0,
+   "stray_mw": 44.3,
+   "n_elements": 27.0,
+   "n_segments": 54.0,
+   "target.TRAP.min_power_mw": 5.0,
+   "target.TRAP_W.min_power_mw": 9.0,
+   "target.TRAP_E.min_power_mw": 2.7,
+   "target.TC.min_power_mw": 6.5,
+   "target.TC_N.min_power_mw": 2.0,
+   "target.TC_E.min_power_mw": 1.5,
+   "delivered_fraction": 0.37
+  },
+  "name": "sr_th_ion_trap_laser_setup",
+  "plate": [
+   715.0,
+   600.0
+  ],
+  "unplaced": [],
+  "branches": [
+   "L_690",
+   "L_690.t",
+   "L_690.t.0",
+   "L_690.t.0.t",
+   "L_690.t.+1",
+   "L_690.t.+1.t",
+   "L_690.r",
+   "L_422",
+   "L_422.t",
+   "L_422.t.r",
+   "L_422.t.r.0",
+   "L_422.t.r.0.t",
+   "L_422.t.r.0.r",
+   "L_422.t.r.+1",
+   "L_422.t.r.+1.t",
+   "L_422.t.r.+1.r",
+   "L_422.r",
+   "L_984",
+   "L_984.t",
+   "L_984.t.0",
+   "L_984.t.0.t",
+   "L_984.t.+1",
+   "L_984.t.+1.t",
+   "L_984.r",
+   "L_1092",
+   "L_1092.t",
+   "L_1092.t.r",
+   "L_1092.t.r.0",
+   "L_1092.t.r.0.t",
+   "L_1092.t.r.0.r",
+   "L_1092.t.r.+1",
+   "L_1092.t.r.+1.t",
+   "L_1092.t.r.+1.r",
+   "L_1092.r",
+   "L_461",
+   "L_461.t",
+   "L_405",
+   "L_782"
+  ]
+ },
+ "yb_ion_clock_laser.reproduce.sse": {
+  "wall_s": "60",
+  "n_candidates": 0,
+  "errors": [
+   "LLMError: all vision extraction passes failed: "
+  ],
+  "repair_msgs": []
+ }
+}
