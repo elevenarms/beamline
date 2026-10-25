@@ -483,10 +483,10 @@ table.match tr.clickable:hover td { background: var(--panel-2); }
 
 .roster { border-right: 1px solid var(--line); overflow: auto; min-height: 0; }
 .roster-head { position: sticky; top: 0; display: flex; justify-content: space-between; padding: 4px 8px; font-size: 10.5px; color: var(--muted); background: var(--panel); border-bottom: 1px solid var(--line); text-transform: uppercase; letter-spacing: 0.05em; z-index: 1; }
-.agent-row { display: grid; grid-template-columns: 10px 14px 1fr auto; gap: 6px; align-items: center; width: 100%; padding: 4px 8px; border: 0; border-bottom: 1px solid var(--line-soft); background: none; text-align: left; cursor: pointer; }
+.agent-row { display: grid; grid-template-columns: 12px 14px 1fr auto; gap: 6px; align-items: center; width: 100%; padding: 4px 8px; border: 0; border-bottom: 1px solid var(--line-soft); background: none; text-align: left; cursor: pointer; }
 .agent-row:hover { background: var(--panel-2); }
 .agent-row.sel { background: var(--accent-bg); box-shadow: inset 2px 0 0 var(--accent); }
-.state-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.state-dot { display: inline-grid; place-items: center; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); border: 1px solid transparent; font-size: 8px; line-height: 1; color: var(--panel); }
 .state-dot.running { background: var(--accent); animation: pulse 1.1s ease-in-out infinite; }
 .state-dot.done { background: var(--ok); }
 .state-dot.error { background: var(--err); }
@@ -661,3 +661,29 @@ table.bom tfoot td { border-top: 1px solid var(--line-2); border-bottom: 0; padd
 .pip-empty a { color: var(--accent); }
 .pip-pill { position: fixed; right: 16px; bottom: 40px; z-index: 150; display: inline-flex; align-items: center; gap: 6px; max-width: 280px; height: 28px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 14px; background: var(--panel); color: var(--text-2); cursor: pointer; font-size: 12px; }
 .pip-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.state-dot.queued { background: transparent !important; }
+.state-dot.error { background: var(--err); color: var(--panel); }
+/* token streams */
+.ticker { display: flex; align-items: center; gap: 6px; padding: 0 8px 4px 0; border-bottom: 1px solid var(--line-soft); }
+.tk-line { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; direction: rtl; text-align: left; font-size: 10.5px; -webkit-mask-image: linear-gradient(to right, transparent, #000 30%); mask-image: linear-gradient(to right, transparent, #000 30%); }
+.tk-line > span { direction: ltr; unicode-bidi: bidi-override; }
+.tk-th { font-style: italic; opacity: 0.6; }
+.tk-out { opacity: 1; }
+.tk-rate { font-size: 10px; white-space: nowrap; min-width: 52px; text-align: right; }
+.chip-sep { width: 1px; height: 16px; background: var(--line); margin: 0 2px; }
+.lanes { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; }
+.lane { border-left: 3px solid; padding: 3px 8px; background: var(--panel-2); border-radius: 0 2px 2px 0; animation: lanein 220ms ease-out; overflow: hidden; }
+.lane.done { opacity: 0.65; padding-top: 2px; padding-bottom: 2px; }
+@keyframes lanein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.lane-head { display: flex; align-items: center; gap: 10px; font-size: 11px; }
+.lane-name { font-weight: 600; }
+.lane-tps { margin-left: auto; }
+.lane-ok { margin-left: auto; color: var(--ok); }
+.lane-text { font-size: 11.5px; line-height: 1.45; max-height: calc(1.45em * 3); overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; word-break: break-all; white-space: normal; }
+.tok-agg { display: inline-flex; align-items: center; gap: 6px; }
+.tok-share { display: inline-flex; width: 120px; height: 6px; border: 1px solid var(--line-2); border-radius: 1px; overflow: hidden; }
+.tok-share i { display: block; height: 100%; }
+
+.verify-head.pending { border-color: var(--line-2); background: var(--panel-2); color: var(--text-2); }
+.verify-head.pending .vh-title { color: var(--text); letter-spacing: 0.02em; }

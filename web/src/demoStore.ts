@@ -5,6 +5,7 @@ import { useStore } from "./store";
 import { useView } from "./scene/viewStore";
 import { useConsole } from "./consoleStore";
 import * as api from "./api";
+import { usePip } from "./panels/PaperPip";
 
 // Choreography for the headline demo: figure → fly-in → beams light up → tuning tour.
 
@@ -132,6 +133,14 @@ export const useDemo = create<DemoState>((set, get) => ({
           useStore.setState({ design: { name: "paper_build", description: ev.citation ?? "", baseplate: cur?.baseplate, sources: [], elements: [] }, trace: { segments: [], elements: [], branches: [] }, report: null, selected: null });
         }
         useView.getState().setPreset("iso");
+        // open the paper alongside (recorded runs carry the arXiv figure URL / citation)
+        {
+          const m = /arxiv\.org\/(?:html|abs|pdf)\/(\d{4}\.\d{4,5})/i.exec(ev.url) ?? /arXiv:(\d{4}\.\d{4,5})/i.exec(ev.citation ?? "");
+          if (m && usePip.getState().paper?.arxiv_id !== m[1]) {
+            const title = (ev.citation ?? "").split(",").slice(1).join(",").replace(/,?\s*arXiv:.*$/i, "").trim() || `arXiv:${m[1]}`;
+            usePip.getState().open({ arxiv_id: m[1], title, abs_url: `https://arxiv.org/abs/${m[1]}` });
+          }
+        }
         break;
       }
       case "extraction": {

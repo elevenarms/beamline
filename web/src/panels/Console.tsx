@@ -5,6 +5,8 @@ import {
 } from "lucide-react";
 import { useConsole, rowsAsText, type AgentInfo, type LogKind, type LogRow } from "../consoleStore";
 import { changeText } from "../lib/diff";
+import { agentColor, liveTps, streams, tail, useTokens, type Stream } from "../tokenStore";
+import { useTheme } from "../lib/theme";
 
 const ROLE_ICON: Record<string, typeof Bot> = {
   planner: ClipboardList, designer: PencilRuler, verifier: ShieldCheck, repair: Wrench, vision: ScanEye, merge: Merge,
@@ -23,6 +25,82 @@ function useTick(active: boolean, ms = 250) {
     const t = setInterval(() => set((x) => x + 1), ms);
     return () => clearInterval(t);
   }, [active, ms]);
+}
+
+// ───────── agent colours & live token streams ─────────
+export function useAgentColor() {
+  const agents = useConsole((s) => s.agents);
+  const dark = useTheme((t) => t.theme === "dark");
+  return (id: string | null | undefined) => {
+    if (!id) return undefined;
+    const a = agents[id];
+    if (a) return agentColor(a.order, dark);
+    let h = 0;
+    for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0;
+    return agentColor(Math.abs(h), dark);
+  };
+}
+
+function Spark({ data, color, w = 44, h = 14 }: { data: number[]; color?: string; w?: number; h?: number }) {
+  if (data.length < 2) return <svg width={w} height={h} aria-hidden />;
+  const mx = Math.max(...data, 1);
+  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - (v / mx) * (h - 2) - 1}`).join(" ");
+  return <svg width={w} height={h} aria-hidden><polyline points={pts} fill="none" stroke={color} strokeWidth={1.2} /></svg>;
+}
+
+function StreamText({ s, n }: { s: Stream; n: number }) {
+  return (
+    <>
+      {tail(s, n).map((c, i) => <span key={i} className={c.kind === "thought" ? "tk-th" : "tk-out"}>{c.text.replace(/\s+/g, " ")}</span>)}
+    </>
+  );
+}
+
+/** one-line live ticker under a running agent in the roster */
+function Ticker({ id, color }: { id: string; color?: string }) {
+  useTokens((t) => t.v);
+  const s = streams.get(id);
+  if (!s) return null;
+  const tps = liveTps(s);
+  return (
+    <div className="ticker" style={{ color }}>
+      <div className="tk-line mono"><StreamText s={s} n={140} /></div>
+      <span className="tk-rate mono">{tps ? `${tps.toFixed(0)} tok/s` : `${kfmt(s.tokens)} tok`}</span>
+      <Spark data={s.tpsHist} color={color} />
+    </div>
+  );
+}
+
+/** stacked lanes: the last ~3 lines of each active agent's stream, typing in as it arrives */
+function Streams() {
+  useTokens((t) => t.v);
+  const agents = useConsole((s) => s.agents);
+  const color = useAgentColor();
+  const [, tick] = useState(0);
+  useEffect(() => { const t = setInterval(() => tick((x) => x + 1), 500); return () => clearInterval(t); }, []);
+  const lanes = [...streams.values()]
+    .map((s) => ({ s, a: agents[s.id] }))
+    .sort((x, y) => (x.a?.order ?? 0) - (y.a?.order ?? 0));
+  if (!lanes.length) return <div className="empty-hint" style={{ padding: 10 }}>Token streams appear here while agents are generating.</div>;
+  return (
+    <div className="lanes">
+      {lanes.map(({ s, a }) => {
+        const done = a && a.state !== "running" && a.state !== "queued";
+        const c = color(s.id);
+        return (
+          <div key={s.id} className={`lane${done ? " done" : ""}`} style={{ borderLeftColor: c }}>
+            <div className="lane-head mono">
+              <span className="lane-name" style={{ color: c }}>{a?.title ?? s.id}</span>
+              <span className="muted">{kfmt(s.tokens)} tok</span>
+              {done ? <span className="lane-ok">✓ {a?.state === "error" ? "error" : "done"}</span> : <span className="lane-tps" style={{ color: c }}>{liveTps(s).toFixed(0)} tok/s</span>}
+              {!done && <Spark data={s.tpsHist} color={c} w={60} />}
+            </div>
+            {!done && <div className="lane-text mono" style={{ color: c }}><div><StreamText s={s} n={420} /></div></div>}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 // ───────── iteration scrubber ─────────
@@ -66,13 +144,15 @@ function Scrubber() {
 
 // ───────── roster ─────────
 function AgentRow({ a, depth, now }: { a: AgentInfo; depth: number; now: number }) {
+  const color = useAgentColor()(a.id);
   const filter = useConsole((s) => s.filterAgent);
   const setFilter = useConsole((s) => s.setFilterAgent);
   const Icon = ROLE_ICON[a.role] ?? Bot;
   const el = a.state === "running" && a.startedAt != null ? now - a.startedAt : a.elapsedMs ?? (a.endedAt != null && a.startedAt != null ? a.endedAt - a.startedAt : null);
   return (
+    <>
     <button className={`agent-row${filter === a.id ? " sel" : ""}`} style={{ paddingLeft: 8 + depth * 14 }} onClick={() => setFilter(a.id)} title={a.message ?? a.title}>
-      <span className={`state-dot ${a.state}`} aria-label={a.state} />
+      <span className={`state-dot ${a.state}`} style={{ background: a.state === "error" ? undefined : color, borderColor: color }} aria-label={a.state}>{a.state === "done" ? "✓" : a.state === "error" ? "✕" : ""}</span>
       <Icon size={13} strokeWidth={1.7} className="role-ic" />
       <span className="ag-main">
         <span className="ag-title">{a.title}</span>
@@ -83,6 +163,8 @@ function AgentRow({ a, depth, now }: { a: AgentInfo; depth: number; now: number 
         <span className="muted">{a.calls ? `${kfmt(a.tin)}/${kfmt(a.tout)}/${kfmt(a.tthought)}` : ""}</span>
       </span>
     </button>
+    {a.state === "running" && <div style={{ paddingLeft: 30 + depth * 14 }}><Ticker id={a.id} color={color} /></div>}
+    </>
   );
 }
 
@@ -114,6 +196,7 @@ function Roster() {
 // ───────── log ─────────
 const Row = memo(function Row({ r }: { r: LogRow }) {
   const [open, setOpen] = useState(false);
+  const agentCol = useAgentColor()(r.agent);
   const show = useConsole.getState().showIteration;
   const current = useConsole((s) => s.current);
   const time = `+${(r.t / 1000).toFixed(1)}`;
@@ -121,14 +204,14 @@ const Row = memo(function Row({ r }: { r: LogRow }) {
     const long = r.text.length > 180;
     return (
       <div className="lrow thought" onClick={() => long && setOpen(!open)}>
-        <span className="lt">{time}</span><span className="la">{r.agent ?? ""}</span><span className="lk">thought</span>
+        <span className="lt">{time}</span><span className="la" style={{ color: agentCol }}>{r.agent ?? ""}</span><span className="lk">thought</span>
         <span className="lm">{open || !long ? r.text : `${r.text.slice(0, 180)}…`}{long && <span className="more">{open ? " less" : " more"}</span>}</span>
       </div>
     );
   }
   return (
     <div className={`lrow ${r.kind}${r.iter != null && r.iter === current ? " cur" : ""}`}>
-      <span className="lt">{time}</span><span className="la">{r.agent ?? "run"}</span><span className="lk">{r.kind}</span>
+      <span className="lt">{time}</span><span className="la" style={{ color: agentCol }}>{r.agent ?? "run"}</span><span className="lk">{r.kind}</span>
       <span className="lm">
         {/^autofix/.test(r.text) || / autofix /.test(r.text) ? <Wand2 size={12} className="tool-ic" aria-label="autofix" /> : null}
         {r.text}
@@ -145,6 +228,7 @@ const Row = memo(function Row({ r }: { r: LogRow }) {
 });
 
 function Log() {
+  const view = useConsole((s) => s.view);
   const rows = useConsole((s) => s.rows);
   const agents = useConsole((s) => s.agents);
   const filterAgent = useConsole((s) => s.filterAgent);
@@ -177,6 +261,16 @@ function Log() {
     if (!hover && ref.current) ref.current.scrollTop = ref.current.scrollHeight;
   }, [visible.length, visible.at(-1)?.text, hover]);
 
+  if (view === "streams") {
+    return (
+      <div className="log-pane">
+        <LogToolbar rows={filtered} />
+        <div className="log-scroll">
+          <Streams />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="log-pane">
       <LogToolbar rows={filtered} />
@@ -193,6 +287,8 @@ function Log() {
 }
 
 function LogToolbar({ rows }: { rows: LogRow[] }) {
+  const view = useConsole((s) => s.view);
+  const setView = useConsole((s) => s.setView);
   const kinds = useConsole((s) => s.kinds);
   const toggle = useConsole((s) => s.toggleKind);
   const search = useConsole((s) => s.search);
@@ -202,8 +298,10 @@ function LogToolbar({ rows }: { rows: LogRow[] }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="log-tools">
-      <button className={`chip${!kinds ? " active" : ""}`} onClick={() => toggle("all")}>all</button>
-      {KINDS.map((k) => <button key={k} className={`chip${kinds?.has(k) ? " active" : ""}`} onClick={() => toggle(k)}>{k}</button>)}
+      <button className={`chip${view === "streams" ? " active" : ""}`} onClick={() => setView(view === "streams" ? "log" : "streams")} title="Live token streams per agent">streams</button>
+      <span className="chip-sep" />
+      <button className={`chip${!kinds && view === "log" ? " active" : ""}`} onClick={() => { setView("log"); toggle("all"); }}>all</button>
+      {KINDS.map((k) => <button key={k} className={`chip${kinds?.has(k) && view === "log" ? " active" : ""}`} onClick={() => { setView("log"); toggle(k); }}>{k}</button>)}
       {filterAgent && <button className="chip active" onClick={() => setFilterAgent(filterAgent)} title="Clear agent filter">{filterAgent} <X size={11} /></button>}
       <span className="spacer" />
       <div className="search small">
@@ -214,6 +312,25 @@ function LogToolbar({ rows }: { rows: LogRow[] }) {
         <Copy size={12} /> {copied ? "Copied" : "Copy"}
       </button>
     </div>
+  );
+}
+
+function TokAggregate() {
+  useTokens((t) => t.v);
+  const color = useAgentColor();
+  const [, tick] = useState(0);
+  useEffect(() => { const t = setInterval(() => tick((x) => x + 1), 400); return () => clearInterval(t); }, []);
+  const all = [...streams.values()];
+  if (!all.length) return null;
+  const total = all.reduce((a, s) => a + s.tokens, 0) || 1;
+  const live = all.reduce((a, s) => a + liveTps(s), 0);
+  return (
+    <span className="tok-agg">
+      live <b>{live.toFixed(0)}</b> tok/s
+      <span className="tok-share" title="token share per agent">
+        {all.map((s) => <i key={s.id} style={{ width: `${(s.tokens / total) * 100}%`, background: color(s.id) }} title={`${s.id}: ${s.tokens} tok`} />)}
+      </span>
+    </span>
   );
 }
 
@@ -234,6 +351,7 @@ function Summary() {
       <span>tokens in <b>{kfmt(totals.tin)}</b> out <b>{kfmt(totals.tout)}</b> thought <b>{kfmt(totals.tthought)}</b></span>
       <span>wall <b>{sfmt(wall)}</b></span>
       <span>agents <b className={running ? "run" : ""}>{running}</b> running · <b>{done}</b>/{list.length} done</span>
+      <TokAggregate />
     </div>
   );
 }

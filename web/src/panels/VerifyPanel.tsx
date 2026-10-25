@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { CircleCheck, CircleX, Info, TriangleAlert } from "lucide-react";
+import { CircleCheck, CircleX, Info, LoaderCircle, TriangleAlert } from "lucide-react";
+import { useConsole } from "../consoleStore";
 import { useStore } from "../store";
 import type { Check } from "../types";
 import { mW, pct } from "../lib/format";
@@ -59,6 +60,24 @@ export default function VerifyPanel() {
       .map(([g, checks]) => ({ g, title: g ? titles.get(g) ?? g : (design?.modules?.length ? "Global" : ""), checks: checks.sort((a, b) => ORDER[a.severity] - ORDER[b.severity]) }));
   }, [report, design, trace, filter]);
 
+  const running = useStore((s) => s.agent.running);
+  const nVerified = useConsole((s) => s.iterations.length);
+  const finalSeen = useConsole((s) => s.rows.some((r) => r.kind === "final"));
+  if (running && !finalSeen && !(nVerified > 0 && report?.passed)) {
+    return (
+      <div className="section">
+        <div className="section-title">Verify report</div>
+        <div className="verify-head pending">
+          <LoaderCircle size={20} className="spin" />
+          <div>
+            <div className="vh-title">Run in progress</div>
+            <div className="vh-sub">candidates verifying… <b className="mono">{nVerified}</b> verified so far</div>
+          </div>
+          <div />
+        </div>
+      </div>
+    );
+  }
   if (!report) return null;
   const nErr = report.checks.filter((c) => c.severity === "error").length;
   const nWarn = report.checks.filter((c) => c.severity === "warning").length;

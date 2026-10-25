@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { AgentEvent, Change, Design, TraceResult, VerifyReport } from "./types";
 import { diffDesigns, changeText } from "./lib/diff";
+import { pushTokens, resetTokens } from "./tokenStore";
 import { useStore } from "./store";
 import { useView } from "./scene/viewStore";
 
@@ -60,6 +61,8 @@ interface ConsoleState {
   filterAgent: string | null;
   kinds: Set<LogKind> | null; // null = all
   search: string;
+  view: "log" | "streams";
+  setView: (v: "log" | "streams") => void;
   totals: { calls: number; tin: number; tout: number; tthought: number };
   reset: () => void;
   finish: () => void;
@@ -109,15 +112,18 @@ export const useConsole = create<ConsoleState>((set, get) => {
     filterAgent: null,
     kinds: null,
     search: "",
+    view: "log",
+    setView: (v) => set({ view: v }),
     totals: { calls: 0, tin: 0, tout: 0, tthought: 0 },
 
     reset: () => {
       get().stop();
-      set({ startedAt: Date.now(), endedAt: null, rows: [], agents: {}, iterations: [], current: null, filterAgent: null, totals: { calls: 0, tin: 0, tout: 0, tthought: 0 }, open: true });
+      resetTokens();
+      set({ startedAt: Date.now(), endedAt: null, rows: [], agents: {}, iterations: [], current: null, filterAgent: null, totals: { calls: 0, tin: 0, tout: 0, tthought: 0 }, open: true, view: "streams" });
       // a short canvas can't afford the expanded legend while the console is open
       if (window.innerHeight < 1100) useView.setState({ legendOpen: false });
     },
-    finish: () => set({ endedAt: now() }),
+    finish: () => set({ endedAt: now(), view: "log" }),
 
     ingest: (ev) => {
       switch (ev.type) {
@@ -200,6 +206,10 @@ export const useConsole = create<ConsoleState>((set, get) => {
           break;
         case "modules":
           push({ agent: "architect", kind: "module", text: `planned ${ev.modules?.length ?? 0} modules${ev.links?.length ? `, ${ev.links.length} fiber links` : ""}${ev.title ? ` · ${ev.title}` : ""}` });
+          break;
+        case "tokens":
+          if (!get().agents[ev.agent_id]) upsertAgent(ev.agent_id, { state: "running", startedAt: now() });
+          pushTokens(ev);
           break;
         case "figure":
           upsertAgent("fetch", { role: "vision", title: "Figure fetch", state: "done" });

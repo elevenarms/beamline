@@ -107,11 +107,15 @@ function ConsoleButton() {
 }
 
 function StatusBar() {
+  const running = useStore((s) => s.agent.running);
+  const nVerified = useConsole((s) => s.iterations.length);
+  const finalSeen = useConsole((s) => s.rows.some((r) => r.kind === "final"));
   const trace = useStore((s) => s.trace);
   const report = useStore((s) => s.report);
   const ms = useStore((s) => s.traceMs);
   const tracing = useStore((s) => s.tracing);
   const mock = useStore((s) => s.mock);
+  const pending = running && !finalSeen && !(nVerified > 0 && report?.passed);
   return (
     <footer className="statusbar">
       <span className="item">Trace <b>{ms == null ? "—" : `${ms.toFixed(0)} ms`}</b>{tracing && <LoaderCircle size={11} className="spin" />}</span>
@@ -119,8 +123,14 @@ function StatusBar() {
       <span className="item">Segments <b>{trace?.segments.length ?? 0}</b></span>
       <span className="item">Branches <b>{trace?.branches.length ?? 0}</b></span>
       <span className="item">Delivered <b>{mW(report?.metrics.delivered_mw)}</b></span>
-      <span className="item" title={SCORE_TIP}>Score <b className={report ? scoreClass(report.score) : ""}>{report ? report.score.toFixed(0) : "—"}</b></span>
-      {report && <span className={report.passed ? "pass" : "fail"}>{report.passed ? "PASS" : "FAIL"}</span>}
+      {pending ? (
+        <span className="item muted">verifying… <b>{nVerified}</b> candidates</span>
+      ) : (
+        <>
+          <span className="item" title={SCORE_TIP}>Score <b className={report ? scoreClass(report.score) : ""}>{report ? report.score.toFixed(0) : "—"}</b></span>
+          {report && <span className={report.passed ? "pass" : "fail"}>{report.passed ? "PASS" : "FAIL"}</span>}
+        </>
+      )}
       <span className="spacer" />
       <ConsoleButton />
       <span className="item muted">{mock ? "in-browser tracer" : "backend tracer"} · 1 Top · 2 Iso · 3 Front · 4 Side · P persp · 0 fit</span>

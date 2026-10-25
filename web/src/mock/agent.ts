@@ -104,6 +104,26 @@ function repairOf(d: Design, round: number): Design {
   return r;
 }
 
+// synthetic token deltas (JSON-ish design text + thought prose), interleaved across agents
+const WORDS = ['{"id":"M1",', '"type":"mirror",', '"beam":"L1",', '"distance_mm":45,', '"out_direction_deg":90},', '{"id":"PBS1",', '"type":"pbs",', '"split_ratio":0.5},', '"focal_length_mm":150,', '"aom_frequency_mhz":110,', '"angle_deg":0,', '"label":"fold mirror",', '"targets":[', '{"element_id":"F1",', '"kind":"min_power_mw",', '"value":8}]'];
+const PROSE = ["keep the fold before the PBS", "so the AOM arm stays long;", "check clipping at the iris", "w ≈ 0.36 mm at the AOM,", "aperture 2 mm is fine;", "dump the 0th order", "before it leaves the plate."];
+async function* tokenBurst(ids: string[], ms: number, signal?: AbortSignal): AsyncGenerator<AgentEvent> {
+  const n: Record<string, number> = {};
+  const t0 = Date.now();
+  let k = 0;
+  while (Date.now() - t0 < ms) {
+    for (const id of ids) {
+      const salt = [...id].reduce((a, ch) => a + ch.charCodeAt(0), 0);
+      const thought = (k + salt) % 5 === 0;
+      const text = Array.from({ length: 3 + ((k * 7 + id.length) % 4) }, (_, i) => (thought ? PROSE : WORDS)[(k * 3 + i + salt) % (thought ? PROSE.length : WORDS.length)]).join(" ") + " ";
+      n[id] = (n[id] ?? 0) + Math.round(text.length / 3.6);
+      yield { type: "tokens", agent_id: id, call_id: `${id}#1`, kind: thought ? "thought" : "output", text, n_tokens_so_far: n[id], tps: 120 + ((k * 37 + salt * 13) % 110) };
+    }
+    k++;
+    await sleep(110, signal);
+  }
+}
+
 const THOUGHTS = [
   "Fold the beam early so the AOM arm has a long straight run; keep 25 mm clearance around mounts.",
   "The +1 order separates by only ~1.2° at 110 MHz, so the order-select iris must sit ≥ 50 mm after the AOM.",
@@ -139,6 +159,7 @@ export async function* mockAgentStream(kind: "design" | "reproduce", text: strin
     yield ag("planner", "planner", "running", "Planner", null);
     for (let i = 0; i < 4; i++) yield ag(`designer-${i + 1}`, "designer", "queued", `Designer ${i + 1}`, "planner");
     yield { type: "status", stage: "plan", message: "Planning beam paths, branch topology and component budget" };
+    yield* tokenBurst(["planner"], 900, signal);
     yield th("planner", "Goal: ≥ 8 mW frequency-shifted light in a fiber plus an SAS pickoff. Budget ~16 optics on an 18×9 inch plate.");
     await sleep(500, signal);
     yield th("planner", "Branch plan: L1 → isolator → λ/2 → two folds → 5 % pickoff (SAS) → PBS; PBS.t → AOM +1 → fiber, PBS.r → reference fiber.");
@@ -147,10 +168,11 @@ export async function* mockAgentStream(kind: "design" | "reproduce", text: strin
     yield ag("planner", "planner", "done", "Planner", null, { elapsed_ms: 1300 });
     yield { type: "status", stage: "design", message: "Generating 4 candidate layouts" };
     let best: { d: Design; score: number; r: ReturnType<typeof traceDesign>; seq: number } | null = null;
+    for (let i = 0; i < 4; i++) yield ag(`designer-${i + 1}`, "designer", "running", `Designer ${i + 1}`, "planner");
+    yield* tokenBurst(["designer-1", "designer-2", "designer-3", "designer-4"], 2600, signal);
     for (let i = 0; i < 4; i++) {
       const id = `designer-${i + 1}`;
-      yield ag(id, "designer", "running", `Designer ${i + 1}`, "planner");
-      await sleep(250, signal);
+      yield* tokenBurst([id, ...["designer-1", "designer-2", "designer-3", "designer-4"].slice(i + 1)], 350, signal);
       yield th(id, THOUGHTS[i % THOUGHTS.length]);
       await sleep(300, signal);
       yield llm(id, 5200 + i * 130, 2900 + i * 210, 4100 + i * 300, 11800 + i * 900);
@@ -171,6 +193,7 @@ export async function* mockAgentStream(kind: "design" | "reproduce", text: strin
     for (let round = 1; round <= 2; round++) {
       const id = `repair-${round}`;
       yield ag(id, "repair", "running", `Repair ${round}`, `designer-${cur.seq <= 4 ? cur.seq : 1}`);
+      yield* tokenBurst([id], 900, signal);
       yield { type: "status", stage: "repair", message: `Repair round ${round}: ${firstErr(cur.r)}` };
       await sleep(300, signal);
       yield th(id, round === 1

@@ -225,6 +225,7 @@ export type AgentEvent =
   | { type: "tool"; agent_id: string; name: string; summary: string; elapsed_ms: number }
   | IterationEvent
   | { type: "figure"; url: string; citation?: string }
+  | { type: "tokens"; agent_id: string; call_id?: string; kind: "output" | "thought"; text: string; n_tokens_so_far?: number; tps?: number }
   | TuneStart
   | TuneStep
   | TuneDone;
