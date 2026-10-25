@@ -201,6 +201,10 @@ export const useConsole = create<ConsoleState>((set, get) => {
         case "modules":
           push({ agent: "architect", kind: "module", text: `planned ${ev.modules?.length ?? 0} modules${ev.links?.length ? `, ${ev.links.length} fiber links` : ""}${ev.title ? ` · ${ev.title}` : ""}` });
           break;
+        case "figure":
+          upsertAgent("fetch", { role: "vision", title: "Figure fetch", state: "done" });
+          push({ agent: "fetch", kind: "tool", text: `figure  ${ev.url}${ev.citation ? `  · ${ev.citation}` : ""}` });
+          break;
         case "module_failed":
           push({ agent: `module:${ev.module_id}`, kind: "error", text: `module ${ev.module_id} failed: ${ev.message}` });
           break;

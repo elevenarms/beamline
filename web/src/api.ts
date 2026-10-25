@@ -164,6 +164,7 @@ async function* streamOrMock(
   }
   if (!resp.ok) {
     if (resp.status >= 502) { setBackendDown(true); yield* mock(); return; }
+    if (resp.status === 404 || resp.status === 405) { yield* mock(); return; } // endpoint not deployed yet
     const t = await resp.text().catch(() => "");
     yield { type: "error", message: `HTTP ${resp.status}: ${t.slice(0, 300)}` };
     return;
@@ -215,4 +216,53 @@ export async function* replayRecorded(file: string, signal?: AbortSignal): Async
     const pace: Record<string, number> = { iteration: 1100, candidate: 500, llm_call: 450, agent: 220, thought: 350, tool: 250, status: 300, module_done: 900, modules: 800 };
     await wait(pace[ev.type] ?? 200);
   }
+}
+
+// ───────── paper search → reproduce from URL → tune ─────────
+import { mockDetune, mockReproduceUrl, mockSearchPapers, mockTune } from "./mock/demo";
+import type { Paper } from "./types";
+
+export function searchPapers(q: string, limit = 6): Promise<Paper[]> {
+  return withFallback(
+    () => json<Paper[]>(`/api/papers/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+    () => mockSearchPapers(q),
+  );
+}
+
+export function reproduceUrlStream(image_url: string, notes: string, citation: string, signal?: AbortSignal) {
+  // bundled offline figures never go to the backend (its URL allowlist would reject them)
+  if (image_url.startsWith("/demo/")) return mockReproduceUrl(image_url, notes, citation, signal);
+  return streamOrMock(
+    () => (fetch("/api/reproduce_url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify({ image_url, notes, citation }),
+      signal,
+    })),
+    () => mockReproduceUrl(image_url, notes, citation, signal),
+    signal,
+  );
+}
+
+export async function detune(design: Design): Promise<Design> {
+  try {
+    if (isMock()) throw new Error("mock");
+    const r = await json<{ design: Design } | Design>("/api/detune", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ design }) });
+    return "design" in r ? r.design : r;
+  } catch {
+    return mockDetune(design);
+  }
+}
+
+export function tuneStream(design: Design, reference: Design | undefined, signal?: AbortSignal) {
+  return streamOrMock(
+    () => fetch("/api/tune", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify({ design, objective: "auto" }),
+      signal,
+    }),
+    () => mockTune(design, reference, signal),
+    signal,
+  );
 }

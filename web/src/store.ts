@@ -4,6 +4,7 @@ import type { AgentEvent, Design, Element, FiberLink, MatchRow, Source, TraceRes
 import * as api from "./api";
 import { useView } from "./scene/viewStore";
 import { useConsole } from "./consoleStore";
+import { useDemo } from "./demoStore";
 
 export type Selection = { kind: "element" | "source" | "segment"; id: string } | null;
 
@@ -76,6 +77,8 @@ interface State {
   runReproduce: (file: File, notes: string) => Promise<void>;
   stopAgent: () => void;
   runRecorded: (file: string, kind: "design" | "reproduce", figure?: string) => Promise<void>;
+  runReproduceUrl: (url: string, notes: string, citation: string) => Promise<void>;
+  runRecordedPaper: (file: string) => Promise<void>;
   loadCandidate: (index: number) => void;
 }
 
@@ -115,14 +118,23 @@ export const useStore = create<State>((set, get) => {
   const pushLog = (row: Omit<LogRow, "t" | "at">) =>
     set((s) => ({ agent: { ...s.agent, log: [...s.agent.log, { ...row, at: Date.now(), t: Date.now() - s.agent.startedAt }] } }));
 
-  const consume = async (kind: "design" | "reproduce", gen: AsyncGenerator<AgentEvent>, figureUrl: string | null) => {
-    set((s) => ({ agent: { ...emptyAgent, figureUrl: figureUrl ?? (kind === "reproduce" ? s.agent.figureUrl : null), running: true, kind, startedAt: Date.now() }, showFigure: !!figureUrl, compare: !!figureUrl || s.compare && kind === "reproduce" }));
+  const afterBuild = () => {
+    if (!get().design || agentAbort?.signal.aborted) return;
+    const D = useDemo.getState();
+    if (D.growEnd != null && performance.now() > D.growEnd) setTimeout(() => useDemo.getState().align(), 900);
+    else useDemo.setState({ autoAlign: true });
+  };
+
+  const consume = async (kind: "design" | "reproduce", gen: AsyncGenerator<AgentEvent>, figureUrl: string | null, flyIn = false) => {
+    set((s) => ({ agent: { ...emptyAgent, figureUrl: figureUrl ?? (kind === "reproduce" ? s.agent.figureUrl : null), running: true, kind, startedAt: Date.now() }, showFigure: !!figureUrl && !flyIn, compare: !flyIn && (!!figureUrl || (s.compare && kind === "reproduce")) }));
     if (figureUrl) useView.setState({ legendOpen: false });
     pushLog({ stage: "start", message: kind === "design" ? "Design run started" : "Reproduce-from-figure run started", level: "info" });
     useConsole.getState().reset();
+    useDemo.getState().reset();
     try {
       for await (const ev of gen) {
         useConsole.getState().ingest(ev);
+        useDemo.getState().onEvent(ev);
         switch (ev.type) {
           case "status":
             pushLog({ stage: ev.stage, message: ev.message, level: ev.stage === "done" ? "ok" : "info" });
@@ -257,6 +269,20 @@ export const useStore = create<State>((set, get) => {
       agentAbort = new AbortController();
       const url = URL.createObjectURL(file);
       await consume("reproduce", api.reproduceStream(file, notes, agentAbort.signal), url);
+    },
+    runRecordedPaper: async (file) => {
+      agentAbort?.abort();
+      agentAbort = new AbortController();
+      set({ compare: false });
+      await consume("reproduce", api.replayRecorded(file, agentAbort.signal), null, true);
+      afterBuild();
+    },
+    runReproduceUrl: async (url, notes, citation) => {
+      agentAbort?.abort();
+      agentAbort = new AbortController();
+      set({ compare: false });
+      await consume("reproduce", api.reproduceUrlStream(url, notes, citation, agentAbort.signal), url, true);
+      afterBuild();
     },
     runRecorded: async (file, kind, figure) => {
       agentAbort?.abort();

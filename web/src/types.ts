@@ -213,7 +213,7 @@ export type AgentEvent =
   | { type: "status"; stage: Stage | string; message: string }
   | { type: "candidate"; index: number; design: Design; report: VerifyReport; trace: TraceResult }
   | { type: "extraction"; graph: Record<string, unknown> }
-  | { type: "final"; design: Design; report: VerifyReport; trace: TraceResult }
+  | { type: "final"; design: Design; report: VerifyReport; trace: TraceResult; summary?: { objective_before: number; objective_after: number; steps: number } }
   | { type: "modules"; modules: Module[]; table?: Partial<Baseplate>; links?: FiberLink[]; title?: string }
   | { type: "module_done"; module_id: string; design: Design; report?: VerifyReport; trace?: TraceResult }
   | { type: "module_failed"; module_id: string; message: string }
@@ -223,7 +223,23 @@ export type AgentEvent =
   | { type: "llm_call"; agent_id: string; call_id: string; model: string; thinking_level: string; prompt_tokens: number; output_tokens: number; thought_tokens: number; latency_ms: number; ttft_ms?: number | null; finish_reason: string }
   | { type: "thought"; agent_id: string; text: string }
   | { type: "tool"; agent_id: string; name: string; summary: string; elapsed_ms: number }
-  | IterationEvent;
+  | IterationEvent
+  | { type: "figure"; url: string; citation?: string }
+  | TuneStart
+  | TuneStep
+  | TuneDone;
+
+export interface TuneStart { type: "tune_start"; order: string[]; objective: string; baseline: { objective: number; delivered_mw: number; score: number } }
+export interface TuneStep {
+  type: "tune_step"; element_id: string; field: string; value: number; objective: number;
+  metrics: { delivered_mw: number; coupling: number | null; score: number }; best_so_far: boolean; patch: Partial<Element>;
+}
+export interface TuneDone { type: "tune_done"; element_id: string; field: string; from: number; to: number; gain: number }
+
+export interface PaperFigure { id: string; url: string; caption: string; setup_score: number }
+export interface Paper {
+  arxiv_id: string; title: string; authors: string[]; year: number | null; abs_url: string; license: string | null; figures: PaperFigure[];
+}
 
 export interface AgentStateEvent {
   type: "agent";

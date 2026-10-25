@@ -9,6 +9,7 @@ import { Part, partCenterX, partRadius } from "./parts";
 import { beamRadius, powerOpacity, zAlong } from "../lib/beam";
 import { wavelengthToColor } from "../lib/color";
 import { usePalette } from "../lib/theme";
+import { FIG_H, GROW_MM_PER_MS, figureRect, boxCenter, useDemo } from "../demoStore";
 import type { Baseplate, Design, Element, PlacedElement, Segment, TraceResult, Vec2 } from "../types";
 import { DEFAULT_BASEPLATE, TERMINATING } from "../types";
 
@@ -114,8 +115,20 @@ function tubeGeometry(s: Segment, ex: number, n = 24, m = 18) {
 const segKey = (s: Segment) => `${s.start[0]},${s.start[1]},${s.end[0]},${s.end[1]},${s.w0_mm},${s.waist_z_mm},${s.rayleigh_mm}`;
 
 /** One beam envelope. Geometry is rebuilt only when the segment's geometry actually changes. */
-const Beam = memo(function Beam({ s, ex, active, dim }: { s: Segment; ex: number; active: boolean; dim: boolean }) {
+const Beam = memo(function Beam({ s, ex, active, dim, dist0 = 0 }: { s: Segment; ex: number; active: boolean; dim: boolean; dist0?: number }) {
   const key = segKey(s);
+  const gref = useRef<THREE.Group>(null);
+  // "switch on the laser": grow each segment at constant visual speed from its path distance
+  useFrame(() => {
+    const g = gref.current;
+    if (!g) return;
+    const D = useDemo.getState();
+    if (D.growAt == null) { if (g.scale.x !== 1 || !g.visible) { g.scale.set(1, 1, 1); g.visible = true; } return; }
+    const L = (performance.now() - D.growAt) * GROW_MM_PER_MS * D.speed - dist0;
+    const f = Math.max(0, Math.min(1, L / Math.max(s.length_mm, 1e-3)));
+    g.visible = f > 0;
+    g.scale.set(Math.max(f, 1e-4), 1, 1);
+  });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const geo = useMemo(() => tubeGeometry(s, ex), [key, ex]);
   useEffect(() => () => geo.dispose(), [geo]);
@@ -132,7 +145,7 @@ const Beam = memo(function Beam({ s, ex, active, dim }: { s: Segment; ex: number
     if (useStore.getState().hoverSeg !== s.id) useStore.getState().setHoverSeg(s.id);
   };
   return (
-    <group position={toW(s.start[0], s.start[1])} rotation={[0, ang, 0]}>
+    <group ref={gref} position={toW(s.start[0], s.start[1])} rotation={[0, ang, 0]}>
       <mesh
         geometry={geo}
         renderOrder={2}
@@ -171,8 +184,14 @@ function CoreLines({ segs, dimSet }: { segs: Segment[]; dimSet: Set<string> | nu
     return g;
   }, [segs, dimSet, P]);
   useEffect(() => () => geo.dispose(), [geo]);
+  const lref = useRef<THREE.LineSegments>(null);
+  useFrame(() => {
+    const D = useDemo.getState();
+    const v = !(D.growEnd != null && performance.now() < D.growEnd);
+    if (lref.current && lref.current.visible !== v) lref.current.visible = v;
+  });
   return (
-    <lineSegments geometry={geo} renderOrder={3} raycast={() => null}>
+    <lineSegments ref={lref} geometry={geo} renderOrder={3} raycast={() => null}>
       <lineBasicMaterial vertexColors transparent opacity={P.beamCore ? 0.85 : 0.95} depthWrite={false} />
     </lineSegments>
   );
@@ -305,9 +324,40 @@ const ElementNode = memo(function ElementNode({ it, oh, selected, warn, label: l
     }
     shown.current = { x: it.pos[0], y: it.pos[1], a: it.angle };
   }, [it.pos, it.angle]);
+  const flying = useRef(false);
   useFrame(() => {
-    const A = anim.current, g = gref.current;
-    if (!A || !g) return;
+    const g = gref.current;
+    if (!g) return;
+    const D = useDemo.getState();
+    const st = D.flyAt != null ? D.flyStart[it.id] : undefined;
+    if (st && D.flyEnd != null && performance.now() < D.flyEnd + 60) {
+      // fly-in: lift off the figure plane from the part's box and arc down to its table pose
+      const idx = Math.max(0, D.flyOrder.indexOf(it.id));
+      const k = (performance.now() - D.flyAt! - (idx * 75) / D.speed) / (950 / D.speed);
+      flying.current = true;
+      if (k <= 0) {
+        g.position.set(st[0], FIG_H + 2, -st[1]);
+        g.rotation.set(0, 0, 0);
+        g.scale.setScalar(0.5);
+        return;
+      }
+      if (k < 1) {
+        const e = 1 - (1 - k) ** 3;
+        const x = st[0] + (it.pos[0] - st[0]) * e, y = st[1] + (it.pos[1] - st[1]) * e;
+        g.position.set(x, (FIG_H + 2) * (1 - e) + Math.sin(Math.PI * e) * 28, -y);
+        g.rotation.set(0, it.angle * D2R * e, 0);
+        g.scale.setScalar(0.5 + 0.5 * e);
+        return;
+      }
+    }
+    if (flying.current) {
+      flying.current = false;
+      g.position.set(...toW(it.pos[0], it.pos[1]));
+      g.rotation.set(0, it.angle * D2R, 0);
+      g.scale.setScalar(1);
+    }
+    const A = anim.current;
+    if (!A) return;
     const k = Math.min(1, (performance.now() - A.t0) / A.ms), e = easeInOut(k);
     const x = A.fx + (it.pos[0] - A.fx) * e, y = A.fy + (it.pos[1] - A.fy) * e, a = A.fa + (it.angle - A.fa) * e;
     g.position.set(x, 0, -y);
@@ -374,6 +424,13 @@ function fitBox(bp: Baseplate, trace: TraceResult | null, sources: Design["sourc
   for (const src of sources) {
     const a = src.direction_deg * D2R;
     b.expandByPoint(new THREE.Vector3(...cl(src.position[0] - Math.cos(a) * 62, src.position[1] - Math.sin(a) * 62, 70)));
+  }
+  // keep the floating paper figure in frame until it has faded back
+  const D = useDemo.getState();
+  if (D.figure && D.figFadeAt == null) {
+    const r = figureRect(D.figure.aspect);
+    b.expandByPoint(new THREE.Vector3(...toW(r.x0, r.y0, FIG_H + 10)));
+    b.expandByPoint(new THREE.Vector3(...toW(r.x0 + r.w, r.y0 + r.h, FIG_H + 10)));
   }
   b.expandByVector(new THREE.Vector3(10, 2, 10));
   return b;
@@ -575,6 +632,122 @@ function ScaleBarWriter() {
 
 const EMPTY_SEGS: Segment[] = [];
 
+/** The paper figure floating above the table, with the extraction "scan" boxes. */
+function FigurePlane() {
+  const fig = useDemo((d) => d.figure);
+  const boxes = useDemo((d) => d.boxes);
+  const boxesAt = useDemo((d) => d.boxesAt);
+  const design = useStore((s) => s.design);
+  const P = usePalette();
+  const tex = useMemo(() => {
+    if (!fig) return null;
+    const t = new THREE.TextureLoader().load(fig.url);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  }, [fig?.url]);
+  useEffect(() => () => tex?.dispose(), [tex]);
+  const gref = useRef<THREE.Group>(null);
+  const mref = useRef<THREE.MeshBasicMaterial>(null);
+  const sweepRef = useRef<THREE.Mesh>(null);
+  const [shown, setShown] = useState(0);
+  const r = fig ? figureRect(fig.aspect) : null;
+  useFrame(() => {
+    const D = useDemo.getState();
+    const g = gref.current;
+    if (!g || !r) return;
+    const t = performance.now();
+    // fade back after the fly-in
+    const k = D.figFadeAt != null ? Math.max(0, Math.min(1, (t - D.figFadeAt) / (800 / D.speed))) : 0;
+    const e = k * k * (3 - 2 * k);
+    g.position.set(0, 30 * e, -0.35 * r.h * e);
+    if (mref.current) mref.current.opacity = 0.95 - 0.8 * e;
+    // scan sweep across the figure while boxes appear
+    if (D.boxesAt != null && boxes.length) {
+      const per = 90 / D.speed;
+      const n = Math.min(boxes.length, Math.floor((t - D.boxesAt) / per) + 1);
+      if (n !== shown) setShown(n);
+      const sweepK = (t - D.boxesAt) / (boxes.length * per);
+      if (sweepRef.current) {
+        sweepRef.current.visible = sweepK >= 0 && sweepK <= 1;
+        sweepRef.current.position.x = r.x0 + r.w * Math.min(1, Math.max(0, sweepK));
+      }
+    }
+  });
+  if (!fig || !r || !design) return null;
+  return (
+    <group ref={gref}>
+      <mesh position={[r.x0 + r.w / 2, FIG_H, -(r.y0 + r.h / 2)]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null} renderOrder={1}>
+        <planeGeometry args={[r.w, r.h]} />
+        <meshBasicMaterial ref={mref} map={tex ?? undefined} transparent opacity={0.95} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
+      </mesh>
+      <Line points={[toW(r.x0, r.y0, FIG_H), toW(r.x0 + r.w, r.y0, FIG_H), toW(r.x0 + r.w, r.y0 + r.h, FIG_H), toW(r.x0, r.y0 + r.h, FIG_H), toW(r.x0, r.y0, FIG_H)]} color={P.outline} lineWidth={1} />
+      <mesh ref={sweepRef} position={[r.x0, FIG_H + 0.6, -(r.y0 + r.h / 2)]} rotation={[-Math.PI / 2, 0, 0]} visible={false} raycast={() => null}>
+        <planeGeometry args={[1.2, r.h]} />
+        <meshBasicMaterial color={P.sel} transparent opacity={0.9} depthWrite={false} />
+      </mesh>
+      {boxesAt != null && boxes.slice(0, shown).map((b, i) => {
+        const [ymin, xmin, ymax, xmax] = b.box;
+        const x0 = r.x0 + (xmin / 1000) * r.w, x1 = r.x0 + (xmax / 1000) * r.w;
+        const y1 = r.y0 + r.h - (ymin / 1000) * r.h, y0 = r.y0 + r.h - (ymax / 1000) * r.h;
+        const c = boxCenter(b, fig.aspect);
+        const hh = FIG_H + 0.8;
+        return (
+          <group key={i}>
+            <Line points={[toW(x0, y0, hh), toW(x1, y0, hh), toW(x1, y1, hh), toW(x0, y1, hh), toW(x0, y0, hh)]} color={P.sel} lineWidth={1.2} />
+            {boxes.length <= 40 && (
+              <Html position={toW(c[0], y1, hh)} center zIndexRange={[6, 0]}>
+                <div className="scan-label">{b.label.length > 18 ? b.label.slice(0, 17) + "…" : b.label}</div>
+              </Html>
+            )}
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
+/** tuning tour: knob dial / slider at the active element and gain flags at tuned ones */
+function TuneWidgets() {
+  const tune = useDemo((d) => d.tune);
+  const trace = useStore((s) => s.trace);
+  if (!trace || (!tune.active && !Object.keys(tune.flags).length)) return null;
+  const pos = (id: string) => trace.elements.find((e) => e.id === id)?.position;
+  const cur = tune.current ? pos(tune.current) : null;
+  const isAngle = !!tune.field && /deg/.test(tune.field);
+  const lo = Math.min(...tune.values), hi = Math.max(...tune.values);
+  return (
+    <group>
+      {tune.active && cur && tune.value != null && (
+        <Html position={toW(cur[0], cur[1], 40)} center zIndexRange={[30, 0]}>
+          <div className="knob">
+            {isAngle ? (
+              <svg width="56" height="56" viewBox="-28 -28 56 56" aria-hidden>
+                <circle r="24" className="knob-ring" />
+                {Array.from({ length: 24 }, (_, i) => <line key={i} x1={0} y1={-24} x2={0} y2={i % 6 ? -21 : -18} transform={`rotate(${i * 15})`} className="knob-tick" />)}
+                <line x1={0} y1={0} x2={0} y2={-20} transform={`rotate(${((tune.value - (tune.values[0] ?? 0)) * 60) % 360})`} className="knob-needle" />
+                <circle r="3" className="knob-hub" />
+              </svg>
+            ) : (
+              <div className="knob-slider"><span style={{ left: `${hi > lo ? ((tune.value - lo) / (hi - lo)) * 100 : 50}%` }} /></div>
+            )}
+            <div className="knob-val mono">{tune.current} · {tune.field?.replace(/_(deg|mm)$/, "")}<b>{tune.value.toFixed(isAngle ? 2 : 1)}{isAngle ? "°" : " mm"}</b></div>
+          </div>
+        </Html>
+      )}
+      {Object.entries(tune.flags).map(([id, g]) => {
+        const p = pos(id);
+        if (!p) return null;
+        return (
+          <Html key={id} position={toW(p[0], p[1], 28)} center zIndexRange={[25, 0]}>
+            <div className={`gain-flag mono${g > 0.005 ? " up" : ""}`}>{g >= 0 ? "+" : ""}{(g * 100).toFixed(1)} %</div>
+          </Html>
+        );
+      })}
+    </group>
+  );
+}
+
 /** Module regions: subtle outlines with a title chip; regions with no parts yet are drawn as planned placeholders. */
 function ModuleRegions({ design, items, oh, solo }: { design: Design; items: Item[]; oh: number; solo: string | null }) {
   const P = usePalette();
@@ -696,7 +869,9 @@ export default function Viewer() {
   const solo = useStore((s) => s.soloModule);
   const plan = useView((v) => v.preset === "top" && v.projection === "ortho");
   const zoomOk = useView((v) => v.labelsZoomOk);
-  const labelsOn = plan ? zoomOk || items.length <= 40 : items.length <= 60;
+  const flying = useDemo((d) => d.flying);
+  const capturing = useDemo((d) => d.capturing);
+  const labelsOn = !flying && (plan ? zoomOk || items.length <= 40 : items.length <= 60);
   const segs = trace?.segments ?? EMPTY_SEGS;
   const dimSet = useMemo(() => {
     if (!solo || !design) return null;
@@ -704,6 +879,15 @@ export default function Viewer() {
     return new Set(segs.filter((x) => srcGroup.get(x.source_id) !== solo).map((x) => x.id));
   }, [solo, design, segs]);
   const fitNonce = useStore((s) => s.fitNonce);
+  // path distance from the source to each segment start (beam light-up animation)
+  const dist0 = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const sg of segs) {
+      const p = segs.find((q) => q !== sg && q.end_element != null && q.end_element === sg.start_element && (sg.branch === q.branch || sg.branch.startsWith(q.branch + ".")) && m.has(q.id));
+      m.set(sg.id, p ? m.get(p.id)! + p.length_mm : 0);
+    }
+    return m;
+  }, [segs]);
   const designKey = design ? `${fitNonce}|${bp.width_mm}|${bp.height_mm}` : "";
   const highlight = useView((v) => v.highlight);
   const selSeg = selected?.kind === "segment" ? selected.id : null;
@@ -734,8 +918,10 @@ export default function Viewer() {
       </mesh>
       {design?.modules?.length ? <ModuleRegions design={design} items={items} oh={oh} solo={solo} /> : null}
       {segs.map((s) => (
-        <Beam key={s.id} s={s} ex={ex} active={s.id === selSeg || s.id === hoverSeg || (!!selBranch && s.branch === selBranch)} dim={!!dimSet?.has(s.id)} />
+        <Beam key={s.id} s={s} ex={ex} active={s.id === selSeg || s.id === hoverSeg || (!!selBranch && s.branch === selBranch)} dim={!!dimSet?.has(s.id)} dist0={dist0.get(s.id) ?? 0} />
       ))}
+      <FigurePlane />
+      <TuneWidgets />
       <CoreLines segs={segs} dimSet={dimSet} />
       {items.map((it) => (
         <ElementNode
@@ -750,7 +936,7 @@ export default function Viewer() {
           pulse={highlight.has(it.id)}
         />
       ))}
-      <GizmoHelper alignment="top-right" margin={[62, 62]}>
+      {!capturing && <GizmoHelper alignment="top-right" margin={[62, 62]}>
         <GizmoViewcube
           key={P.darkBg ? "d" : "l"}
           color={P.gizmo.color}
@@ -776,7 +962,7 @@ export default function Viewer() {
             return null;
           }}
         />
-      </GizmoHelper>
+      </GizmoHelper>}
       <SnapHandler />
     </Canvas>
   );

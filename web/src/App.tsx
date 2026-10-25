@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { Braces, FileCode2, ListTree, LoaderCircle, Moon, SquareTerminal, Sun, Workflow } from "lucide-react";
+import { Braces, FileCode2, ListTree, LoaderCircle, Moon, Sparkles, SquareTerminal, Sun, Workflow } from "lucide-react";
+import CoverArt from "./panels/CoverArt";
 import { useTheme } from "./lib/theme";
 import "./styles.css";
 import { useStore } from "./store";
 import * as api from "./api";
 import type { ExampleInfo } from "./types";
 import Viewer from "./scene/Viewer";
-import { BeamTooltip, FigureThumb, Legend, LogicStrip, ScaleAndCursor, ViewToolbar } from "./scene/Overlays";
+import { BeamTooltip, FigureThumb, Legend, LogicStrip, PowerMeter, ScaleAndCursor, ViewToolbar } from "./scene/Overlays";
+import { useDemo } from "./demoStore";
 import AgentPanel from "./panels/AgentPanel";
 import Inspector from "./panels/Inspector";
 import VerifyPanel, { SCORE_TIP, scoreClass } from "./panels/VerifyPanel";
@@ -36,6 +38,7 @@ function exampleValue(examples: ExampleInfo[], name: string | undefined) {
 }
 
 function TopBar({ examples, onPick }: { examples: ExampleInfo[]; onPick: (n: string) => void }) {
+  const [coverOpen, setCoverOpen] = useState(false);
   const design = useStore((s) => s.design);
   const mock = useStore((s) => s.mock);
   const setExportOpen = useStore((s) => s.setExportOpen);
@@ -57,7 +60,9 @@ function TopBar({ examples, onPick }: { examples: ExampleInfo[]; onPick: (n: str
         <span className="dot" /> {mock ? "Offline mock" : "Backend"}
       </span>
       <button className="btn" onClick={() => setExportOpen(true)} disabled={!design}><FileCode2 size={14} /> Export PyOpticL</button>
+      <button className="btn" onClick={() => setCoverOpen(true)} disabled={!design}><Sparkles size={14} /> Cover art</button>
       <ThemeToggle />
+      <CoverArt open={coverOpen} onClose={() => setCoverOpen(false)} />
     </header>
   );
 }
@@ -126,6 +131,7 @@ export default function App() {
   const traceError = useStore((s) => s.traceError);
   const [examples, setExamples] = useState<ExampleInfo[]>([]);
   const compare = useStore((s) => s.compare);
+  const director = useDemo((d) => d.director);
   const figureUrl = useStore((s) => s.agent.figureUrl);
   const showCompare = compare && !!figureUrl;
   const [paneW, setPaneW] = useState(340);
@@ -159,7 +165,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="app">
+    <div className={`app${director ? " director" : ""}`}>
       <TopBar examples={examples} onPick={pick} />
       <aside className="side left">
         <div className="tabs" role="tablist">
@@ -179,6 +185,7 @@ export default function App() {
           <Legend />
           <ScaleAndCursor />
           <LogicStrip />
+          <PowerMeter />
           {!showCompare && <FigureThumb />}
           {!design && <div className="canvas-empty">Loading…</div>}
           {traceError && <div className="trace-err">Trace failed: {traceError}</div>}

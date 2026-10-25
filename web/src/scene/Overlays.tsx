@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
-import { Box, ChevronDown, Columns2, ChevronUp, Maximize2, Orbit, RectangleHorizontal, RectangleVertical, Square, X } from "lucide-react";
+import { Box, ChevronDown, Clapperboard, Columns2, FastForward, Gauge, ChevronUp, Maximize2, Orbit, RectangleHorizontal, RectangleVertical, Square, X } from "lucide-react";
 import { useStore } from "../store";
+import { useDemo } from "../demoStore";
 import { domRefs, useView, type Preset } from "./viewStore";
 import { bandName } from "../lib/color";
 import { useWlColor } from "../lib/theme";
@@ -61,6 +62,8 @@ export function ViewToolbar() {
         <Maximize2 size={15} strokeWidth={1.6} />
         <span>Fit</span>
       </button>
+      <div className="tb-sep" />
+      <DemoControls />
     </div>
   );
 }
@@ -265,6 +268,80 @@ export function LogicStrip() {
       ))}
       {outs.length === 0 && <span className="muted">no detectors</span>}
       <span className="ls-truth mono" title={`threshold ${mW(threshold)}`}>{truth}</span>
+    </div>
+  );
+}
+
+/** playback speed, skip, alignment tour and director mode */
+function DemoControls() {
+  const speed = useDemo((d) => d.speed);
+  const setSpeed = useDemo((d) => d.setSpeed);
+  const director = useDemo((d) => d.director);
+  const setDirector = useDemo((d) => d.setDirector);
+  const tuning = useDemo((d) => d.tune.active);
+  const design = useStore((s) => s.design);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      if (e.key === "d" || e.key === "D") useDemo.getState().setDirector(!useDemo.getState().director);
+    };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, []);
+  return (
+    <>
+      <div className="speed" role="radiogroup" aria-label="Playback speed">
+        {[0.5, 1, 2].map((v) => (
+          <button key={v} className={`tb-btn sp${speed === v ? " active" : ""}`} onClick={() => setSpeed(v)} role="radio" aria-checked={speed === v} data-tip={`Playback ${v}×`}>{v}×</button>
+        ))}
+      </div>
+      <button className="tb-btn" onClick={() => useDemo.getState().skip()} data-tip="Skip animation" aria-label="Skip animation"><FastForward size={15} strokeWidth={1.6} /></button>
+      <button className={`tb-btn${tuning ? " active" : ""}`} disabled={!design || tuning} onClick={() => useDemo.getState().align()} data-tip="Align bench: detune, then run the alignment pass" aria-label="Align bench">
+        <Gauge size={15} strokeWidth={1.6} /><span>Align</span>
+      </button>
+      <button className={`tb-btn${director ? " active" : ""}`} onClick={() => setDirector(!director)} data-tip="Director mode: hide panels  [D]" aria-label="Director mode">
+        <Clapperboard size={15} strokeWidth={1.6} />
+      </button>
+    </>
+  );
+}
+
+/** live power meter during the tuning tour, then a before/after summary */
+export function PowerMeter() {
+  const tune = useDemo((d) => d.tune);
+  const design = useStore((s) => s.design);
+  if (!tune.active && !tune.summary) return null;
+  const h = tune.history;
+  const cur = h.at(-1) ?? tune.baseline?.delivered_mw ?? 0;
+  const tgt = Math.max(...(design?.targets ?? []).filter((t) => t.kind === "min_power_mw").map((t) => Number(t.value)), ...h, tune.baseline?.delivered_mw ?? 0, 1e-6);
+  const best = Math.max(...h, 0);
+  const W = 220, H = 44;
+  const max = Math.max(tgt, ...h, 1e-6);
+  const pts = h.map((v, i) => `${(i / Math.max(1, h.length - 1)) * W},${H - (v / max) * (H - 4) - 2}`).join(" ");
+  if (!tune.active && tune.summary) {
+    const s = tune.summary;
+    const pc = (v: number | null) => (v == null ? "—" : `${(v * 100).toFixed(0)} %`);
+    return (
+      <div className="pmeter panel-float summary">
+        <div className="pm-title">Alignment complete</div>
+        <div className="pm-sum mono">Delivered <b>{s.before.toFixed(2)} → {s.after.toFixed(2)} mW</b>{s.cAfter != null && <> · coupling <b>{pc(s.cBefore)} → {pc(s.cAfter)}</b></>}</div>
+        <button className="icon-btn" onClick={() => useDemo.setState((d) => ({ tune: { ...d.tune, summary: null, flags: {} } }))} aria-label="Dismiss"><X size={13} /></button>
+      </div>
+    );
+  }
+  return (
+    <div className="pmeter panel-float">
+      <div className="pm-title">Delivered power {tune.current && <span className="mono muted">· {tune.current}</span>}</div>
+      <div className="pm-row">
+        <div className="pm-value mono">{cur.toFixed(cur < 10 ? 3 : 2)}<small> mW</small></div>
+        <svg width={W} height={H} className="pm-spark" aria-hidden>
+          <line x1={0} x2={W} y1={H - (tgt / max) * (H - 4) - 2} y2={H - (tgt / max) * (H - 4) - 2} className="pm-target" />
+          {h.length > 1 && <polyline points={pts} className="pm-line" />}
+        </svg>
+      </div>
+      <div className="pm-bar"><span style={{ width: `${Math.min(100, (cur / tgt) * 100)}%` }} /><i style={{ left: `${Math.min(100, (best / tgt) * 100)}%` }} /></div>
+      <div className="pm-foot mono"><span>target {tgt.toFixed(2)} mW</span>{tune.coupling != null && <span>η {(tune.coupling * 100).toFixed(1)} %</span>}<span>{h.length} steps</span></div>
     </div>
   );
 }

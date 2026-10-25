@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CircleStop, History, ImagePlus, LoaderCircle, Play, ScanSearch } from "lucide-react";
 import { useStore, type Candidate } from "../store";
+import PaperSearch from "./PaperSearch";
 import { useWlColor } from "../lib/theme";
 import { DEFAULT_BASEPLATE } from "../types";
 
@@ -70,8 +71,9 @@ export default function AgentPanel() {
 
   return (
     <>
+      <PaperSearch />
       <div className="section">
-        <div className="section-title">1 · Goal</div>
+        <div className="section-title">or · Describe the experiment</div>
         <label className="field-label" htmlFor="goal">Describe the experiment you want</label>
         <textarea id="goal" className="input" rows={4} value={goal} onChange={(e) => setGoal(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && goal.trim()) runDesign(goal.trim()); }} />
@@ -87,7 +89,7 @@ export default function AgentPanel() {
       </div>
 
       <div className="section">
-        <div className="section-title">or · Reproduce from paper figure</div>
+        <div className="section-title">or · Reproduce from your own figure</div>
         <div
           className={`dropzone${over ? " over" : ""}`}
           onClick={() => fileRef.current?.click()}
@@ -119,6 +121,9 @@ export default function AgentPanel() {
         </button>
         <button className="btn small" disabled={agent.running} onClick={() => useStore.getState().runRecorded("console_reproduce.sse", "reproduce", "/demo/rb_sas_fig2a.png")} title="Replay a captured figure-reproduction run">
           <History size={13} /> Reproduce run
+        </button>
+        <button className="btn small" disabled={agent.running} onClick={() => useStore.getState().runRecordedPaper("console_reproduce_url_tweezers.sse")} title="Replay a captured paper→build run with the full fly-in and tuning">
+          <History size={13} /> Paper
         </button>
       </div>
 
