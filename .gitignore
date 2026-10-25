@@ -6,3 +6,4 @@ dist/
 demo/figures/raw/
 *.part
 .DS_Store
+demo/video/raw/
