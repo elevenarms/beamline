@@ -1,0 +1,1690 @@
+{
+ "name": "sr_ion_apparatus",
+ "description": "Sr-88+ trapped-ion laser system (after the PyOpticL sr88_apparatus): 422 nm cooling/detection, 422 nm Raman qubit beams, 461 + 405 nm photoionization, 1092 nm repump, 1033 nm quench and 674 nm SPAM, each a fiber-in/fiber-out module on a shared 1200 x 900 mm table.",
+ "modules": [
+  {
+   "id": "cooling_422",
+   "title": "422 nm Doppler cooling & detection",
+   "region": [
+    0.0,
+    0.0,
+    801.0,
+    180.0
+   ],
+   "description": "S1/2-P1/2 cooling laser: AOM double-pass for frequency/intensity control, then split into cooling, detection and spare fibers with a power-monitor pickoff."
+  },
+  {
+   "id": "pi_405",
+   "title": "405 nm photoionization (2nd step)",
+   "region": [
+    801.0,
+    0.0,
+    381.0,
+    180.0
+   ],
+   "description": "Commercial 405 nm diode: telescope + fiber coupling to the trap."
+  },
+  {
+   "id": "raman_422",
+   "title": "422 nm Raman / Zeeman qubit beams",
+   "region": [
+    0.0,
+    180.0,
+    1016.0,
+    180.0
+   ],
+   "description": "Two independently switched AOM single-pass Raman arms with pickoff photodiodes for intensity servo."
+  },
+  {
+   "id": "pi_461",
+   "title": "461 nm photoionization (1st step) + lock",
+   "region": [
+    0.0,
+    360.0,
+    889.0,
+    180.0
+   ],
+   "description": "461 nm ECDL: saturated-absorption reference in a Sr cell, fiber coupled output."
+  },
+  {
+   "id": "repump_1092",
+   "title": "1092 nm D3/2 repump",
+   "region": [
+    0.0,
+    540.0,
+    508.0,
+    180.0
+   ],
+   "description": "1092 nm repump: AOM single-pass switch with pickoff monitor."
+  },
+  {
+   "id": "quench_1033",
+   "title": "1033 nm D5/2 quench",
+   "region": [
+    508.0,
+    540.0,
+    508.0,
+    180.0
+   ],
+   "description": "1033 nm quench laser: AOM single-pass switch with pickoff monitor."
+  },
+  {
+   "id": "spam_674",
+   "title": "674 nm SPAM / optical qubit",
+   "region": [
+    0.0,
+    720.0,
+    911.0,
+    180.0
+   ],
+   "description": "674 nm S1/2-D5/2 laser: AOM double-pass, then split into 4 fiber outputs with monitor."
+  }
+ ],
+ "baseplate": {
+  "width_mm": 1200.0,
+  "height_mm": 900.0,
+  "thickness_mm": 25.4,
+  "optical_height_mm": 12.7,
+  "grid_mm": 25.0
+ },
+ "sources": [
+  {
+   "id": "cooling_422.dp.L1",
+   "label": "Fiber input (PM780-HP via PAF2-A4A collimator)",
+   "group": "cooling_422",
+   "part_number": "PAF2-A4A",
+   "position": [
+    75.0,
+    58.8
+   ],
+   "direction_deg": 0.0,
+   "wavelength_nm": 421.7,
+   "power_mw": 20.0,
+   "waist_mm": 0.43,
+   "waist_offset_mm": 0.0,
+   "polarization": 20.0,
+   "enabled": true
+  },
+  {
+   "id": "cooling_422.dist.L1",
+   "label": "Fiber launch",
+   "group": "cooling_422",
+   "part_number": "PAF2-A4A",
+   "position": [
+    401.0,
+    145.0
+   ],
+   "direction_deg": 0.0,
+   "wavelength_nm": 421.7,
+   "power_mw": 40.0,
+   "waist_mm": 0.43,
+   "waist_offset_mm": 0.0,
+   "polarization": "H",
+   "enabled": true
+  },
+  {
+   "id": "pi_405.fc.L1",
+   "label": "Collimated laser",
+   "group": "pi_405",
+   "part_number": "Thorlabs LP785-SF20 + C230TMD-B",
+   "position": [
+    876.0,
+    43.8
+   ],
+   "direction_deg": 0.0,
+   "wavelength_nm": 405.0,
+   "power_mw": 10.0,
+   "waist_mm": 0.86,
+   "waist_offset_mm": 0.0,
+   "polarization": "H",
+   "enabled": true
+  },
+  {
+   "id": "raman_422.arm1.L1",
+   "label": "Fiber input (PM780-HP via PAF2-A4A collimator)",
+   "group": "raman_422",
+   "part_number": "PAF2-A4A",
+   "position": [
+    75.0,
+    223.8
+   ],
+   "direction_deg": 0.0,
+   "wavelength_nm": 421.7,
+   "power_mw": 30.0,
+   "waist_mm": 0.43,
+   "waist_offset_mm": 0.0,
+   "polarization": "V",
+   "enabled": true
+  },
+  {
+   "id": "raman_422.arm2.L1",
+   "label": "Fiber input (PM780-HP via PAF2-A4A collimator)",
+   "group": "raman_422",
+   "part_number": "PAF2-A4A",
+   "position": [
+    583.0,
+    223.8
+   ],
+   "direction_deg": 0.0,
+   "wavelength_nm": 421.7,
+   "power_mw": 30.0,
+   "waist_mm": 0.43,
+   "waist_offset_mm": 0.0,
+   "polarization": "V",
+   "enabled": true
+  },
+  {
+   "id": "pi_461.sas.L1",
+   "label": "ECDL output (collimated, after isolator)",
+   "group": "pi_461",
+   "part_number": "Toptica DL pro 780",
+   "position": [
+    75.0,
+    403.8
+   ],
+   "direction_deg": 0.0,
+   "wavelength_nm": 460.9,
+   "power_mw": 20.0,
+   "waist_mm": 1.0,
+   "waist_offset_mm": 0.0,
+   "polarization": "H",
+   "enabled": true
+  },
+  {
+   "id": "pi_461.fc.L1",
+   "label": "Collimated laser",
+   "group": "pi_461",
+   "part_number": "Thorlabs LP785-SF20 + C230TMD-B",
+   "position": [
+    583.0,
+    403.8
+   ],
+   "direction_deg": 0.0,
+   "wavelength_nm": 460.9,
+   "power_mw": 10.0,
+   "waist_mm": 0.86,
+   "waist_offset_mm": 0.0,
+   "polarization": "H",
+   "enabled": true
+  },
+  {
+   "id": "repump_1092.sw.L1",
+   "label": "Fiber input (PM780-HP via PAF2-A4A collimator)",
+   "group": "repump_1092",
+   "part_number": "PAF2-A4A",
+   "position": [
+    75.0,
+    583.8
+   ],
+   "direction_deg": 0.0,
+   "wavelength_nm": 1091.8,
+   "power_mw": 30.0,
+   "waist_mm": 0.43,
+   "waist_offset_mm": 0.0,
+   "polarization": "V",
+   "enabled": true
+  },
+  {
+   "id": "quench_1033.sw.L1",
+   "label": "Fiber input (PM780-HP via PAF2-A4A collimator)",
+   "group": "quench_1033",
+   "part_number": "PAF2-A4A",
+   "position": [
+    583.0,
+    583.8
+   ],
+   "direction_deg": 0.0,
+   "wavelength_nm": 1033.0,
+   "power_mw": 30.0,
+   "waist_mm": 0.43,
+   "waist_offset_mm": 0.0,
+   "polarization": "V",
+   "enabled": true
+  },
+  {
+   "id": "spam_674.dp.L1",
+   "label": "Fiber input (PM780-HP via PAF2-A4A collimator)",
+   "group": "spam_674",
+   "part_number": "PAF2-A4A",
+   "position": [
+    75.0,
+    778.8
+   ],
+   "direction_deg": 0.0,
+   "wavelength_nm": 674.0,
+   "power_mw": 20.0,
+   "waist_mm": 0.43,
+   "waist_offset_mm": 0.0,
+   "polarization": 20.0,
+   "enabled": true
+  },
+  {
+   "id": "spam_674.dist.L1",
+   "label": "Fiber launch",
+   "group": "spam_674",
+   "part_number": "PAF2-A4A",
+   "position": [
+    401.0,
+    865.0
+   ],
+   "direction_deg": 0.0,
+   "wavelength_nm": 674.0,
+   "power_mw": 40.0,
+   "waist_mm": 0.43,
+   "waist_offset_mm": 0.0,
+   "polarization": "H",
+   "enabled": true
+  }
+ ],
+ "elements": [
+  {
+   "id": "cooling_422.dp.HWP1",
+   "type": "half_wave_plate",
+   "label": "Input λ/2 (rotate to H)",
+   "group": "cooling_422",
+   "part_number": "WPH05M-780",
+   "beam": "cooling_422.dp.L1",
+   "distance_mm": 25.0,
+   "fast_axis_deg": 10.0
+  },
+  {
+   "id": "cooling_422.dp.PBS1",
+   "type": "pbs",
+   "label": "Polarizing beamsplitter cube",
+   "group": "cooling_422",
+   "part_number": "PBS052",
+   "beam": "cooling_422.dp.L1",
+   "distance_mm": 25.0,
+   "out_direction_deg": -90.0
+  },
+  {
+   "id": "cooling_422.dp.BD1",
+   "type": "beam_dump",
+   "label": "Dump for rejected V light",
+   "group": "cooling_422",
+   "part_number": "LB1",
+   "beam": "cooling_422.dp.L1.r",
+   "distance_mm": 25.0
+  },
+  {
+   "id": "cooling_422.dp.AOM1",
+   "type": "aom",
+   "label": "80 MHz AOM",
+   "group": "cooling_422",
+   "part_number": "Isomet 1205C-2",
+   "beam": "cooling_422.dp.L1.t",
+   "distance_mm": 50.0,
+   "aperture_mm": 2.0,
+   "aom_frequency_mhz": 148.02,
+   "aom_efficiency": 0.8,
+   "aom_order": 1
+  },
+  {
+   "id": "cooling_422.dp.LENS1",
+   "type": "lens",
+   "label": "Cat-eye lens f=75 mm",
+   "group": "cooling_422",
+   "part_number": "AC127-075-B",
+   "beam": "cooling_422.dp.L1.t.+1",
+   "distance_mm": 75.0,
+   "focal_length_mm": 75.0
+  },
+  {
+   "id": "cooling_422.dp.QWP1",
+   "type": "quarter_wave_plate",
+   "label": "λ/4 at 45° (double pass → λ/2)",
+   "group": "cooling_422",
+   "part_number": "WPQ05M-780",
+   "beam": "cooling_422.dp.L1.t.+1",
+   "distance_mm": 50.0,
+   "fast_axis_deg": 45.0
+  },
+  {
+   "id": "cooling_422.dp.BD2",
+   "type": "beam_dump",
+   "label": "0th-order razor block (cat-eye)",
+   "group": "cooling_422",
+   "part_number": "LB1",
+   "at": [
+    275.006,
+    59.171
+   ],
+   "angle_deg": 0.8513,
+   "aperture_mm": 1.0
+  },
+  {
+   "id": "cooling_422.dp.M1",
+   "type": "mirror",
+   "label": "Cat-eye retro mirror (focal plane)",
+   "group": "cooling_422",
+   "part_number": "BB05-E03",
+   "beam": "cooling_422.dp.L1.t.+1",
+   "distance_mm": 25.0,
+   "out_direction_deg": 180.8513
+  },
+  {
+   "id": "cooling_422.dp.M2",
+   "type": "mirror",
+   "label": "Output fold mirror",
+   "group": "cooling_422",
+   "part_number": "BB05-E03",
+   "beam": "cooling_422.dp.L1.t.+1.+1.r",
+   "distance_mm": 75.0,
+   "out_direction_deg": 0.0
+  },
+  {
+   "id": "cooling_422.dp.BD3",
+   "type": "beam_dump",
+   "label": "Return 0th-order ghost block (razor edge)",
+   "group": "cooling_422",
+   "part_number": "LB1",
+   "beam": "cooling_422.dp.L1.t.+1.0.r",
+   "distance_mm": 45.0,
+   "aperture_mm": 1.5
+  },
+  {
+   "id": "cooling_422.dp.FC1",
+   "type": "fiber_coupler",
+   "label": "Output fiber coupler (PM780-HP)",
+   "group": "cooling_422",
+   "part_number": "PAF2-A4A",
+   "beam": "cooling_422.dp.L1.t.+1.+1.r",
+   "distance_mm": 215.0,
+   "focal_length_mm": 4.6,
+   "fiber_mfd_um": 2.86
+  },
+  {
+   "id": "cooling_422.dist.S1",
+   "type": "sampler",
+   "label": "5% pickoff",
+   "group": "cooling_422",
+   "part_number": "BSF05-A",
+   "beam": "cooling_422.dist.L1",
+   "distance_mm": 35.0,
+   "out_direction_deg": 270.0,
+   "split_ratio": 0.05
+  },
+  {
+   "id": "cooling_422.dist.PD1",
+   "type": "photodiode",
+   "label": "Power monitor",
+   "group": "cooling_422",
+   "part_number": "PDA36A2",
+   "beam": "cooling_422.dist.L1.r",
+   "distance_mm": 45.0
+  },
+  {
+   "id": "cooling_422.dist.HWP1",
+   "type": "half_wave_plate",
+   "label": "lambda/2 tap 1",
+   "group": "cooling_422",
+   "part_number": "WPH05M",
+   "beam": "cooling_422.dist.L1.t",
+   "distance_mm": 40.0,
+   "fast_axis_deg": 17.632
+  },
+  {
+   "id": "cooling_422.dist.PBS1",
+   "type": "pbs",
+   "label": "Tap 1 PBS",
+   "group": "cooling_422",
+   "part_number": "PBS101",
+   "beam": "cooling_422.dist.L1.t",
+   "distance_mm": 30.0,
+   "out_direction_deg": 270.0
+  },
+  {
+   "id": "cooling_422.dist.M1a",
+   "type": "mirror",
+   "label": "Tap 1 steering 1",
+   "group": "cooling_422",
+   "part_number": "BB05-E02",
+   "beam": "cooling_422.dist.L1.t.r",
+   "distance_mm": 45.0,
+   "out_direction_deg": 0.0
+  },
+  {
+   "id": "cooling_422.dist.M1b",
+   "type": "mirror",
+   "label": "Tap 1 steering 2",
+   "group": "cooling_422",
+   "part_number": "BB05-E02",
+   "beam": "cooling_422.dist.L1.t.r",
+   "distance_mm": 40.0,
+   "out_direction_deg": 270.0
+  },
+  {
+   "id": "cooling_422.dist.FC1",
+   "type": "fiber_coupler",
+   "label": "Output fiber 1",
+   "group": "cooling_422",
+   "part_number": "PAF2-A4A",
+   "beam": "cooling_422.dist.L1.t.r",
+   "distance_mm": 50.0,
+   "focal_length_mm": 4.6,
+   "fiber_mfd_um": 2.87
+  },
+  {
+   "id": "cooling_422.dist.HWP2",
+   "type": "half_wave_plate",
+   "label": "lambda/2 tap 2",
+   "group": "cooling_422",
+   "part_number": "WPH05M",
+   "beam": "cooling_422.dist.L1.t.t",
+   "distance_mm": 80.0,
+   "fast_axis_deg": 22.5
+  },
+  {
+   "id": "cooling_422.dist.PBS2",
+   "type": "pbs",
+   "label": "Tap 2 PBS",
+   "group": "cooling_422",
+   "part_number": "PBS101",
+   "beam": "cooling_422.dist.L1.t.t",
+   "distance_mm": 30.0,
+   "out_direction_deg": 270.0
+  },
+  {
+   "id": "cooling_422.dist.M2a",
+   "type": "mirror",
+   "label": "Tap 2 steering 1",
+   "group": "cooling_422",
+   "part_number": "BB05-E02",
+   "beam": "cooling_422.dist.L1.t.t.r",
+   "distance_mm": 45.0,
+   "out_direction_deg": 0.0
+  },
+  {
+   "id": "cooling_422.dist.M2b",
+   "type": "mirror",
+   "label": "Tap 2 steering 2",
+   "group": "cooling_422",
+   "part_number": "BB05-E02",
+   "beam": "cooling_422.dist.L1.t.t.r",
+   "distance_mm": 40.0,
+   "out_direction_deg": 270.0
+  },
+  {
+   "id": "cooling_422.dist.FC2",
+   "type": "fiber_coupler",
+   "label": "Output fiber 2",
+   "group": "cooling_422",
+   "part_number": "PAF2-A4A",
+   "beam": "cooling_422.dist.L1.t.t.r",
+   "distance_mm": 50.0,
+   "focal_length_mm": 4.6,
+   "fiber_mfd_um": 2.87
+  },
+  {
+   "id": "cooling_422.dist.MZa",
+   "type": "mirror",
+   "label": "Last output steering 1",
+   "group": "cooling_422",
+   "part_number": "BB05-E02",
+   "beam": "cooling_422.dist.L1.t.t.t",
+   "distance_mm": 90.0,
+   "out_direction_deg": 270.0
+  },
+  {
+   "id": "cooling_422.dist.MZb",
+   "type": "mirror",
+   "label": "Last output steering 2",
+   "group": "cooling_422",
+   "part_number": "BB05-E02",
+   "beam": "cooling_422.dist.L1.t.t.t",
+   "distance_mm": 45.0,
+   "out_direction_deg": 0.0
+  },
+  {
+   "id": "cooling_422.dist.FC3",
+   "type": "fiber_coupler",
+   "label": "Output fiber 3",
+   "group": "cooling_422",
+   "part_number": "PAF2-A4A",
+   "beam": "cooling_422.dist.L1.t.t.t",
+   "distance_mm": 45.0,
+   "focal_length_mm": 4.6,
+   "fiber_mfd_um": 2.87
+  },
+  {
+   "id": "pi_405.fc.LENS1",
+   "type": "lens",
+   "label": "Telescope lens f=100 mm",
+   "group": "pi_405",
+   "part_number": "AC127-100-B",
+   "beam": "pi_405.fc.L1",
+   "distance_mm": 25.0,
+   "focal_length_mm": 100.0
+  },
+  {
+   "id": "pi_405.fc.LENS2",
+   "type": "lens",
+   "label": "Telescope lens f=50 mm",
+   "group": "pi_405",
+   "part_number": "AC127-050-B",
+   "beam": "pi_405.fc.L1",
+   "distance_mm": 150.0,
+   "focal_length_mm": 50.0
+  },
+  {
+   "id": "pi_405.fc.M1",
+   "type": "mirror",
+   "label": "Steering mirror 1",
+   "group": "pi_405",
+   "part_number": "BB05-E03",
+   "beam": "pi_405.fc.L1",
+   "distance_mm": 70.0,
+   "out_direction_deg": 90.0
+  },
+  {
+   "id": "pi_405.fc.M2",
+   "type": "mirror",
+   "label": "Steering mirror 2",
+   "group": "pi_405",
+   "part_number": "BB05-E03",
+   "beam": "pi_405.fc.L1",
+   "distance_mm": 90.0,
+   "out_direction_deg": 180.0
+  },
+  {
+   "id": "pi_405.fc.IR1",
+   "type": "iris",
+   "label": "Alignment iris",
+   "group": "pi_405",
+   "part_number": "ID12",
+   "beam": "pi_405.fc.L1",
+   "distance_mm": 100.0,
+   "aperture_mm": 4.0
+  },
+  {
+   "id": "pi_405.fc.FC1",
+   "type": "fiber_coupler",
+   "label": "Fiberport (PM780-HP)",
+   "group": "pi_405",
+   "part_number": "PAF2-A4A",
+   "beam": "pi_405.fc.L1",
+   "distance_mm": 100.0,
+   "focal_length_mm": 4.6,
+   "fiber_mfd_um": 2.75
+  },
+  {
+   "id": "raman_422.arm1.S1",
+   "type": "sampler",
+   "label": "5% pickoff",
+   "group": "raman_422",
+   "part_number": "BSF05-B",
+   "beam": "raman_422.arm1.L1",
+   "distance_mm": 20.0,
+   "out_direction_deg": 90.0,
+   "split_ratio": 0.05
+  },
+  {
+   "id": "raman_422.arm1.PD1",
+   "type": "photodiode",
+   "label": "Intensity monitor",
+   "group": "raman_422",
+   "part_number": "PDA36A2",
+   "beam": "raman_422.arm1.L1.r",
+   "distance_mm": 35.0
+  },
+  {
+   "id": "raman_422.arm1.LENS1",
+   "type": "lens",
+   "label": "Focusing lens f=100 mm",
+   "group": "raman_422",
+   "part_number": "AC127-100-B",
+   "beam": "raman_422.arm1.L1.t",
+   "distance_mm": 20.0,
+   "focal_length_mm": 100.0
+  },
+  {
+   "id": "raman_422.arm1.AOM1",
+   "type": "aom",
+   "label": "200 MHz AOM",
+   "group": "raman_422",
+   "part_number": "MT200-A0.5-800",
+   "beam": "raman_422.arm1.L1.t",
+   "distance_mm": 100.0,
+   "aperture_mm": 0.5,
+   "aom_frequency_mhz": 370.05,
+   "aom_efficiency": 0.8,
+   "aom_order": 1
+  },
+  {
+   "id": "raman_422.arm1.BD1",
+   "type": "beam_dump",
+   "label": "0th-order dump",
+   "group": "raman_422",
+   "part_number": "LB1",
+   "beam": "raman_422.arm1.L1.t.0",
+   "distance_mm": 230.0
+  },
+  {
+   "id": "raman_422.arm1.LENS2",
+   "type": "lens",
+   "label": "Recollimating lens f=250 mm",
+   "group": "raman_422",
+   "part_number": "AC254-250-B",
+   "beam": "raman_422.arm1.L1.t.+1",
+   "distance_mm": 250.0,
+   "aperture_mm": 25.4,
+   "focal_length_mm": 250.0
+  },
+  {
+   "id": "raman_422.arm1.M1",
+   "type": "mirror",
+   "label": "+1 order pickoff mirror",
+   "group": "raman_422",
+   "part_number": "BB05-E03",
+   "beam": "raman_422.arm1.L1.t.+1",
+   "distance_mm": 32.0,
+   "out_direction_deg": 90.0
+  },
+  {
+   "id": "raman_422.arm1.M2",
+   "type": "mirror",
+   "label": "Fiber steering mirror",
+   "group": "raman_422",
+   "part_number": "BB05-E03",
+   "beam": "raman_422.arm1.L1.t.+1",
+   "distance_mm": 79.528,
+   "out_direction_deg": 180.0
+  },
+  {
+   "id": "raman_422.arm1.IR1",
+   "type": "iris",
+   "label": "Alignment iris",
+   "group": "raman_422",
+   "part_number": "ID12",
+   "beam": "raman_422.arm1.L1.t.+1",
+   "distance_mm": 60.0,
+   "aperture_mm": 6.0
+  },
+  {
+   "id": "raman_422.arm1.FC1",
+   "type": "fiber_coupler",
+   "label": "Output fiber coupler (PM780-HP)",
+   "group": "raman_422",
+   "part_number": "PAF2-11B",
+   "beam": "raman_422.arm1.L1.t.+1",
+   "distance_mm": 150.0,
+   "focal_length_mm": 11.0,
+   "fiber_mfd_um": 2.86
+  },
+  {
+   "id": "raman_422.arm2.S1",
+   "type": "sampler",
+   "label": "5% pickoff",
+   "group": "raman_422",
+   "part_number": "BSF05-B",
+   "beam": "raman_422.arm2.L1",
+   "distance_mm": 20.0,
+   "out_direction_deg": 90.0,
+   "split_ratio": 0.05
+  },
+  {
+   "id": "raman_422.arm2.PD1",
+   "type": "photodiode",
+   "label": "Intensity monitor",
+   "group": "raman_422",
+   "part_number": "PDA36A2",
+   "beam": "raman_422.arm2.L1.r",
+   "distance_mm": 35.0
+  },
+  {
+   "id": "raman_422.arm2.LENS1",
+   "type": "lens",
+   "label": "Focusing lens f=100 mm",
+   "group": "raman_422",
+   "part_number": "AC127-100-B",
+   "beam": "raman_422.arm2.L1.t",
+   "distance_mm": 20.0,
+   "focal_length_mm": 100.0
+  },
+  {
+   "id": "raman_422.arm2.AOM1",
+   "type": "aom",
+   "label": "200 MHz AOM",
+   "group": "raman_422",
+   "part_number": "MT200-A0.5-800",
+   "beam": "raman_422.arm2.L1.t",
+   "distance_mm": 100.0,
+   "aperture_mm": 0.5,
+   "aom_frequency_mhz": 370.05,
+   "aom_efficiency": 0.8,
+   "aom_order": 1
+  },
+  {
+   "id": "raman_422.arm2.BD1",
+   "type": "beam_dump",
+   "label": "0th-order dump",
+   "group": "raman_422",
+   "part_number": "LB1",
+   "beam": "raman_422.arm2.L1.t.0",
+   "distance_mm": 230.0
+  },
+  {
+   "id": "raman_422.arm2.LENS2",
+   "type": "lens",
+   "label": "Recollimating lens f=250 mm",
+   "group": "raman_422",
+   "part_number": "AC254-250-B",
+   "beam": "raman_422.arm2.L1.t.+1",
+   "distance_mm": 250.0,
+   "aperture_mm": 25.4,
+   "focal_length_mm": 250.0
+  },
+  {
+   "id": "raman_422.arm2.M1",
+   "type": "mirror",
+   "label": "+1 order pickoff mirror",
+   "group": "raman_422",
+   "part_number": "BB05-E03",
+   "beam": "raman_422.arm2.L1.t.+1",
+   "distance_mm": 32.0,
+   "out_direction_deg": 90.0
+  },
+  {
+   "id": "raman_422.arm2.M2",
+   "type": "mirror",
+   "label": "Fiber steering mirror",
+   "group": "raman_422",
+   "part_number": "BB05-E03",
+   "beam": "raman_422.arm2.L1.t.+1",
+   "distance_mm": 79.528,
+   "out_direction_deg": 180.0
+  },
+  {
+   "id": "raman_422.arm2.IR1",
+   "type": "iris",
+   "label": "Alignment iris",
+   "group": "raman_422",
+   "part_number": "ID12",
+   "beam": "raman_422.arm2.L1.t.+1",
+   "distance_mm": 60.0,
+   "aperture_mm": 6.0
+  },
+  {
+   "id": "raman_422.arm2.FC1",
+   "type": "fiber_coupler",
+   "label": "Output fiber coupler (PM780-HP)",
+   "group": "raman_422",
+   "part_number": "PAF2-11B",
+   "beam": "raman_422.arm2.L1.t.+1",
+   "distance_mm": 150.0,
+   "focal_length_mm": 11.0,
+   "fiber_mfd_um": 2.86
+  },
+  {
+   "id": "pi_461.sas.HWP1",
+   "type": "half_wave_plate",
+   "label": "Split-ratio λ/2",
+   "group": "pi_461",
+   "part_number": "WPH05M-780",
+   "beam": "pi_461.sas.L1",
+   "distance_mm": 25.0,
+   "fast_axis_deg": 9.2
+  },
+  {
+   "id": "pi_461.sas.PBS1",
+   "type": "pbs",
+   "label": "Spectroscopy pickoff PBS",
+   "group": "pi_461",
+   "part_number": "PBS052",
+   "beam": "pi_461.sas.L1",
+   "distance_mm": 30.0,
+   "out_direction_deg": 90.0
+  },
+  {
+   "id": "pi_461.sas.FC1",
+   "type": "fiber_coupler",
+   "label": "Main output fiber coupler",
+   "group": "pi_461",
+   "part_number": "PAF2-11B",
+   "beam": "pi_461.sas.L1.t",
+   "distance_mm": 355.0,
+   "focal_length_mm": 11.0,
+   "fiber_mfd_um": 3.13
+  },
+  {
+   "id": "pi_461.sas.S1",
+   "type": "sampler",
+   "label": "Pump/probe sampler (wedged window)",
+   "group": "pi_461",
+   "part_number": "BSF05-B",
+   "beam": "pi_461.sas.L1.r",
+   "distance_mm": 40.0,
+   "out_direction_deg": 0.0,
+   "split_ratio": 0.1
+  },
+  {
+   "id": "pi_461.sas.HWP2",
+   "type": "half_wave_plate",
+   "label": "Probe λ/2 (V→H)",
+   "group": "pi_461",
+   "part_number": "WPH05M-780",
+   "beam": "pi_461.sas.L1.r.r",
+   "distance_mm": 25.0,
+   "fast_axis_deg": 45.0
+  },
+  {
+   "id": "pi_461.sas.PBS3",
+   "type": "pbs",
+   "label": "Pump rejection PBS",
+   "group": "pi_461",
+   "part_number": "PBS052",
+   "beam": "pi_461.sas.L1.r.r",
+   "distance_mm": 35.0,
+   "out_direction_deg": 90.0
+  },
+  {
+   "id": "pi_461.sas.CELL1",
+   "type": "vapor_cell",
+   "label": "Rb vapor cell, 75 mm",
+   "group": "pi_461",
+   "part_number": "GC25075-RB",
+   "beam": "pi_461.sas.L1.r.r.t",
+   "distance_mm": 120.0,
+   "aperture_mm": 25.0,
+   "transmission": 0.6
+  },
+  {
+   "id": "pi_461.sas.PBS2",
+   "type": "pbs",
+   "label": "Pump injection PBS",
+   "group": "pi_461",
+   "part_number": "PBS052",
+   "beam": "pi_461.sas.L1.r.r.t",
+   "distance_mm": 150.0,
+   "out_direction_deg": 90.0
+  },
+  {
+   "id": "pi_461.sas.PD1",
+   "type": "photodiode",
+   "label": "Probe photodiode",
+   "group": "pi_461",
+   "part_number": "PDA36A2",
+   "beam": "pi_461.sas.L1.r.r.t.t",
+   "distance_mm": 30.0
+  },
+  {
+   "id": "pi_461.sas.M2",
+   "type": "mirror",
+   "label": "Pump mirror 1",
+   "group": "pi_461",
+   "part_number": "BB05-E03",
+   "beam": "pi_461.sas.L1.r.t",
+   "distance_mm": 55.0,
+   "out_direction_deg": 0.0
+  },
+  {
+   "id": "pi_461.sas.M3",
+   "type": "mirror",
+   "label": "Pump mirror 2",
+   "group": "pi_461",
+   "part_number": "BB05-E03",
+   "beam": "pi_461.sas.L1.r.t",
+   "distance_mm": 330.0,
+   "out_direction_deg": -90.0
+  },
+  {
+   "id": "pi_461.sas.BD1",
+   "type": "beam_dump",
+   "label": "Pump dump",
+   "group": "pi_461",
+   "part_number": "LB1",
+   "at": [
+    190.0,
+    418.8
+   ],
+   "angle_deg": -90.0
+  },
+  {
+   "id": "pi_461.fc.LENS1",
+   "type": "lens",
+   "label": "Telescope lens f=100 mm",
+   "group": "pi_461",
+   "part_number": "AC127-100-B",
+   "beam": "pi_461.fc.L1",
+   "distance_mm": 25.0,
+   "focal_length_mm": 100.0
+  },
+  {
+   "id": "pi_461.fc.LENS2",
+   "type": "lens",
+   "label": "Telescope lens f=50 mm",
+   "group": "pi_461",
+   "part_number": "AC127-050-B",
+   "beam": "pi_461.fc.L1",
+   "distance_mm": 150.0,
+   "focal_length_mm": 50.0
+  },
+  {
+   "id": "pi_461.fc.M1",
+   "type": "mirror",
+   "label": "Steering mirror 1",
+   "group": "pi_461",
+   "part_number": "BB05-E03",
+   "beam": "pi_461.fc.L1",
+   "distance_mm": 70.0,
+   "out_direction_deg": 90.0
+  },
+  {
+   "id": "pi_461.fc.M2",
+   "type": "mirror",
+   "label": "Steering mirror 2",
+   "group": "pi_461",
+   "part_number": "BB05-E03",
+   "beam": "pi_461.fc.L1",
+   "distance_mm": 90.0,
+   "out_direction_deg": 180.0
+  },
+  {
+   "id": "pi_461.fc.IR1",
+   "type": "iris",
+   "label": "Alignment iris",
+   "group": "pi_461",
+   "part_number": "ID12",
+   "beam": "pi_461.fc.L1",
+   "distance_mm": 100.0,
+   "aperture_mm": 4.0
+  },
+  {
+   "id": "pi_461.fc.FC1",
+   "type": "fiber_coupler",
+   "label": "Fiberport (PM780-HP)",
+   "group": "pi_461",
+   "part_number": "PAF2-A4A",
+   "beam": "pi_461.fc.L1",
+   "distance_mm": 100.0,
+   "focal_length_mm": 4.6,
+   "fiber_mfd_um": 3.13
+  },
+  {
+   "id": "repump_1092.sw.S1",
+   "type": "sampler",
+   "label": "5% pickoff",
+   "group": "repump_1092",
+   "part_number": "BSF05-B",
+   "beam": "repump_1092.sw.L1",
+   "distance_mm": 20.0,
+   "out_direction_deg": 90.0,
+   "split_ratio": 0.05
+  },
+  {
+   "id": "repump_1092.sw.PD1",
+   "type": "photodiode",
+   "label": "Intensity monitor",
+   "group": "repump_1092",
+   "part_number": "PDA36A2",
+   "beam": "repump_1092.sw.L1.r",
+   "distance_mm": 35.0
+  },
+  {
+   "id": "repump_1092.sw.LENS1",
+   "type": "lens",
+   "label": "Focusing lens f=100 mm",
+   "group": "repump_1092",
+   "part_number": "AC127-100-B",
+   "beam": "repump_1092.sw.L1.t",
+   "distance_mm": 20.0,
+   "focal_length_mm": 100.0
+  },
+  {
+   "id": "repump_1092.sw.AOM1",
+   "type": "aom",
+   "label": "200 MHz AOM",
+   "group": "repump_1092",
+   "part_number": "MT200-A0.5-800",
+   "beam": "repump_1092.sw.L1.t",
+   "distance_mm": 100.0,
+   "aperture_mm": 0.5,
+   "aom_frequency_mhz": 142.93,
+   "aom_efficiency": 0.8,
+   "aom_order": 1
+  },
+  {
+   "id": "repump_1092.sw.BD1",
+   "type": "beam_dump",
+   "label": "0th-order dump",
+   "group": "repump_1092",
+   "part_number": "LB1",
+   "beam": "repump_1092.sw.L1.t.0",
+   "distance_mm": 230.0
+  },
+  {
+   "id": "repump_1092.sw.LENS2",
+   "type": "lens",
+   "label": "Recollimating lens f=250 mm",
+   "group": "repump_1092",
+   "part_number": "AC254-250-B",
+   "beam": "repump_1092.sw.L1.t.+1",
+   "distance_mm": 250.0,
+   "aperture_mm": 25.4,
+   "focal_length_mm": 250.0
+  },
+  {
+   "id": "repump_1092.sw.M1",
+   "type": "mirror",
+   "label": "+1 order pickoff mirror",
+   "group": "repump_1092",
+   "part_number": "BB05-E03",
+   "beam": "repump_1092.sw.L1.t.+1",
+   "distance_mm": 32.0,
+   "out_direction_deg": 90.0
+  },
+  {
+   "id": "repump_1092.sw.M2",
+   "type": "mirror",
+   "label": "Fiber steering mirror",
+   "group": "repump_1092",
+   "part_number": "BB05-E03",
+   "beam": "repump_1092.sw.L1.t.+1",
+   "distance_mm": 79.528,
+   "out_direction_deg": 180.0
+  },
+  {
+   "id": "repump_1092.sw.IR1",
+   "type": "iris",
+   "label": "Alignment iris",
+   "group": "repump_1092",
+   "part_number": "ID12",
+   "beam": "repump_1092.sw.L1.t.+1",
+   "distance_mm": 60.0,
+   "aperture_mm": 6.0
+  },
+  {
+   "id": "repump_1092.sw.FC1",
+   "type": "fiber_coupler",
+   "label": "Output fiber coupler (PM780-HP)",
+   "group": "repump_1092",
+   "part_number": "PAF2-11B",
+   "beam": "repump_1092.sw.L1.t.+1",
+   "distance_mm": 150.0,
+   "focal_length_mm": 11.0,
+   "fiber_mfd_um": 7.42
+  },
+  {
+   "id": "quench_1033.sw.S1",
+   "type": "sampler",
+   "label": "5% pickoff",
+   "group": "quench_1033",
+   "part_number": "BSF05-B",
+   "beam": "quench_1033.sw.L1",
+   "distance_mm": 20.0,
+   "out_direction_deg": 90.0,
+   "split_ratio": 0.05
+  },
+  {
+   "id": "quench_1033.sw.PD1",
+   "type": "photodiode",
+   "label": "Intensity monitor",
+   "group": "quench_1033",
+   "part_number": "PDA36A2",
+   "beam": "quench_1033.sw.L1.r",
+   "distance_mm": 35.0
+  },
+  {
+   "id": "quench_1033.sw.LENS1",
+   "type": "lens",
+   "label": "Focusing lens f=100 mm",
+   "group": "quench_1033",
+   "part_number": "AC127-100-B",
+   "beam": "quench_1033.sw.L1.t",
+   "distance_mm": 20.0,
+   "focal_length_mm": 100.0
+  },
+  {
+   "id": "quench_1033.sw.AOM1",
+   "type": "aom",
+   "label": "200 MHz AOM",
+   "group": "quench_1033",
+   "part_number": "MT200-A0.5-800",
+   "beam": "quench_1033.sw.L1.t",
+   "distance_mm": 100.0,
+   "aperture_mm": 0.5,
+   "aom_frequency_mhz": 151.06,
+   "aom_efficiency": 0.8,
+   "aom_order": 1
+  },
+  {
+   "id": "quench_1033.sw.BD1",
+   "type": "beam_dump",
+   "label": "0th-order dump",
+   "group": "quench_1033",
+   "part_number": "LB1",
+   "beam": "quench_1033.sw.L1.t.0",
+   "distance_mm": 230.0
+  },
+  {
+   "id": "quench_1033.sw.LENS2",
+   "type": "lens",
+   "label": "Recollimating lens f=250 mm",
+   "group": "quench_1033",
+   "part_number": "AC254-250-B",
+   "beam": "quench_1033.sw.L1.t.+1",
+   "distance_mm": 250.0,
+   "aperture_mm": 25.4,
+   "focal_length_mm": 250.0
+  },
+  {
+   "id": "quench_1033.sw.M1",
+   "type": "mirror",
+   "label": "+1 order pickoff mirror",
+   "group": "quench_1033",
+   "part_number": "BB05-E03",
+   "beam": "quench_1033.sw.L1.t.+1",
+   "distance_mm": 32.0,
+   "out_direction_deg": 90.0
+  },
+  {
+   "id": "quench_1033.sw.M2",
+   "type": "mirror",
+   "label": "Fiber steering mirror",
+   "group": "quench_1033",
+   "part_number": "BB05-E03",
+   "beam": "quench_1033.sw.L1.t.+1",
+   "distance_mm": 79.528,
+   "out_direction_deg": 180.0
+  },
+  {
+   "id": "quench_1033.sw.IR1",
+   "type": "iris",
+   "label": "Alignment iris",
+   "group": "quench_1033",
+   "part_number": "ID12",
+   "beam": "quench_1033.sw.L1.t.+1",
+   "distance_mm": 60.0,
+   "aperture_mm": 6.0
+  },
+  {
+   "id": "quench_1033.sw.FC1",
+   "type": "fiber_coupler",
+   "label": "Output fiber coupler (PM780-HP)",
+   "group": "quench_1033",
+   "part_number": "PAF2-11B",
+   "beam": "quench_1033.sw.L1.t.+1",
+   "distance_mm": 150.0,
+   "focal_length_mm": 11.0,
+   "fiber_mfd_um": 7.02
+  },
+  {
+   "id": "spam_674.dp.HWP1",
+   "type": "half_wave_plate",
+   "label": "Input λ/2 (rotate to H)",
+   "group": "spam_674",
+   "part_number": "WPH05M-780",
+   "beam": "spam_674.dp.L1",
+   "distance_mm": 25.0,
+   "fast_axis_deg": 10.0
+  },
+  {
+   "id": "spam_674.dp.PBS1",
+   "type": "pbs",
+   "label": "Polarizing beamsplitter cube",
+   "group": "spam_674",
+   "part_number": "PBS052",
+   "beam": "spam_674.dp.L1",
+   "distance_mm": 25.0,
+   "out_direction_deg": -90.0
+  },
+  {
+   "id": "spam_674.dp.BD1",
+   "type": "beam_dump",
+   "label": "Dump for rejected V light",
+   "group": "spam_674",
+   "part_number": "LB1",
+   "beam": "spam_674.dp.L1.r",
+   "distance_mm": 25.0
+  },
+  {
+   "id": "spam_674.dp.AOM1",
+   "type": "aom",
+   "label": "80 MHz AOM",
+   "group": "spam_674",
+   "part_number": "Isomet 1205C-2",
+   "beam": "spam_674.dp.L1.t",
+   "distance_mm": 50.0,
+   "aperture_mm": 2.0,
+   "aom_frequency_mhz": 92.61,
+   "aom_efficiency": 0.8,
+   "aom_order": 1
+  },
+  {
+   "id": "spam_674.dp.LENS1",
+   "type": "lens",
+   "label": "Cat-eye lens f=75 mm",
+   "group": "spam_674",
+   "part_number": "AC127-075-B",
+   "beam": "spam_674.dp.L1.t.+1",
+   "distance_mm": 75.0,
+   "focal_length_mm": 75.0
+  },
+  {
+   "id": "spam_674.dp.QWP1",
+   "type": "quarter_wave_plate",
+   "label": "λ/4 at 45° (double pass → λ/2)",
+   "group": "spam_674",
+   "part_number": "WPQ05M-780",
+   "beam": "spam_674.dp.L1.t.+1",
+   "distance_mm": 50.0,
+   "fast_axis_deg": 45.0
+  },
+  {
+   "id": "spam_674.dp.BD2",
+   "type": "beam_dump",
+   "label": "0th-order razor block (cat-eye)",
+   "group": "spam_674",
+   "part_number": "LB1",
+   "at": [
+    275.006,
+    779.171
+   ],
+   "angle_deg": 0.8513,
+   "aperture_mm": 1.0
+  },
+  {
+   "id": "spam_674.dp.M1",
+   "type": "mirror",
+   "label": "Cat-eye retro mirror (focal plane)",
+   "group": "spam_674",
+   "part_number": "BB05-E03",
+   "beam": "spam_674.dp.L1.t.+1",
+   "distance_mm": 25.0,
+   "out_direction_deg": 180.8513
+  },
+  {
+   "id": "spam_674.dp.M2",
+   "type": "mirror",
+   "label": "Output fold mirror",
+   "group": "spam_674",
+   "part_number": "BB05-E03",
+   "beam": "spam_674.dp.L1.t.+1.+1.r",
+   "distance_mm": 75.0,
+   "out_direction_deg": 0.0
+  },
+  {
+   "id": "spam_674.dp.BD3",
+   "type": "beam_dump",
+   "label": "Return 0th-order ghost block (razor edge)",
+   "group": "spam_674",
+   "part_number": "LB1",
+   "beam": "spam_674.dp.L1.t.+1.0.r",
+   "distance_mm": 45.0,
+   "aperture_mm": 1.5
+  },
+  {
+   "id": "spam_674.dp.FC1",
+   "type": "fiber_coupler",
+   "label": "Output fiber coupler (PM780-HP)",
+   "group": "spam_674",
+   "part_number": "PAF2-A4A",
+   "beam": "spam_674.dp.L1.t.+1.+1.r",
+   "distance_mm": 215.0,
+   "focal_length_mm": 4.6,
+   "fiber_mfd_um": 4.58
+  },
+  {
+   "id": "spam_674.dist.S1",
+   "type": "sampler",
+   "label": "5% pickoff",
+   "group": "spam_674",
+   "part_number": "BSF05-A",
+   "beam": "spam_674.dist.L1",
+   "distance_mm": 35.0,
+   "out_direction_deg": 270.0,
+   "split_ratio": 0.05
+  },
+  {
+   "id": "spam_674.dist.PD1",
+   "type": "photodiode",
+   "label": "Power monitor",
+   "group": "spam_674",
+   "part_number": "PDA36A2",
+   "beam": "spam_674.dist.L1.r",
+   "distance_mm": 45.0
+  },
+  {
+   "id": "spam_674.dist.HWP1",
+   "type": "half_wave_plate",
+   "label": "lambda/2 tap 1",
+   "group": "spam_674",
+   "part_number": "WPH05M",
+   "beam": "spam_674.dist.L1.t",
+   "distance_mm": 40.0,
+   "fast_axis_deg": 15.0
+  },
+  {
+   "id": "spam_674.dist.PBS1",
+   "type": "pbs",
+   "label": "Tap 1 PBS",
+   "group": "spam_674",
+   "part_number": "PBS101",
+   "beam": "spam_674.dist.L1.t",
+   "distance_mm": 30.0,
+   "out_direction_deg": 270.0
+  },
+  {
+   "id": "spam_674.dist.M1a",
+   "type": "mirror",
+   "label": "Tap 1 steering 1",
+   "group": "spam_674",
+   "part_number": "BB05-E02",
+   "beam": "spam_674.dist.L1.t.r",
+   "distance_mm": 45.0,
+   "out_direction_deg": 0.0
+  },
+  {
+   "id": "spam_674.dist.M1b",
+   "type": "mirror",
+   "label": "Tap 1 steering 2",
+   "group": "spam_674",
+   "part_number": "BB05-E02",
+   "beam": "spam_674.dist.L1.t.r",
+   "distance_mm": 40.0,
+   "out_direction_deg": 270.0
+  },
+  {
+   "id": "spam_674.dist.FC1",
+   "type": "fiber_coupler",
+   "label": "Output fiber 1",
+   "group": "spam_674",
+   "part_number": "PAF2-A4A",
+   "beam": "spam_674.dist.L1.t.r",
+   "distance_mm": 50.0,
+   "focal_length_mm": 4.6,
+   "fiber_mfd_um": 4.59
+  },
+  {
+   "id": "spam_674.dist.HWP2",
+   "type": "half_wave_plate",
+   "label": "lambda/2 tap 2",
+   "group": "spam_674",
+   "part_number": "WPH05M",
+   "beam": "spam_674.dist.L1.t.t",
+   "distance_mm": 80.0,
+   "fast_axis_deg": 17.632
+  },
+  {
+   "id": "spam_674.dist.PBS2",
+   "type": "pbs",
+   "label": "Tap 2 PBS",
+   "group": "spam_674",
+   "part_number": "PBS101",
+   "beam": "spam_674.dist.L1.t.t",
+   "distance_mm": 30.0,
+   "out_direction_deg": 270.0
+  },
+  {
+   "id": "spam_674.dist.M2a",
+   "type": "mirror",
+   "label": "Tap 2 steering 1",
+   "group": "spam_674",
+   "part_number": "BB05-E02",
+   "beam": "spam_674.dist.L1.t.t.r",
+   "distance_mm": 45.0,
+   "out_direction_deg": 0.0
+  },
+  {
+   "id": "spam_674.dist.M2b",
+   "type": "mirror",
+   "label": "Tap 2 steering 2",
+   "group": "spam_674",
+   "part_number": "BB05-E02",
+   "beam": "spam_674.dist.L1.t.t.r",
+   "distance_mm": 40.0,
+   "out_direction_deg": 270.0
+  },
+  {
+   "id": "spam_674.dist.FC2",
+   "type": "fiber_coupler",
+   "label": "Output fiber 2",
+   "group": "spam_674",
+   "part_number": "PAF2-A4A",
+   "beam": "spam_674.dist.L1.t.t.r",
+   "distance_mm": 50.0,
+   "focal_length_mm": 4.6,
+   "fiber_mfd_um": 4.59
+  },
+  {
+   "id": "spam_674.dist.HWP3",
+   "type": "half_wave_plate",
+   "label": "lambda/2 tap 3",
+   "group": "spam_674",
+   "part_number": "WPH05M",
+   "beam": "spam_674.dist.L1.t.t.t",
+   "distance_mm": 80.0,
+   "fast_axis_deg": 22.5
+  },
+  {
+   "id": "spam_674.dist.PBS3",
+   "type": "pbs",
+   "label": "Tap 3 PBS",
+   "group": "spam_674",
+   "part_number": "PBS101",
+   "beam": "spam_674.dist.L1.t.t.t",
+   "distance_mm": 30.0,
+   "out_direction_deg": 270.0
+  },
+  {
+   "id": "spam_674.dist.M3a",
+   "type": "mirror",
+   "label": "Tap 3 steering 1",
+   "group": "spam_674",
+   "part_number": "BB05-E02",
+   "beam": "spam_674.dist.L1.t.t.t.r",
+   "distance_mm": 45.0,
+   "out_direction_deg": 0.0
+  },
+  {
+   "id": "spam_674.dist.M3b",
+   "type": "mirror",
+   "label": "Tap 3 steering 2",
+   "group": "spam_674",
+   "part_number": "BB05-E02",
+   "beam": "spam_674.dist.L1.t.t.t.r",
+   "distance_mm": 40.0,
+   "out_direction_deg": 270.0
+  },
+  {
+   "id": "spam_674.dist.FC3",
+   "type": "fiber_coupler",
+   "label": "Output fiber 3",
+   "group": "spam_674",
+   "part_number": "PAF2-A4A",
+   "beam": "spam_674.dist.L1.t.t.t.r",
+   "distance_mm": 50.0,
+   "focal_length_mm": 4.6,
+   "fiber_mfd_um": 4.59
+  },
+  {
+   "id": "spam_674.dist.MZa",
+   "type": "mirror",
+   "label": "Last output steering 1",
+   "group": "spam_674",
+   "part_number": "BB05-E02",
+   "beam": "spam_674.dist.L1.t.t.t.t",
+   "distance_mm": 90.0,
+   "out_direction_deg": 270.0
+  },
+  {
+   "id": "spam_674.dist.MZb",
+   "type": "mirror",
+   "label": "Last output steering 2",
+   "group": "spam_674",
+   "part_number": "BB05-E02",
+   "beam": "spam_674.dist.L1.t.t.t.t",
+   "distance_mm": 45.0,
+   "out_direction_deg": 0.0
+  },
+  {
+   "id": "spam_674.dist.FC4",
+   "type": "fiber_coupler",
+   "label": "Output fiber 4",
+   "group": "spam_674",
+   "part_number": "PAF2-A4A",
+   "beam": "spam_674.dist.L1.t.t.t.t",
+   "distance_mm": 45.0,
+   "focal_length_mm": 4.6,
+   "fiber_mfd_um": 4.59
+  }
+ ],
+ "targets": [
+  {
+   "element_id": "cooling_422.dp.FC1",
+   "kind": "min_power_mw",
+   "value": 8.0
+  },
+  {
+   "element_id": "cooling_422.dp.FC1",
+   "kind": "min_coupling",
+   "value": 0.8
+  },
+  {
+   "element_id": "cooling_422.dp.FC1",
+   "kind": "polarization",
+   "value": "V"
+  },
+  {
+   "element_id": "cooling_422.dist.FC1",
+   "kind": "min_power_mw",
+   "value": 8.87
+  },
+  {
+   "element_id": "cooling_422.dist.FC2",
+   "kind": "min_power_mw",
+   "value": 8.87
+  },
+  {
+   "element_id": "cooling_422.dist.FC3",
+   "kind": "min_power_mw",
+   "value": 8.87
+  },
+  {
+   "element_id": "pi_405.fc.FC1",
+   "kind": "min_coupling",
+   "value": 0.8
+  },
+  {
+   "element_id": "pi_405.fc.FC1",
+   "kind": "min_power_mw",
+   "value": 8.0
+  },
+  {
+   "element_id": "raman_422.arm1.PD1",
+   "kind": "min_power_mw",
+   "value": 1.0
+  },
+  {
+   "element_id": "raman_422.arm1.FC1",
+   "kind": "min_power_mw",
+   "value": 15.0
+  },
+  {
+   "element_id": "raman_422.arm1.FC1",
+   "kind": "min_coupling",
+   "value": 0.8
+  },
+  {
+   "element_id": "raman_422.arm2.PD1",
+   "kind": "min_power_mw",
+   "value": 1.0
+  },
+  {
+   "element_id": "raman_422.arm2.FC1",
+   "kind": "min_power_mw",
+   "value": 15.0
+  },
+  {
+   "element_id": "raman_422.arm2.FC1",
+   "kind": "min_coupling",
+   "value": 0.8
+  },
+  {
+   "element_id": "pi_461.sas.PD1",
+   "kind": "min_power_mw",
+   "value": 0.1
+  },
+  {
+   "element_id": "pi_461.sas.FC1",
+   "kind": "min_power_mw",
+   "value": 10.0
+  },
+  {
+   "element_id": "pi_461.fc.FC1",
+   "kind": "min_coupling",
+   "value": 0.8
+  },
+  {
+   "element_id": "pi_461.fc.FC1",
+   "kind": "min_power_mw",
+   "value": 8.0
+  },
+  {
+   "element_id": "repump_1092.sw.PD1",
+   "kind": "min_power_mw",
+   "value": 1.0
+  },
+  {
+   "element_id": "repump_1092.sw.FC1",
+   "kind": "min_power_mw",
+   "value": 15.0
+  },
+  {
+   "element_id": "repump_1092.sw.FC1",
+   "kind": "min_coupling",
+   "value": 0.8
+  },
+  {
+   "element_id": "quench_1033.sw.PD1",
+   "kind": "min_power_mw",
+   "value": 1.0
+  },
+  {
+   "element_id": "quench_1033.sw.FC1",
+   "kind": "min_power_mw",
+   "value": 15.0
+  },
+  {
+   "element_id": "quench_1033.sw.FC1",
+   "kind": "min_coupling",
+   "value": 0.8
+  },
+  {
+   "element_id": "spam_674.dp.FC1",
+   "kind": "min_power_mw",
+   "value": 8.0
+  },
+  {
+   "element_id": "spam_674.dp.FC1",
+   "kind": "min_coupling",
+   "value": 0.8
+  },
+  {
+   "element_id": "spam_674.dp.FC1",
+   "kind": "polarization",
+   "value": "V"
+  },
+  {
+   "element_id": "spam_674.dist.FC1",
+   "kind": "min_power_mw",
+   "value": 6.65
+  },
+  {
+   "element_id": "spam_674.dist.FC2",
+   "kind": "min_power_mw",
+   "value": 6.65
+  },
+  {
+   "element_id": "spam_674.dist.FC3",
+   "kind": "min_power_mw",
+   "value": 6.65
+  },
+  {
+   "element_id": "spam_674.dist.FC4",
+   "kind": "min_power_mw",
+   "value": 6.65
+  }
+ ],
+ "notes": ""
+}
