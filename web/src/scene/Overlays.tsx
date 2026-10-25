@@ -195,44 +195,68 @@ export function FigureThumb() {
 }
 
 const LOGIC_RE = /(logic|nand|adder|all-optical)/i;
+const WAVEPLATES = new Set(["half_wave_plate", "quarter_wave_plate"]);
 
-/** Logic I/O strip for optical-calculator designs: sources as input switches, photodiodes as output lamps. */
+/** Logic I/O strip for optical-calculator designs: inputs (sources or waveplates) as switches, detectors as lamps. */
 export function LogicStrip() {
   const design = useStore((s) => s.design);
   const trace = useStore((s) => s.trace);
   const updateSource = useStore((s) => s.updateSource);
+  const updateElement = useStore((s) => s.updateElement);
   const select = useStore((s) => s.select);
-  if (!design || !LOGIC_RE.test(`${design.name} ${design.description ?? ""}`)) return null;
+  if (!design) return null;
+  const spec = design.logic ?? null;
+  if (!spec && !LOGIC_RE.test(`${design.name} ${design.description ?? ""}`)) return null;
+  const els = design.elements ?? [];
+  const findSrc = (k: string) => design.sources.find((s) => s.id === k) ?? design.sources.find((s) => s.label === k);
+  const findEl = (k: string) => els.find((e) => e.id === k) ?? els.find((e) => e.label === k);
+
+  type In = { key: string; name: string; on: boolean; toggle: () => void };
+  const inputs: In[] = (spec ? spec.inputs : design.sources.map((s) => s.id)).flatMap((k): In[] => {
+    const s = findSrc(k);
+    if (s) {
+      const on = s.enabled !== false;
+      return [{ key: s.id, name: spec ? k : s.label || s.id, on, toggle: () => updateSource(s.id, { enabled: !on }) }];
+    }
+    const e = findEl(k);
+    if (e && WAVEPLATES.has(e.type)) {
+      const on = Math.abs((e.fast_axis_deg ?? 0) - 45) < 1;
+      return [{ key: e.id, name: k, on, toggle: () => updateElement(e.id, { fast_axis_deg: on ? 0 : 45 }) }];
+    }
+    return [];
+  });
   const maxP = Math.max(1e-9, ...design.sources.map((s) => s.power_mw ?? 10));
-  const labelOf = new Map((design.elements ?? []).map((e) => [e.id, e.label || e.id]));
-  const outs = (trace?.elements ?? []).filter((e) => e.type === "photodiode");
+  const threshold = spec ? spec.threshold_mw : 0.2 * maxP;
+  const peById = new Map((trace?.elements ?? []).map((p) => [p.id, p]));
+  const outIds = spec
+    ? spec.outputs.map((k) => ({ name: k, id: findEl(k)?.id ?? k }))
+    : (trace?.elements ?? []).filter((e) => e.type === "photodiode").map((e) => ({ name: els.find((x) => x.id === e.id)?.label || e.id, id: e.id }));
+  const outs = outIds.map((o) => {
+    const p = peById.get(o.id)?.power_out_mw ?? 0;
+    return { ...o, p, lit: p > threshold };
+  });
+  const truth = `${inputs.map((i) => `${i.name}=${i.on ? 1 : 0}`).join(" ")} → ${outs.map((o) => `${o.name}=${o.lit ? 1 : 0}`).join(" ")}`;
   return (
     <div className="logic-strip panel-float" role="group" aria-label="Logic inputs and outputs">
       <span className="ls-title">In</span>
-      {design.sources.map((s) => {
-        const on = s.enabled !== false;
-        return (
-          <button key={s.id} className={`ls-in${on ? " on" : ""}`} role="switch" aria-checked={on} onClick={() => updateSource(s.id, { enabled: !on })} title={`${s.id}: click to switch ${on ? "off" : "on"}`}>
-            <span className="ls-name">{s.label || s.id}</span>
-            <span className="ls-bit mono">{on ? 1 : 0}</span>
-          </button>
-        );
-      })}
+      {inputs.map((i) => (
+        <button key={i.key} className={`ls-in${i.on ? " on" : ""}`} role="switch" aria-checked={i.on} onClick={i.toggle} title={`${i.key}: click to switch ${i.on ? "off" : "on"}`}>
+          <span className="ls-name">{i.name}</span>
+          <span className="ls-bit mono">{i.on ? 1 : 0}</span>
+        </button>
+      ))}
       <span className="ls-sep" />
       <span className="ls-title">Out</span>
-      {outs.map((o) => {
-        const p = o.power_out_mw ?? 0;
-        const lit = p > 0.2 * maxP;
-        return (
-          <button key={o.id} className={`ls-out${lit ? " lit" : ""}`} onClick={() => select({ kind: "element", id: o.id })} title={`${o.id}: ${p.toFixed(2)} mW (threshold ${(0.2 * maxP).toFixed(2)} mW)`}>
-            <span className="lamp" />
-            <span className="ls-name">{labelOf.get(o.id) ?? o.id}</span>
-            <span className="ls-bit mono">{lit ? 1 : 0}</span>
-            <span className="mono muted ls-mw">{mW(p)}</span>
-          </button>
-        );
-      })}
+      {outs.map((o) => (
+        <button key={o.id} className={`ls-out${o.lit ? " lit" : ""}`} onClick={() => select({ kind: "element", id: o.id })} title={`${o.id}: ${o.p.toFixed(3)} mW (threshold ${threshold.toFixed(3)} mW)`}>
+          <span className="lamp" />
+          <span className="ls-name">{o.name}</span>
+          <span className="ls-bit mono">{o.lit ? 1 : 0}</span>
+          <span className="mono muted ls-mw">{mW(o.p)}</span>
+        </button>
+      ))}
       {outs.length === 0 && <span className="muted">no detectors</span>}
+      <span className="ls-truth mono" title={`threshold ${mW(threshold)}`}>{truth}</span>
     </div>
   );
 }

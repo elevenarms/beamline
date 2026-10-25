@@ -105,10 +105,17 @@ export interface Module {
   description?: string;
 }
 
+export interface LogicSpec {
+  inputs: string[];
+  outputs: string[];
+  threshold_mw: number;
+}
+
 export interface Design {
   name: string;
   description?: string;
   modules?: Module[];
+  logic?: LogicSpec | null;
   baseplate?: Baseplate;
   sources: Source[];
   elements?: Element[];

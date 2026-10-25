@@ -1,14 +1,14 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot, Boxes, Building2, ChevronLeft, ChevronRight, ClipboardList, Copy, GitCompare, Merge, Pause, PencilRuler, Play, ScanEye,
-  Search, ShieldCheck, Sparkles, Wrench, X,
+  Search, ShieldCheck, Sparkles, Wand2, Wrench, X,
 } from "lucide-react";
 import { useConsole, rowsAsText, type AgentInfo, type LogKind, type LogRow } from "../consoleStore";
 import { changeText } from "../lib/diff";
 
 const ROLE_ICON: Record<string, typeof Bot> = {
   planner: ClipboardList, designer: PencilRuler, verifier: ShieldCheck, repair: Wrench, vision: ScanEye, merge: Merge,
-  synth: Sparkles, architect: Building2, module: Boxes, matcher: GitCompare,
+  synth: Sparkles, architect: Building2, module: Boxes, matcher: GitCompare, autofix: Wand2,
 };
 const KINDS: LogKind[] = ["agent", "llm", "thought", "tool", "iteration", "status", "error"];
 const DOM_CAP = 500;
@@ -49,7 +49,7 @@ function Scrubber() {
         {its.map((it, i) => (
           <button
             key={i}
-            className={`it-node${i === current ? " cur" : ""}${it.report.passed ? " pass" : " fail"}`}
+            className={`it-node${i === current ? " cur" : ""}${it.report.passed ? " pass" : " fail"}${/autofix/i.test(it.label) ? " autofix" : ""}`}
             onPointerDown={(e) => { dragging.current = true; (e.target as HTMLElement).releasePointerCapture?.(e.pointerId); showIteration(i, true); }}
             onPointerEnter={() => { if (dragging.current && current !== i) showIteration(i, false); }}
             title={`#${it.seq} ${it.label} · score ${it.report.score.toFixed(0)} · ${it.report.passed ? "PASS" : "FAIL"} · ${it.diff.length} changes`}
@@ -130,6 +130,7 @@ const Row = memo(function Row({ r }: { r: LogRow }) {
     <div className={`lrow ${r.kind}${r.iter != null && r.iter === current ? " cur" : ""}`}>
       <span className="lt">{time}</span><span className="la">{r.agent ?? "run"}</span><span className="lk">{r.kind}</span>
       <span className="lm">
+        {/^autofix/.test(r.text) || / autofix /.test(r.text) ? <Wand2 size={12} className="tool-ic" aria-label="autofix" /> : null}
         {r.text}
         {r.iter != null && <button className="btn small view-btn" onClick={() => show(r.iter!, true)}>view</button>}
         {r.changes && r.changes.length > 0 && (
