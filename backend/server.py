@@ -27,6 +27,9 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 from agents.cover import router as cover_router  # noqa: E402  (Nano Banana cover renders)
 
 app.include_router(cover_router)
+from agents.paper_pdf import router as paper_pdf_router  # noqa: E402  (arXiv PDF proxy)
+
+app.include_router(paper_pdf_router)
 
 
 class DesignBody(BaseModel):
