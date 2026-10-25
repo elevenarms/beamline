@@ -16,6 +16,7 @@
     "@react-three/fiber": "9.8.2",
     "camera-controls": "3.1.2",
     "lucide-react": "1.61.0",
+    "mujoco-js": "^0.0.7",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "three": "0.186.1",
