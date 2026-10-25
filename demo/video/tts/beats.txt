@@ -1,4 +1,4 @@
-b1|Laying out a laser-optics bench by hand takes weeks. Beamline does it in minutes.
+b1|Laying out a laser-optics bench by hand takes weeks. BEAMTEAM does it in minutes.
 b2|Search arXiv for optical tweezers, pick a real setup figure, and press build.
 b3|Three Gemini vision agents read the figure in parallel, while synthesizer, verifier and repair agents stream their reasoning live.
 b4|Every design is checked with real physics: Gaussian beams, polarization, and stray-beam laser safety.
@@ -6,4 +6,4 @@ b5|Then the parts fly off the drawing onto the bench, and the lasers switch on.
 b6|The bench starts misaligned, and the tuner walks each mirror until the power meter climbs back.
 b7|You get a cover render and a build document, with a bill of materials and a printable, keyed baseplate.
 b8|And it scales: a trapped-ion apparatus with a hundred twenty-one optics, traced in milliseconds.
-b9|Beamline. From paper to buildable bench in under three minutes.
+b9|BEAMTEAM. From paper to buildable bench in under three minutes.
