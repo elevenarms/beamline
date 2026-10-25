@@ -9,7 +9,7 @@ rendered, and exported as a build kit (bill of materials, printable keyed basepl
 
 Built in one day at a hackathon (2026-10-25). See [Provenance](#provenance-built-today-vs-pre-existing).
 
-**[Project page](https://elevenarms.github.io/beamline/) · [Paper (PDF)](paper/main.pdf) · [60 s demo video](demo/video/beamline_demo_60s.mp4)**
+**[Project page](https://elevenarms.github.io/beamteam/) · [Paper (PDF)](paper/main.pdf) · [60 s demo video](demo/video/beamline_demo_60s.mp4)**
 
 <p align="center">
   <img src="docs/assets/img/shot_flyin_figure.webp" width="49%" alt="A paper figure floats above the 3D optical table while vision agents box its components">

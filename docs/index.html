@@ -32,13 +32,13 @@
     <a class="pill disabled" data-paper href="#abstract" aria-disabled="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>
       Paper (PDF) <small>soon</small></a>
-    <a class="pill" href="https://github.com/elevenarms/beamline">
+    <a class="pill" href="https://github.com/elevenarms/beamteam">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>
       Code</a>
     <a class="pill disabled" data-video href="#teaser" aria-disabled="true">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
       Video <small>soon</small></a>
-    <a class="pill ghost" href="https://github.com/elevenarms/beamline#run-it">
+    <a class="pill ghost" href="https://github.com/elevenarms/beamteam#run-it">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
       Demo (run locally)</a>
   </nav>
@@ -100,7 +100,7 @@
 
 <section id="results">
   <h2>Key results</h2>
-  <p class="lead">Measured on 25 October 2026 on live Gemini calls. Raw runs are in <a href="https://github.com/elevenarms/beamline/tree/main/demo"><code>demo/</code></a>.</p>
+  <p class="lead">Measured on 25 October 2026 on live Gemini calls. Raw runs are in <a href="https://github.com/elevenarms/beamteam/tree/main/demo"><code>demo/</code></a>.</p>
 
   <div class="metrics" role="list">
     <div class="metric" role="listitem"><div class="v">1:37</div><div class="k">paper search → build-document PDF, live, end to end (budget 3:00)</div></div>
@@ -148,7 +148,7 @@
           </tbody>
         </table>
       </div>
-      <p class="caption">Score (0–100) · wall time; green = PASS. <sup>†</sup>Passes verify, but the long-pass filter is modelled as a dichroic that lets the 532 nm line through to the CCD. Source: <a href="https://github.com/elevenarms/beamline/blob/main/demo/figures/RESULTS.md"><code>demo/figures/RESULTS.md</code></a>, which also lists failure patterns and fixes.</p>
+      <p class="caption">Score (0–100) · wall time; green = PASS. <sup>†</sup>Passes verify, but the long-pass filter is modelled as a dichroic that lets the 532 nm line through to the CCD. Source: <a href="https://github.com/elevenarms/beamteam/blob/main/demo/figures/RESULTS.md"><code>demo/figures/RESULTS.md</code></a>, which also lists failure patterns and fixes.</p>
     </div>
   </div>
 
@@ -241,7 +241,7 @@
     <p><b><a href="https://github.com/UMassIonTrappers/PyOpticL">PyOpticL</a></b> (Myers et al., <i>Quantum</i> 2026; UMass Ion Trappers) is the code-to-CAD optics concept and library that BEAMTEAM's exporter targets, and our examples are modelled on its designs. It is referenced, not vendored. Left: PyOpticL paper Fig. 2a (Rb saturated absorption spectroscopy, CC BY 4.0), which we used as a test input. Thank you to the PyOpticL authors. BEAMTEAM would not exist without their work.</p>
   </div>
 
-  <p>The benchmark inputs are open-access published figures, credited below as listed in <a href="https://github.com/elevenarms/beamline/blob/main/demo/figures/catalog.json"><code>demo/figures/catalog.json</code></a>. They keep their original licenses. Figures from other arXiv papers, such as Gieseler et al., arXiv:2004.05246, are fetched live at runtime and are not redistributed.</p>
+  <p>The benchmark inputs are open-access published figures, credited below as listed in <a href="https://github.com/elevenarms/beamteam/blob/main/demo/figures/catalog.json"><code>demo/figures/catalog.json</code></a>. They keep their original licenses. Figures from other arXiv papers, such as Gieseler et al., arXiv:2004.05246, are fetched live at runtime and are not redistributed.</p>
   <div class="table-scroll">
     <table class="catalog">
       <thead><tr><th>Figure</th><th>Source</th><th>License</th></tr></thead>
@@ -262,7 +262,7 @@
 
 <section id="provenance">
   <h2>What was built at the hackathon vs. what existed</h2>
-  <p class="lead">Reproduced from the repository's <a href="https://github.com/elevenarms/beamline#provenance-built-today-vs-pre-existing">Provenance</a> section.</p>
+  <p class="lead">Reproduced from the repository's <a href="https://github.com/elevenarms/beamteam#provenance-built-today-vs-pre-existing">Provenance</a> section.</p>
   <div class="prov">
     <div class="built">
       <span class="tag">Built during the hackathon</span>
@@ -286,7 +286,7 @@
         <li><a href="https://github.com/UMassIonTrappers/PyOpticL"><b>PyOpticL</b></a> (Myers et al., <i>Quantum</i> 2026): the code-to-CAD optics concept and library that our exporter targets and our examples are modelled on. Not vendored; referenced only.</li>
         <li><b>Google Gemini models</b> via API: <code>gemini-4-argon</code> (agents); Nano Banana 2 / 2.1 (<code>gemini-3.1-flash-image</code>, <code>gemini-nano-banana-2.1</code>) for renders; Gemini TTS (demo narration).</li>
         <li><b>Open-source libraries:</b> three.js, React, @react-three/fiber, @react-three/drei, zustand, lucide-react, Vite, TypeScript; FastAPI, Pydantic, NumPy, google-genai, httpx, sse-starlette, uvicorn, manifold3d, trimesh, Pillow; Typst; ffmpeg.</li>
-        <li><b>Published figures used as test inputs:</b> open-access CC BY / CC0 figures with attribution in <a href="https://github.com/elevenarms/beamline/blob/main/demo/figures/catalog.json"><code>demo/figures/catalog.json</code></a>, plus the PyOpticL paper Fig. 2a (CC BY 4.0). Figures from other arXiv papers (e.g. Gieseler et al., arXiv:2004.05246) are fetched live at runtime and not redistributed.</li>
+        <li><b>Published figures used as test inputs:</b> open-access CC BY / CC0 figures with attribution in <a href="https://github.com/elevenarms/beamteam/blob/main/demo/figures/catalog.json"><code>demo/figures/catalog.json</code></a>, plus the PyOpticL paper Fig. 2a (CC BY 4.0). Figures from other arXiv papers (e.g. Gieseler et al., arXiv:2004.05246) are fetched live at runtime and not redistributed.</li>
       </ul>
     </div>
   </div>
@@ -301,7 +301,7 @@
                   Verified Laser-Optics Bench},
   author       = {{BEAMTEAM}},
   year         = {2026},
-  howpublished = {\url{https://github.com/elevenarms/beamline}},
+  howpublished = {\url{https://github.com/elevenarms/beamteam}},
   note         = {Hackathon project}
 }</pre>
   </div>
@@ -321,7 +321,7 @@
 
 <footer>
   <div class="wrap">
-    <p>BEAMTEAM &middot; MIT-licensed code: <a href="https://github.com/elevenarms/beamline">github.com/elevenarms/beamline</a>. Third-party figures keep their original licenses.</p>
+    <p>BEAMTEAM &middot; MIT-licensed code: <a href="https://github.com/elevenarms/beamteam">github.com/elevenarms/beamteam</a>. Third-party figures keep their original licenses.</p>
     <p>Prices in generated BOMs are estimates. This is not a substitute for a laser-safety review.</p>
     <p>Page layout inspired by classic academic project pages.</p>
   </div>

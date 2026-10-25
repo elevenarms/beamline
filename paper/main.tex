@@ -172,7 +172,7 @@ Component & Role \\
 
 \subsection{Provenance and hackathon scope}
 \label{sec:provenance}
-Everything in Table~\ref{tab:provenance} labelled ``built today'' was written on 25 October 2026 during the hackathon. The git history of the \code{beamline} repository starts at 11:23 PDT that day (commit \code{4817b5d}, ``Contract: design IR, trace/report schemas, API spec'') and comprised 48 commits at the time of writing. The code was written by an AI coding assistant (Claude Code) and multiple sub-agents running during the event under the team's direction; the team set goals, reviewed results, and made design decisions. This paper, its figures and its bibliography were likewise drafted by AI agents during the event under the team's direction.
+Everything in Table~\ref{tab:provenance} labelled ``built today'' was written on 25 October 2026 during the hackathon. The git history of the \code{beamteam} repository (\url{https://github.com/elevenarms/beamteam}; originally named \code{beamline}) starts at 11:23 PDT that day (commit \code{4817b5d}, ``Contract: design IR, trace/report schemas, API spec'') and comprised 48 commits at the time of writing. The code was written by an AI coding assistant (Claude Code) and multiple sub-agents running during the event under the team's direction; the team set goals, reviewed results, and made design decisions. This paper, its figures and its bibliography were likewise drafted by AI agents during the event under the team's direction.
 
 \begin{table}[t]
 \centering\small
@@ -183,7 +183,7 @@ Everything in Table~\ref{tab:provenance} labelled ``built today'' was written on
 \toprule
 Category & Items \\
 \midrule
-Built today, from scratch (\code{beamline} repo, 48 commits from 11:23 PDT) &
+Built today, from scratch (\code{beamteam} repo, 48 commits from 11:23 PDT) &
 Design IR; tracer and verifier incl.\ nonlinear models; autofix; tuner; merge and hierarchical pipeline; all agent pipelines (design, reproduce, hierarchical, paper search, console events, token streaming); PyOpticL exporter; BOM/STL/build-document generation; cover-render integration; web app (three.js viewer, console, fly-in, tuning tour); examples and benchmark set; the evaluation in this paper. \\
 \addlinespace
 Built today, outside the app &
@@ -384,7 +384,7 @@ BEAMTEAM shows that a team of LLM agents, held to account by a fast deterministi
 
 % ---------------------------------------------------------------------------
 \section*{Data and code availability}
-All code is in the \code{beamline} repository: physics in \code{backend/optics/}, agents in \code{backend/agents/}, examples in \code{backend/examples/}, web app in \code{web/}, and the API and event contract in \code{CONTRACT.md}. Measured numbers come from \code{demo/DEMO.md}, \code{demo/figures/RESULTS.md} (raw streams in \code{demo/figures/runs/}), \code{demo/reliability/*.sse}, \code{demo/*.sse}, \code{experiments/argon\_probe/FINDINGS.md} (in the parent hackathon directory), and \code{paper/scripts/*.json}; figure scripts are in \code{paper/scripts/}. End-to-end paper-to-PDF timings are recorded in \code{demo/E2E\_TIMINGS.md}, with the demo video at \code{demo/video/beamline\_demo\_60s.mp4} (script in \code{demo/video/SCRIPT.md}). The project page is \url{https://elevenarms.github.io/beamline/}. Source figures and licenses are listed in \code{demo/figures/catalog.json}; raw arXiv downloads are not redistributed.
+All code is in the \code{beamteam} repository (\url{https://github.com/elevenarms/beamteam}): physics in \code{backend/optics/}, agents in \code{backend/agents/}, examples in \code{backend/examples/}, web app in \code{web/}, and the API and event contract in \code{CONTRACT.md}. Measured numbers come from \code{demo/DEMO.md}, \code{demo/figures/RESULTS.md} (raw streams in \code{demo/figures/runs/}), \code{demo/reliability/*.sse}, \code{demo/*.sse}, \code{experiments/argon\_probe/FINDINGS.md} (in the parent hackathon directory), and \code{paper/scripts/*.json}; figure scripts are in \code{paper/scripts/}. End-to-end paper-to-PDF timings are recorded in \code{demo/E2E\_TIMINGS.md}, with the demo video at \code{demo/video/beamline\_demo\_60s.mp4} (script in \code{demo/video/SCRIPT.md}). The project page is \url{https://elevenarms.github.io/beamteam/}. Source figures and licenses are listed in \code{demo/figures/catalog.json}; raw arXiv downloads are not redistributed.
 
 \section*{Acknowledgments}
 Agents use Google Gemini \code{gemini-4-argon}~\cite{gemini2023}; cover renders use Nano Banana 2 and 2.1. The software, this paper, its figures and its bibliography were produced with AI coding assistance (Claude Code and sub-agents) under the team's direction during the hackathon. We thank the PyOpticL authors~\cite{pyopticl} for the open-source library and concept that inspired this work, and the authors of the openly licensed figures used in our benchmark.

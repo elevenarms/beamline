@@ -33,7 +33,7 @@ Narration: Gemini TTS `gemini-3.1-flash-tts-preview`, voice "Charon". Beats 1 an
 | 39.0–45.8 | main2 168–171 s (build PDF, BEAMTEAM cover) → extras2 BOM → 3D-print baseplate, 1× | You get a cover render and a build document, with a bill of materials and a printable, keyed baseplate. |
 | 45.5–52.8 | extras2 38–45 s, 1× (sr_ion_apparatus, 121 elements) | And it scales: a trapped-ion apparatus with a hundred twenty-one optics, traced in milliseconds. |
 | 52.5–56.8 | extras2 29.3–33.3 s, 1× (Cover art modal, both renders) | BEAMTEAM. From paper to buildable bench in under three minutes. |
-| 56.5–59.9 | End card: github.com/elevenarms/beamline · elevenarms.github.io/beamline · Gemini gemini-4-argon agents · Nano Banana renders; credits line (PyOpticL, Gieseler et al. 2020) | |
+| 56.5–59.9 | End card: github.com/elevenarms/beamteam · elevenarms.github.io/beamteam · Gemini gemini-4-argon agents · Nano Banana renders; credits line (PyOpticL, Gieseler et al. 2020) | |
 
 Notes: the PDF shot comes from live run #1 while the bench shots come from live run #2 of the same figure (both live).
 Status bar shows the 121-element trace at 14 ms in this session (DEMO.md: 6.1 ms), so narration says "milliseconds".
