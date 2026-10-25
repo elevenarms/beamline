@@ -56,6 +56,7 @@ class Baseplate(BaseModel):
 class Source(BaseModel):
     id: str
     label: str = ""
+    group: str | None = None         # subsystem/module this belongs to (e.g. "cooling_422"), for grouping in UI
     part_number: str | None = None
     position: tuple[float, float]
     direction_deg: float
@@ -70,6 +71,7 @@ class Element(BaseModel):
     id: str
     type: ElementType
     label: str = ""
+    group: str | None = None         # subsystem/module this belongs to
     part_number: str | None = None
 
     # Placement: EITHER (beam + distance_mm) OR at.
@@ -111,9 +113,18 @@ class Target(BaseModel):
     value: float | str  # number, or "H"/"V"/... for polarization
 
 
+class Module(BaseModel):
+    """A subsystem occupying a rectangular region of the table (large multi-module designs)."""
+    id: str
+    title: str = ""
+    region: tuple[float, float, float, float]  # x, y, width, height in mm (table frame)
+    description: str = ""
+
+
 class Design(BaseModel):
     name: str
     description: str = ""
+    modules: list[Module] = Field(default_factory=list)  # optional; elements/sources refer via .group
     baseplate: Baseplate = Field(default_factory=Baseplate)
     sources: list[Source]
     elements: list[Element] = Field(default_factory=list)  # placement order matters per branch
