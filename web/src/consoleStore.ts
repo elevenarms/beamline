@@ -176,9 +176,19 @@ export const useConsole = create<ConsoleState>((set, get) => {
         case "candidate":
           push({ agent: null, kind: "candidate", text: `candidate ${ev.index + 1}  score ${ev.report.score.toFixed(0)}  ${ev.report.passed ? "PASS" : "FAIL"}` });
           break;
-        case "final":
-          push({ agent: null, kind: "final", text: `final "${ev.design.name}"  score ${ev.report.score.toFixed(0)}  ${ev.report.passed ? "PASS" : "FAIL"}` });
+        case "final": {
+          // make the final design the last scrubber node (and cancel any pending iteration tween)
+          const its = get().iterations;
+          const same = its.find((x) => x.design.name === ev.design.name && x.report.score === ev.report.score);
+          const fin: Iteration = {
+            seq: (its.at(-1)?.seq ?? 0) + 1, label: "final", agent: "run", design: ev.design, trace: ev.trace, report: ev.report,
+            parentSeq: same?.seq ?? null, diff: same ? diffDesigns(same.design, ev.design) : [], t: now(),
+          };
+          if (!(its.at(-1)?.label === "final" && its.at(-1)?.design.name === ev.design.name)) set({ iterations: [...its, fin] });
+          set({ current: get().iterations.length - 1 });
+          push({ agent: null, kind: "final", text: `final "${ev.design.name}"  score ${ev.report.score.toFixed(0)}  ${ev.report.passed ? "PASS" : "FAIL"}`, iter: get().iterations.length - 1 });
           break;
+        }
         case "error":
           push({ agent: null, kind: "error", text: ev.message });
           break;

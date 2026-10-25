@@ -10,7 +10,7 @@ export default function ComparePane() {
   const select = useStore((s) => s.select);
   const setCompare = useStore((s) => s.setCompare);
   if (!url) return null;
-  const counts = extraction ? Object.entries(extraction).filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, (v as unknown[]).length] as const) : [];
+  const counts = extraction ? Object.entries(extraction).filter(([, v]) => Array.isArray(v) && (v as unknown[]).some((x) => typeof x === "object" && x !== null)).map(([k, v]) => [k, (v as unknown[]).length] as const) : [];
   const ok = match && match.summary.matched === match.summary.in_figure;
   return (
     <div className="fig-pane">

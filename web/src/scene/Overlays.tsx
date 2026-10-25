@@ -212,25 +212,33 @@ export function LogicStrip() {
   const findEl = (k: string) => els.find((e) => e.id === k) ?? els.find((e) => e.label === k);
 
   type In = { key: string; name: string; on: boolean; toggle: () => void };
-  const inputs: In[] = (spec ? spec.inputs : design.sources.map((s) => s.id)).flatMap((k): In[] => {
+  const short = (id: string, label?: string | null) => (label && label.length <= 8 ? label : id);
+  // fallback (no design.logic): input bits are the sources if there are several, plus waveplates labelled as input bits
+  const bitPlates = els.filter((e) => WAVEPLATES.has(e.type) && /\b(input|bit)\b/i.test(e.label ?? "")).map((e) => e.id);
+  const inputKeys = spec ? spec.inputs : [...(design.sources.length > 1 ? design.sources.map((s) => s.id) : []), ...bitPlates];
+  const inputs: In[] = (inputKeys.length ? inputKeys : design.sources.map((s) => s.id)).flatMap((k): In[] => {
     const s = findSrc(k);
     if (s) {
       const on = s.enabled !== false;
-      return [{ key: s.id, name: spec ? k : s.label || s.id, on, toggle: () => updateSource(s.id, { enabled: !on }) }];
+      return [{ key: s.id, name: spec ? k : short(s.id, s.label), on, toggle: () => updateSource(s.id, { enabled: !on }) }];
     }
     const e = findEl(k);
     if (e && WAVEPLATES.has(e.type)) {
       const on = Math.abs((e.fast_axis_deg ?? 0) - 45) < 1;
-      return [{ key: e.id, name: k, on, toggle: () => updateElement(e.id, { fast_axis_deg: on ? 0 : 45 }) }];
+      return [{ key: e.id, name: spec ? k : short(e.id, e.label), on, toggle: () => updateElement(e.id, { fast_axis_deg: on ? 0 : 45 }) }];
     }
     return [];
   });
-  const maxP = Math.max(1e-9, ...design.sources.map((s) => s.power_mw ?? 10));
-  const threshold = spec ? spec.threshold_mw : 0.2 * maxP;
   const peById = new Map((trace?.elements ?? []).map((p) => [p.id, p]));
+  const pds = (trace?.elements ?? []).filter((e) => e.type === "photodiode");
+  const isRef = (id: string) => /\bref/i.test(`${id} ${els.find((x) => x.id === id)?.label ?? ""}`);
+  const refPd = spec ? undefined : pds.find((p) => isRef(p.id));
+  const maxP = Math.max(1e-9, ...design.sources.map((s) => s.power_mw ?? 10));
+  // threshold: spec value, else a reference detector's reading, else 20 % of the largest source
+  const threshold = spec ? spec.threshold_mw : refPd ? (refPd.power_out_mw ?? 0) : 0.2 * maxP;
   const outIds = spec
     ? spec.outputs.map((k) => ({ name: k, id: findEl(k)?.id ?? k }))
-    : (trace?.elements ?? []).filter((e) => e.type === "photodiode").map((e) => ({ name: els.find((x) => x.id === e.id)?.label || e.id, id: e.id }));
+    : pds.filter((p) => p !== refPd).map((e) => ({ name: short(e.id, els.find((x) => x.id === e.id)?.label), id: e.id }));
   const outs = outIds.map((o) => {
     const p = peById.get(o.id)?.power_out_mw ?? 0;
     return { ...o, p, lit: p > threshold };

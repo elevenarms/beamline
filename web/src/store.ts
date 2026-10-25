@@ -281,7 +281,7 @@ api.onMockChange((m) => useStore.setState({ mock: m }));
 
 function summarizeGraph(g: Record<string, unknown>): string {
   const parts: string[] = [];
-  for (const [k, v] of Object.entries(g)) if (Array.isArray(v)) parts.push(`${v.length} ${k}`);
+  for (const [k, v] of Object.entries(g)) if (Array.isArray(v) && v.some((x) => typeof x === "object" && x !== null)) parts.push(`${v.length} ${k}`);
   return parts.join(", ") || "graph received";
 }
 
