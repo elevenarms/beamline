@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bot, Cpu, Play, RotateCcw, Square, Crosshair, Terminal } from "lucide-react";
+import { Bot, Cpu, Play, RotateCcw, Square, Crosshair, Terminal, SlidersHorizontal } from "lucide-react";
 import { useLab } from "../labStore";
 import { useStore } from "../store";
 
@@ -18,6 +18,11 @@ export default function RoboLabPanel() {
   const slots = useLab((s) => s.slots);
   const activeSlotIndex = useLab((s) => s.activeSlotIndex);
   const stageSimMm = useLab((s) => s.stageSimMm);
+  const railRangeMm = useLab((s) => s.railRangeMm);
+  const railCmdXMm = useLab((s) => s.railCmdXMm);
+  const railSimXMm = useLab((s) => s.railSimXMm);
+  const carriageCmdYMm = useLab((s) => s.carriageCmdYMm);
+  const carriageSimYMm = useLab((s) => s.carriageSimYMm);
   const armSimRad = useLab((s) => s.armSimRad);
   const selectedMmsElementId = useLab((s) => s.selectedMmsElementId);
   const mmsPosUm = useLab((s) => s.mmsPosUm);
@@ -28,6 +33,9 @@ export default function RoboLabPanel() {
   const startAutonomousRun = useLab((s) => s.startAutonomousRun);
   const stopRun = useLab((s) => s.stopRun);
   const indexCribSlot = useLab((s) => s.indexCribSlot);
+  const setRailXMm = useLab((s) => s.setRailXMm);
+  const setCarriageYMm = useLab((s) => s.setCarriageYMm);
+  const focusElementWithRobot = useLab((s) => s.focusElementWithRobot);
   const sendGcode = useLab((s) => s.sendGcode);
   const jogMmsUm = useLab((s) => s.jogMmsUm);
   const design = useStore((s) => s.design);
@@ -37,6 +45,7 @@ export default function RoboLabPanel() {
   const [useLlm, setUseLlm] = useState<boolean>(true);
 
   const placedCount = slots.filter((s) => s.state === "placed").length;
+  const maxPlateY = design?.baseplate?.height_mm ?? 150;
 
   return (
     <div className="panel robo-lab-panel" style={{ display: "flex", flexDirection: "column", gap: 12, padding: 12 }}>
@@ -44,7 +53,7 @@ export default function RoboLabPanel() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
           <Bot size={16} />
-          <span>Autonomous Robotics Lab</span>
+          <span>Overhead Gantry Robotics Lab</span>
         </div>
         <span className={`pill${wasmReady ? "" : " warn"}`} style={{ fontSize: 11 }}>
           <span className="dot" /> MuJoCo {wasmVersion} WASM · {dofCount} DOF
@@ -52,11 +61,11 @@ export default function RoboLabPanel() {
       </div>
 
       <p className="muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.4 }}>
-        Self-running workcell: motorized X/Y inventory crib presents parts to a 6-DOF robot arm for breadboard construction, followed by closed-loop sub-µm alignment via{" "}
+        Inverted 6-DOF UR5e cobot on an overhead gantry builds the bench from a motorized X/Y inventory crib and docks{" "}
         <a href="https://github.com/0x23/MicroManipulatorStepper" target="_blank" rel="noreferrer">
           0x23/MicroManipulatorStepper
         </a>{" "}
-        (HW v4.0 Delta-3D).
+        (HW v4.0 Delta-3D) onto each optic to align it.
       </p>
 
       {/* Primary Action Controls */}
@@ -116,21 +125,85 @@ export default function RoboLabPanel() {
         </div>
       </div>
 
-      {/* Section 1: Motorized X/Y Presentation Stage & Inventory Crib */}
+      {/* Section 1: Overhead Gantry Linear Slider (along build plate length) */}
+      <div style={{ borderTop: "1px solid var(--line)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            <SlidersHorizontal size={12} style={{ verticalAlign: "-2px", marginRight: 4 }} />
+            1 · Overhead Gantry Slider (Build Plate X/Y)
+          </span>
+          <span className="mono muted" style={{ fontSize: 11 }}>
+            X:{railSimXMm.toFixed(0)} Y:{carriageSimYMm.toFixed(0)} mm
+          </span>
+        </div>
+
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
+          <span className="mono muted" style={{ width: 62 }}>Rail X:</span>
+          <input
+            type="range"
+            min={railRangeMm[0]}
+            max={railRangeMm[1]}
+            step={1}
+            value={railCmdXMm}
+            onChange={(e) => {
+              if (!enabled) setEnabled(true);
+              setRailXMm(Number(e.target.value));
+            }}
+            style={{ flex: 1 }}
+            aria-label="Overhead Gantry X Slider"
+          />
+          <span className="mono" style={{ width: 56, textAlign: "right" }}>{railCmdXMm.toFixed(0)} mm</span>
+        </label>
+
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
+          <span className="mono muted" style={{ width: 62 }}>Bridge Y:</span>
+          <input
+            type="range"
+            min={0}
+            max={maxPlateY}
+            step={1}
+            value={carriageCmdYMm}
+            onChange={(e) => {
+              if (!enabled) setEnabled(true);
+              setCarriageYMm(Number(e.target.value));
+            }}
+            style={{ flex: 1 }}
+            aria-label="Overhead Gantry Bridge Y Slider"
+          />
+          <span className="mono" style={{ width: 56, textAlign: "right" }}>{carriageCmdYMm.toFixed(0)} mm</span>
+        </label>
+
+        <div style={{ display: "flex", gap: 4 }}>
+          <button type="button" className="btn small" style={{ flex: 1 }} onClick={() => setRailXMm(railRangeMm[0])}>
+            Crib ({railRangeMm[0]}mm)
+          </button>
+          <button type="button" className="btn small" style={{ flex: 1 }} onClick={() => setRailXMm(Math.round(railRangeMm[1] * 0.5))}>
+            Mid ({Math.round(railRangeMm[1] * 0.5)}mm)
+          </button>
+          <button type="button" className="btn small" style={{ flex: 1 }} onClick={() => setRailXMm(railRangeMm[1])}>
+            End ({railRangeMm[1]}mm)
+          </button>
+        </div>
+      </div>
+
+      {/* Section 2: Motorized X/Y Presentation Stage & Inventory Crib */}
       <div style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
           <span style={{ fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-            1 · Motorized X/Y Crib Stage ({slots.length} slots)
+            2 · Motorized X/Y Crib Stage ({slots.length} slots)
           </span>
           <span className="mono muted" style={{ fontSize: 11 }}>
-            X:{stageSimMm[0].toFixed(1)} Y:{stageSimMm[1].toFixed(1)} mm
+            X:{stageSimMm[0].toFixed(0)} Y:{stageSimMm[1].toFixed(0)} mm
           </span>
         </div>
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 5,
+            gap: 4,
+            maxHeight: 150,
+            overflowY: "auto",
+            paddingRight: 2,
           }}
         >
           {slots.map((sl) => {
@@ -150,17 +223,17 @@ export default function RoboLabPanel() {
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "flex-start",
-                  padding: "5px 6px",
+                  padding: "4px 6px",
                   borderColor: isSel ? "#f59e0b" : undefined,
                   textAlign: "left",
                 }}
                 title={`Click to index X/Y crib stage to present ${sl.element_id} (${sl.type}) at Pick Station`}
               >
                 <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center" }}>
-                  <b className="mono" style={{ fontSize: 11 }}>{sl.element_id}</b>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: badgeColor }} />
+                  <b className="mono" style={{ fontSize: 10.5, overflow: "hidden", textOverflow: "ellipsis" }}>{sl.element_id}</b>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: badgeColor, flexShrink: 0 }} />
                 </div>
-                <span className="muted" style={{ fontSize: 9.5, overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+                <span className="muted" style={{ fontSize: 9, overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
                   {sl.type.replace(/_/g, " ")}
                 </span>
               </button>
@@ -169,12 +242,12 @@ export default function RoboLabPanel() {
         </div>
       </div>
 
-      {/* Section 2: 6-DOF Robot Arm Telemetry */}
+      {/* Section 3: Inverted 6-DOF UR5e Arm Telemetry */}
       <div style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
           <span style={{ fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
             <Cpu size={12} style={{ verticalAlign: "-2px", marginRight: 4 }} />
-            2 · 6-DOF Arm Joints (MuJoCo qpos)
+            3 · Inverted UR5e 6-DOF Joints (MuJoCo)
           </span>
         </div>
         <div className="mono" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4, fontSize: 11 }}>
@@ -186,22 +259,25 @@ export default function RoboLabPanel() {
         </div>
       </div>
 
-      {/* Section 3: 0x23/MicroManipulatorStepper (HW v4.0 Delta-3D) */}
+      {/* Section 4: 0x23/MicroManipulatorStepper (HW v4.0 Delta-3D) */}
       <div style={{ borderTop: "1px solid var(--line)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
             <Crosshair size={12} style={{ verticalAlign: "-2px", marginRight: 4 }} />
-            3 · 0x23/MicroManipulatorStepper
+            4 · Robot Adjust · 0x23/MMS
           </span>
           <select
             className="select"
-            style={{ fontSize: 11, padding: "2px 6px", height: 24 }}
+            style={{ fontSize: 11, padding: "2px 6px", height: 24, maxWidth: 165 }}
             value={selectedMmsElementId}
-            onChange={(e) => useLab.setState({ selectedMmsElementId: e.target.value })}
+            onChange={(e) => {
+              if (!enabled) setEnabled(true);
+              focusElementWithRobot(e.target.value);
+            }}
           >
             {slots.map((s) => (
               <option key={s.element_id} value={s.element_id}>
-                MMS-{s.element_id} ({s.type})
+                {s.element_id} ({s.type})
               </option>
             ))}
           </select>

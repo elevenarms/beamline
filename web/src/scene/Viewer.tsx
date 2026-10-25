@@ -437,8 +437,8 @@ function fitBox(bp: Baseplate, trace: TraceResult | null, sources: Design["sourc
     b.expandByPoint(new THREE.Vector3(...toW(r.x0 + r.w, r.y0 + r.h, r.z + 10)));
   }
   if (useLab.getState().enabled) {
-    b.expandByPoint(new THREE.Vector3(...toW(-215, -65, -40)));
-    b.expandByPoint(new THREE.Vector3(...toW(bp.width_mm + 95, Math.max(bp.height_mm, 225), 240)));
+    b.expandByPoint(new THREE.Vector3(...toW(-320, -65, -40)));
+    b.expandByPoint(new THREE.Vector3(...toW(bp.width_mm + 80, Math.max(bp.height_mm + 65, 240), 450)));
   }
   b.expandByVector(new THREE.Vector3(10, 2, 10));
   return b;

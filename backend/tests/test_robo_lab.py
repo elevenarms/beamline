@@ -66,19 +66,23 @@ def test_arm_ik_and_mujoco_mjcf_compiles_and_steps():
     # Compile in real MuJoCo C engine and step physics
     model = mujoco.MjModel.from_xml_string(xml_str)
     data = mujoco.MjData(model)
-    assert model.nu >= 14  # 2 crib XY + 6 arm + 2 gripper + 6 MMS
+    assert model.nu >= 18  # 2 crib XY + 2 overhead gantry XY + 6 inverted UR5e + 2 gripper + 6 MMS
 
     slot0 = manifest["slots"][0]
     data.ctrl[0] = slot0["stage_present_xy_mm"][0] * 0.001
     data.ctrl[1] = slot0["stage_present_xy_mm"][1] * 0.001
+    data.ctrl[2] = slot0["place_rail_x_mm"] * 0.001
     for j_idx, q_val in enumerate(slot0["ik_keyframes"]["pick"]):
-        data.ctrl[2 + j_idx] = q_val
+        data.ctrl[4 + j_idx] = q_val
 
     for _ in range(40):
         mujoco.mj_step(model, data)
 
-    fk = forward_arm_fk(solve_arm_ik((120.0, 65.0, 38.0), 45.0))
+    q = solve_arm_ik((220.0, 110.0, 38.0), 45.0, base_xy_mm=(185.0, 75.0))
+    fk = forward_arm_fk(q, base_xy_mm=(185.0, 75.0))
     assert fk["tool_yaw_deg"] == 45.0
+    tip = fk["tip_mm"]
+    assert abs(tip[0] - 220.0) < 0.5 and abs(tip[1] - 110.0) < 0.5 and abs(tip[2] - 38.0) < 0.5
 
 
 def test_lab_endpoints_and_sse_run():
@@ -112,3 +116,21 @@ def test_lab_endpoints_and_sse_run():
     ]
     types = {e["type"] for e in events}
     assert {"lab_init", "lab_stage", "lab_arm", "lab_place", "lab_mms", "lab_done", "final"} <= types
+
+
+def test_trapped_ion_apparatus_overhead_gantry_run():
+    d = _load("sr_ion_apparatus")
+    client = TestClient(app)
+    r_run = client.post(
+        "/api/lab/run",
+        json={"design": d.model_dump(mode="json"), "use_llm": False, "pace_ms": 0.0},
+    )
+    assert r_run.status_code == 200
+    events = [
+        json.loads(line[5:].strip())
+        for line in r_run.text.splitlines()
+        if line.startswith("data:")
+    ]
+    done_ev = next(e for e in events if e["type"] == "lab_done")
+    assert done_ev["summary"]["parts_assembled"] == 121
+    assert done_ev["report"]["passed"] is True

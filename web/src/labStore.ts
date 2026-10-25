@@ -14,6 +14,10 @@ export interface CribSlot {
   pocket_local_xy_mm: [number, number];
   stage_present_xy_mm: [number, number];
   pick_station_xy_mm: [number, number];
+  pick_rail_x_mm: number;
+  place_rail_x_mm: number;
+  pick_carriage_y_mm: number;
+  place_carriage_y_mm: number;
   bench_xy_mm: [number, number];
   bench_z_mm: number;
   bench_angle_deg: number;
@@ -57,6 +61,9 @@ export interface LabManifest {
   design_name: string;
   pick_station_xy_mm: [number, number];
   arm_base_xy_mm: [number, number];
+  gantry_z_mm: number;
+  rail_y_mm: number;
+  rail_range_mm: [number, number];
   arm_links_mm: { base_z: number; upper: number; forearm: number; wrist: number };
   crib_cols: number;
   crib_pitch_mm: [number, number];
@@ -106,8 +113,11 @@ interface LabSseEvent {
   manifest?: LabManifest;
   slot_index?: number;
   element_id?: string;
+  phase?: string;
   part_type?: string;
   stage_xy_mm?: [number, number];
+  rail_x_mm?: number;
+  carriage_y_mm?: number;
   arm_q_rad?: [number, number, number, number, number, number];
   gripper_m?: number;
   part_state?: "in_crib" | "carried" | "placed";
@@ -141,12 +151,25 @@ interface LabState {
   slots: CribSlot[];
   activeSlotIndex: number | null;
   carriedElementId: string | null;
+  adjustingElementId: string | null;
+
+  // Motorized X/Y Crib Presentation Stage
   stageCmdMm: [number, number];
   stageSimMm: [number, number];
+
+  // Overhead Gantry Bridge (X along build plate length, Y trolley across width)
+  railRangeMm: [number, number];
+  railCmdXMm: number;
+  railSimXMm: number;
+  carriageCmdYMm: number;
+  carriageSimYMm: number;
+
+  // Inverted 6-DOF UR5e Cobot Arm
   armCmdRad: [number, number, number, number, number, number];
   armSimRad: [number, number, number, number, number, number];
   gripperM: number;
 
+  // 0x23/MicroManipulatorStepper (HW v4.0 Delta-3D)
   selectedMmsElementId: string;
   mmsPosMm: [number, number, number];
   mmsPosUm: [number, number, number];
@@ -162,6 +185,9 @@ interface LabState {
   startAutonomousRun: (useLlm?: boolean) => Promise<void>;
   stopRun: () => void;
   indexCribSlot: (slotIndex: number) => void;
+  setRailXMm: (xMm: number) => void;
+  setCarriageYMm: (yMm: number) => void;
+  focusElementWithRobot: (elementId: string) => void;
   sendGcode: (commands: string[], elementId?: string) => Promise<void>;
   jogMmsUm: (axis: "X" | "Y" | "Z", deltaUm: number) => Promise<void>;
   stepMujoco: (dt: number) => void;
@@ -169,12 +195,11 @@ interface LabState {
 
 const DEG2RAD = Math.PI / 180;
 const RAD2DEG = 180 / Math.PI;
-const PICK_XY: [number, number] = [-110, 95];
-const ARM_BASE_XY: [number, number] = [-55, -45];
-const L_BASE = 85;
-const L_UPPER = 240;
-const L_FORE = 220;
-const L_WRIST = 55;
+export const GANTRY_Z_MM = 420;
+const L_BASE = 58;
+const L_UPPER = 245;
+const L_FORE = 215;
+const L_WRIST = 58;
 
 const TUNABLE_TYPES: Record<string, true> = {
   half_wave_plate: true,
@@ -197,55 +222,67 @@ const CONSOLE_EVENT_TYPES: Record<string, true> = {
   final: true,
 };
 
-export function solveArmIkClient(targetXyzMm: [number, number, number], yawDeg = 0): [number, number, number, number, number, number] {
+/** Analytical 6-DOF inverse kinematics for the **inverted** overhead-gantry UR5e cobot arm. */
+export function solveArmIkClient(
+  targetXyzMm: [number, number, number],
+  yawDeg = 0,
+  baseXyMm: [number, number] = [-85, 75],
+): [number, number, number, number, number, number] {
   const [tx, ty, tz] = targetXyzMm;
-  const [bx, by] = ARM_BASE_XY;
+  const [bx, by] = baseXyMm;
   const dx = tx - bx;
   const dy = ty - by;
-  const j1 = Math.atan2(dy, dx);
+  const j1 = Math.abs(dx) + Math.abs(dy) > 1e-3 ? Math.atan2(dy, dx) : 0;
   const rHoriz = Math.hypot(dx, dy);
-  const wristZ = tz + L_WRIST;
-  const dz = wristZ - L_BASE;
-  const d = Math.hypot(rHoriz, dz);
-  const dClamped = Math.max(Math.abs(L_UPPER - L_FORE) + 2, Math.min(L_UPPER + L_FORE - 2, d));
+  const zShoulder = GANTRY_Z_MM - L_BASE;
+  const zWrist = tz + L_WRIST;
+  const dzDown = Math.max(20, zShoulder - zWrist);
+  const d = Math.hypot(rHoriz, dzDown);
+  const dClamped = Math.max(Math.abs(L_UPPER - L_FORE) + 4, Math.min(L_UPPER + L_FORE - 4, d));
   const cosElbow = Math.max(-1, Math.min(1, (L_UPPER * L_UPPER + L_FORE * L_FORE - dClamped * dClamped) / (2 * L_UPPER * L_FORE)));
-  const j3 = Math.PI - Math.acos(cosElbow);
-  const alpha = Math.atan2(dz, rHoriz);
+  const j3 = -(Math.PI - Math.acos(cosElbow));
+  const alpha = Math.atan2(rHoriz, dzDown);
   const cosBeta = Math.max(-1, Math.min(1, (L_UPPER * L_UPPER + dClamped * dClamped - L_FORE * L_FORE) / (2 * L_UPPER * dClamped)));
   const beta = Math.acos(cosBeta);
-  const j2 = Math.PI / 2 - (alpha + beta);
-  const j4 = Math.PI / 2 - (j2 + j3);
+  const j2 = alpha + beta;
+  const j4 = -(j2 + j3);
   const j5 = 0;
   let j6 = yawDeg * DEG2RAD - j1;
   j6 = ((j6 + Math.PI) % (2 * Math.PI)) - Math.PI;
   return [j1, j2, j3, j4, j5, j6];
 }
 
-export function forwardArmFkClient(q: [number, number, number, number, number, number]) {
+/** Compute 3D joint positions (mm) for the inverted overhead-gantry UR5e cobot arm. */
+export function forwardArmFkClient(
+  q: [number, number, number, number, number, number],
+  baseXyMm: [number, number] = [-85, 75],
+) {
   const [j1, j2, j3, j4, , j6] = q;
-  const [bx, by] = ARM_BASE_XY;
+  const [bx, by] = baseXyMm;
   const c1 = Math.cos(j1);
   const s1 = Math.sin(j1);
-  const shoulder: [number, number, number] = [bx, by, L_BASE];
+  const zShoulder = GANTRY_Z_MM - L_BASE;
+  const shoulder: [number, number, number] = [bx, by, zShoulder];
   const rElbow = L_UPPER * Math.sin(j2);
-  const zElbow = L_BASE + L_UPPER * Math.cos(j2);
+  const zElbow = zShoulder - L_UPPER * Math.cos(j2);
   const elbow: [number, number, number] = [bx + rElbow * c1, by + rElbow * s1, zElbow];
   const p23 = j2 + j3;
   const rWrist = rElbow + L_FORE * Math.sin(p23);
-  const zWrist = zElbow + L_FORE * Math.cos(p23);
+  const zWrist = zElbow - L_FORE * Math.cos(p23);
   const wrist: [number, number, number] = [bx + rWrist * c1, by + rWrist * s1, zWrist];
   const p234 = p23 + j4;
   const tip: [number, number, number] = [
-    bx + (rWrist + L_WRIST * Math.cos(p234)) * c1,
+    bx + (rWrist + L_WRIST * Math.sin(p234)) * c1,
     by + (rWrist + L_WRIST * Math.cos(p234)) * s1,
-    zWrist - L_WRIST * Math.sin(p234),
+    zWrist - L_WRIST * Math.cos(p234),
   ];
   return {
-    base_mm: [bx, by, 0] as [number, number, number],
+    base_mm: [bx, by, GANTRY_Z_MM] as [number, number, number],
     shoulder_mm: shoulder,
     elbow_mm: elbow,
     wrist_mm: wrist,
     tip_mm: tip,
+    yaw_rad: j1,
     tool_yaw_deg: (j1 + j6) * RAD2DEG,
   };
 }
@@ -361,6 +398,7 @@ let mjData: MjData | null = null;
 let mjLoading: Promise<MainModule> | null = null;
 let runAbort: AbortController | null = null;
 let gcodeSeq = 1;
+let lastReactSyncMs = 0;
 
 async function ensureMujocoWasm(): Promise<MainModule> {
   if (mjModule) return mjModule;
@@ -369,7 +407,6 @@ async function ensureMujocoWasm(): Promise<MainModule> {
     const m = await loadMujoco();
     try {
       m.FS.mkdir("/working");
-      // Emscripten MEMFS is attached on the runtime module object
       const memfs = (m as unknown as { MEMFS: unknown }).MEMFS;
       m.FS.mount(memfs, { root: "." }, "/working");
     } catch {
@@ -381,9 +418,11 @@ async function ensureMujocoWasm(): Promise<MainModule> {
   return mjLoading;
 }
 
-let lastReactSyncMs = 0;
+const initialKin = computeDelta3DKinematics([0, 0, 0]);
+const initialHomeQ = solveArmIkClient([-110, 75, 115], 0, [-85, 75]);
+const urlHasLab = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("lab") === "1";
 
-function loadXmlIntoMujoco(xml: string) {
+function loadXmlIntoMujoco(xml: string, initRailX: number, initCarriageY: number) {
   if (!mjModule) return { nq: 0, nu: 0, version: "—" };
   try {
     if (mjData) { mjData.delete(); mjData = null; }
@@ -393,10 +432,17 @@ function loadXmlIntoMujoco(xml: string) {
     mjData = new mjModule.MjData(mjModel);
     const qpos = mjData.qpos as Float64Array;
     const ctrl = mjData.ctrl as Float64Array;
-    for (let i = 0; i < 6; i++) {
-      qpos[2 + i] = initialHomeQ[i];
-      ctrl[2 + i] = initialHomeQ[i];
+    if (qpos.length >= 10) {
+      qpos[2] = initRailX * 0.001;
+      qpos[3] = 0;
+      ctrl[2] = initRailX * 0.001;
+      ctrl[3] = 0;
+      for (let i = 0; i < 6; i++) {
+        qpos[4 + i] = initialHomeQ[i];
+        ctrl[4 + i] = initialHomeQ[i];
+      }
     }
+    void initCarriageY;
     mjModule.mj_forward(mjModel, mjData);
     return {
       nq: mjModel.nq,
@@ -415,17 +461,27 @@ function buildClientFallbackManifest(d: Design): { xml: string; manifest: LabMan
   for (const p of tr?.elements ?? []) {
     placedById[p.id] = p;
   }
+  const w = d.baseplate?.width_mm ?? 300;
+  const h = d.baseplate?.height_mm ?? 150;
+  const els = d.elements ?? [];
+  const cols = els.length > 24 ? 11 : 4;
+  const pitch = els.length > 24 ? 34 : 42;
+  const pickXy: [number, number] = [-145, Math.round(h * 0.5)];
   const zTop = (d.baseplate?.thickness_mm ?? 25.4) + (d.baseplate?.optical_height_mm ?? 12.7);
-  const transitZ = Math.max(85, zTop + 45);
-  const slots: CribSlot[] = (d.elements ?? []).map((el, idx) => {
+  const transitZ = Math.max(115, zTop + 65);
+  const slots: CribSlot[] = els.map((el, idx) => {
     const pl = placedById[el.id];
     const benchXy: [number, number] = pl?.position ? [pl.position[0], pl.position[1]] : el.at ? [el.at[0], el.at[1]] : [80 + idx * 35, 75];
     const angle = pl?.angle_deg ?? el.angle_deg ?? 0;
-    const col = idx % 4;
-    const row = Math.floor(idx / 4);
-    const pocketXy: [number, number] = [col * 42, row * 42];
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    const pocketXy: [number, number] = [col * pitch, row * pitch];
     const stageXy: [number, number] = [-pocketXy[0], -pocketXy[1]];
     const isTunable = Boolean(TUNABLE_TYPES[el.type]);
+    const pickRailX = -85;
+    const placeRailX = Math.max(-95, Math.min(w, benchXy[0] - 35));
+    const pickCy = pickXy[1];
+    const placeCy = h > 120 ? Math.max(40, Math.min(h - 40, benchXy[1] - 45)) : h * 0.5;
     return {
       slot_index: idx,
       element_id: el.id,
@@ -434,40 +490,53 @@ function buildClientFallbackManifest(d: Design): { xml: string; manifest: LabMan
       part_number: el.part_number || "",
       pocket_local_xy_mm: pocketXy,
       stage_present_xy_mm: stageXy,
-      pick_station_xy_mm: PICK_XY,
+      pick_station_xy_mm: pickXy,
+      pick_rail_x_mm: pickRailX,
+      place_rail_x_mm: placeRailX,
+      pick_carriage_y_mm: pickCy,
+      place_carriage_y_mm: placeCy,
       bench_xy_mm: benchXy,
       bench_z_mm: zTop,
       bench_angle_deg: angle,
       has_mms: isTunable,
       mms_unit_id: isTunable ? `MMS-${el.id}` : null,
-      state: "in_crib",
+      state: "placed",
       ik_keyframes: {
-        home: solveArmIkClient([PICK_XY[0] + 35, PICK_XY[1], transitZ], 0),
-        pre_pick: solveArmIkClient([PICK_XY[0], PICK_XY[1], transitZ], 0),
-        pick: solveArmIkClient([PICK_XY[0], PICK_XY[1], 22], 0),
-        lift: solveArmIkClient([PICK_XY[0], PICK_XY[1], transitZ], 0),
-        pre_place: solveArmIkClient([benchXy[0], benchXy[1], transitZ], angle),
-        place: solveArmIkClient([benchXy[0], benchXy[1], zTop], angle),
-        retract: solveArmIkClient([benchXy[0], benchXy[1], transitZ], angle),
+        home: solveArmIkClient([pickXy[0] + 35, pickXy[1], transitZ], 0, [pickRailX, pickCy]),
+        pre_pick: solveArmIkClient([pickXy[0], pickXy[1], transitZ], 0, [pickRailX, pickCy]),
+        pick: solveArmIkClient([pickXy[0], pickXy[1], 22], 0, [pickRailX, pickCy]),
+        lift: solveArmIkClient([pickXy[0], pickXy[1], transitZ], 0, [pickRailX, pickCy]),
+        pre_place: solveArmIkClient([benchXy[0], benchXy[1], transitZ], angle, [placeRailX, placeCy]),
+        place: solveArmIkClient([benchXy[0], benchXy[1], zTop], angle, [placeRailX, placeCy]),
+        retract: solveArmIkClient([benchXy[0], benchXy[1], transitZ], angle, [placeRailX, placeCy]),
+        adjust_approach: solveArmIkClient([benchXy[0], benchXy[1], transitZ], angle, [placeRailX, placeCy]),
+        adjust_engage: solveArmIkClient([benchXy[0], benchXy[1], zTop + 14], angle, [placeRailX, placeCy]),
+        adjust_retract: solveArmIkClient([benchXy[0], benchXy[1], transitZ], angle, [placeRailX, placeCy]),
       },
     };
   });
 
-  const xml = `<mujoco model="beamteam_lab">
+  const xml = `<mujoco model="beamteam_overhead_lab">
     <option timestep="0.004" integrator="implicitfast"/>
     <default><joint damping="3.0" armature="0.02"/><position kp="180"/></default>
     <worldbody>
       <body name="xy_stage_x"><joint name="crib_x" type="slide" axis="1 0 0"/><geom type="box" size="0.1 0.1 0.01"/>
         <body name="inventory_crib"><joint name="crib_y" type="slide" axis="0 1 0"/><geom type="box" size="0.09 0.09 0.01"/></body>
       </body>
-      <body name="arm_b1" pos="-0.055 -0.045 0.085"><joint name="arm_j1" type="hinge" axis="0 0 1"/><geom type="cylinder" size="0.02 0.02"/>
-        <body name="arm_b2"><joint name="arm_j2" type="hinge" axis="0 1 0"/><geom type="capsule" fromto="0 0 0 0 0 0.24" size="0.016"/>
-          <body name="arm_b3" pos="0 0 0.24"><joint name="arm_j3" type="hinge" axis="0 1 0"/><geom type="capsule" fromto="0 0 0 0 0 0.22" size="0.014"/>
-            <body name="arm_b4" pos="0 0 0.22"><joint name="arm_j4" type="hinge" axis="0 1 0"/><geom type="cylinder" size="0.012 0.012"/>
-              <body name="arm_b5" pos="0 0 0.025"><joint name="arm_j5" type="hinge" axis="1 0 0"/><geom type="cylinder" size="0.01 0.01"/>
-                <body name="arm_b6" pos="0 0 0.03"><joint name="arm_j6" type="hinge" axis="0 0 1"/><geom type="cylinder" size="0.012 0.01"/>
-                  <body name="gl"><joint name="grip_l" type="slide" axis="0 1 0"/><geom type="box" size="0.004 0.002 0.01"/></body>
-                  <body name="gr"><joint name="grip_r" type="slide" axis="0 -1 0"/><geom type="box" size="0.004 0.002 0.01"/></body>
+      <body name="gantry" pos="0 0 0.42">
+        <body name="bridge"><joint name="arm_rail_x" type="slide" axis="1 0 0"/><geom type="box" size="0.02 0.2 0.01"/>
+          <body name="trolley"><joint name="arm_rail_y" type="slide" axis="0 1 0"/><geom type="cylinder" size="0.03 0.02"/>
+            <body name="arm_b1" pos="0 0 -0.058"><joint name="arm_j1" type="hinge" axis="0 0 1"/><geom type="cylinder" size="0.02 0.02"/>
+              <body name="arm_b2"><joint name="arm_j2" type="hinge" axis="0 1 0"/><geom type="capsule" fromto="0 0 0 0 0 -0.245" size="0.016"/>
+                <body name="arm_b3" pos="0 0 -0.245"><joint name="arm_j3" type="hinge" axis="0 1 0"/><geom type="capsule" fromto="0 0 0 0 0 -0.215" size="0.014"/>
+                  <body name="arm_b4" pos="0 0 -0.215"><joint name="arm_j4" type="hinge" axis="0 1 0"/><geom type="cylinder" size="0.012 0.012"/>
+                    <body name="arm_b5" pos="0 0 -0.026"><joint name="arm_j5" type="hinge" axis="1 0 0"/><geom type="cylinder" size="0.01 0.01"/>
+                      <body name="arm_b6" pos="0 0 -0.03"><joint name="arm_j6" type="hinge" axis="0 0 1"/><geom type="cylinder" size="0.012 0.01"/>
+                        <body name="gl"><joint name="grip_l" type="slide" axis="0 1 0"/><geom type="box" size="0.004 0.002 0.01"/></body>
+                        <body name="gr"><joint name="grip_r" type="slide" axis="0 -1 0"/><geom type="box" size="0.004 0.002 0.01"/></body>
+                      </body>
+                    </body>
+                  </body>
                 </body>
               </body>
             </body>
@@ -484,6 +553,8 @@ function buildClientFallbackManifest(d: Design): { xml: string; manifest: LabMan
     <actuator>
       <position name="act_crib_x" joint="crib_x" kp="220"/>
       <position name="act_crib_y" joint="crib_y" kp="220"/>
+      <position name="act_arm_rail_x" joint="arm_rail_x" kp="240"/>
+      <position name="act_arm_rail_y" joint="arm_rail_y" kp="240"/>
       <position name="act_arm_j1" joint="arm_j1" kp="180"/>
       <position name="act_arm_j2" joint="arm_j2" kp="180"/>
       <position name="act_arm_j3" joint="arm_j3" kp="180"/>
@@ -505,11 +576,14 @@ function buildClientFallbackManifest(d: Design): { xml: string; manifest: LabMan
     xml,
     manifest: {
       design_name: d.name,
-      pick_station_xy_mm: PICK_XY,
-      arm_base_xy_mm: ARM_BASE_XY,
+      pick_station_xy_mm: pickXy,
+      arm_base_xy_mm: [-85, pickXy[1]],
+      gantry_z_mm: GANTRY_Z_MM,
+      rail_y_mm: pickXy[1],
+      rail_range_mm: [-95, Math.max(w, 150)],
       arm_links_mm: { base_z: L_BASE, upper: L_UPPER, forearm: L_FORE, wrist: L_WRIST },
-      crib_cols: 4,
-      crib_pitch_mm: [42, 42],
+      crib_cols: cols,
+      crib_pitch_mm: [pitch, pitch],
       mms_spec: {
         repo: "https://github.com/0x23/MicroManipulatorStepper",
         hardware_version: "v4.0",
@@ -526,30 +600,35 @@ function buildClientFallbackManifest(d: Design): { xml: string; manifest: LabMan
   };
 }
 
-const initialKin = computeDelta3DKinematics([0, 0, 0]);
-const initialHomeQ = solveArmIkClient([-75, 95, 110], 0);
-const urlHasLab = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("lab") === "1";
-
 export const useLab = create<LabState>((set, get) => ({
   enabled: urlHasLab,
   running: false,
   phase: "idle",
-  statusMessage: "Ready — motorized X/Y crib stage, 6-DOF arm & 0x23/MicroManipulatorStepper standby",
+  statusMessage: "Overhead Gantry + Inverted 6-DOF UR5e + X/Y Crib Stage + 0x23/MicroManipulatorStepper ready",
 
   wasmReady: false,
   wasmVersion: "3.3.8",
   simTimeS: 0,
   stepCount: 0,
-  dofCount: 16,
-  actuatorCount: 16,
+  dofCount: 18,
+  actuatorCount: 18,
   mjcfXml: null,
   manifest: null,
 
   slots: [],
   activeSlotIndex: 0,
   carriedElementId: null,
+  adjustingElementId: null,
+
   stageCmdMm: [0, 0],
   stageSimMm: [0, 0],
+
+  railRangeMm: [-95, 1200],
+  railCmdXMm: -85,
+  railSimXMm: -85,
+  carriageCmdYMm: 450,
+  carriageSimYMm: 450,
+
   armCmdRad: initialHomeQ,
   armSimRad: initialHomeQ,
   gripperM: 0.012,
@@ -608,21 +687,76 @@ export const useLab = create<LabState>((set, get) => ({
       xml = fb.xml;
       manifest = fb.manifest;
     }
-    const info = loadXmlIntoMujoco(xml);
+    const initRailX = manifest.slots[0]?.place_rail_x_mm ?? 120;
+    const initCy = manifest.slots[0]?.place_carriage_y_mm ?? manifest.pick_station_xy_mm[1];
+    const info = loadXmlIntoMujoco(xml, initRailX, initCy);
     const slots: CribSlot[] = manifest.slots.map((s) => ({
       ...s,
       state: get().running ? (s.state ?? "in_crib") : "placed",
     }));
-    const firstTunable = slots.find((s) => s.has_mms)?.element_id ?? slots[0]?.element_id ?? "";
+    const firstTunable = slots.find((s) => s.has_mms) ?? slots[0];
+    const initArmQ = (firstTunable?.ik_keyframes.adjust_engage as [number, number, number, number, number, number]) ?? initialHomeQ;
     set({
       wasmReady: true,
       wasmVersion: info.version,
-      dofCount: info.nq || 16,
-      actuatorCount: info.nu || 16,
+      dofCount: info.nq || 18,
+      actuatorCount: info.nu || 18,
       mjcfXml: xml,
       manifest,
       slots,
-      selectedMmsElementId: firstTunable,
+      railRangeMm: manifest.rail_range_mm,
+      railCmdXMm: firstTunable?.place_rail_x_mm ?? initRailX,
+      railSimXMm: firstTunable?.place_rail_x_mm ?? initRailX,
+      carriageCmdYMm: firstTunable?.place_carriage_y_mm ?? initCy,
+      carriageSimYMm: firstTunable?.place_carriage_y_mm ?? initCy,
+      armCmdRad: initArmQ,
+      armSimRad: initArmQ,
+      selectedMmsElementId: firstTunable?.element_id ?? "",
+      adjustingElementId: firstTunable?.element_id ?? null,
+    });
+  },
+
+  setRailXMm: (xMm: number) => {
+    const [rMin, rMax] = get().railRangeMm;
+    const clampedX = Math.max(rMin, Math.min(rMax, xMm));
+    const cy = get().carriageCmdYMm;
+    // Keep inverted arm posed cleanly below the gantry carriage as the slider moves
+    const q = solveArmIkClient([clampedX + 35, cy + 35, 110], 0, [clampedX, cy]);
+    set({
+      railCmdXMm: clampedX,
+      railSimXMm: clampedX,
+      armCmdRad: q,
+      armSimRad: q,
+      statusMessage: `Overhead gantry bridge positioned at X = ${clampedX.toFixed(0)} mm along build plate`,
+    });
+  },
+
+  setCarriageYMm: (yMm: number) => {
+    const d = useStore.getState().design;
+    const maxH = d?.baseplate?.height_mm ?? 150;
+    const clampedY = Math.max(0, Math.min(maxH, yMm));
+    const rx = get().railCmdXMm;
+    const q = solveArmIkClient([rx + 35, clampedY + 35, 110], 0, [rx, clampedY]);
+    set({
+      carriageCmdYMm: clampedY,
+      carriageSimYMm: clampedY,
+      armCmdRad: q,
+      armSimRad: q,
+      statusMessage: `Overhead gantry trolley positioned at Y = ${clampedY.toFixed(0)} mm across build plate`,
+    });
+  },
+
+  focusElementWithRobot: (elementId: string) => {
+    const slot = get().slots.find((s) => s.element_id === elementId);
+    if (!slot) return;
+    const engageQ = (slot.ik_keyframes.adjust_engage as [number, number, number, number, number, number]) ?? initialHomeQ;
+    set({
+      selectedMmsElementId: elementId,
+      adjustingElementId: elementId,
+      railCmdXMm: slot.place_rail_x_mm,
+      carriageCmdYMm: slot.place_carriage_y_mm,
+      armCmdRad: engageQ,
+      statusMessage: `Overhead gantry moved to X=${slot.place_rail_x_mm.toFixed(0)}, Y=${slot.place_carriage_y_mm.toFixed(0)} mm · Inverted UR5e docked on ${elementId}`,
     });
   },
 
@@ -633,8 +767,10 @@ export const useLab = create<LabState>((set, get) => ({
     set({
       activeSlotIndex: slotIndex,
       stageCmdMm: slot.stage_present_xy_mm,
+      railCmdXMm: slot.pick_rail_x_mm,
+      carriageCmdYMm: slot.pick_carriage_y_mm,
       armCmdRad: prePick,
-      statusMessage: `Indexed X/Y crib stage to slot #${slotIndex} (${slot.element_id}: ${slot.type}) at (${slot.stage_present_xy_mm[0]}, ${slot.stage_present_xy_mm[1]}) mm`,
+      statusMessage: `Indexed X/Y crib stage to slot #${slotIndex} (${slot.element_id}: ${slot.type}) · Overhead gantry at pick station`,
     });
   },
 
@@ -665,16 +801,17 @@ export const useLab = create<LabState>((set, get) => ({
       running: true,
       phase: "planning",
       carriedElementId: null,
+      adjustingElementId: null,
       activeSlotIndex: 0,
       slots: s.slots.map((sl) => ({ ...sl, state: "in_crib" })),
-      statusMessage: "Argon Lab Director planning X/Y crib presentation, 6-DOF pick-and-place & MicroManipulatorStepper alignment…",
+      statusMessage: "Argon Lab Director planning overhead-gantry assembly & 0x23/MicroManipulatorStepper alignment…",
     }));
 
     try {
       const resp = await fetch("/api/lab/run", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-        body: JSON.stringify({ design: baseDesign, use_llm: useLlm, pace_ms: 55 }),
+        body: JSON.stringify({ design: baseDesign, use_llm: useLlm, pace_ms: 50 }),
         signal: ac.signal,
       });
       if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
@@ -710,31 +847,39 @@ export const useLab = create<LabState>((set, get) => ({
           }
 
           if (ev.type === "lab_init" && ev.mjcf_xml && ev.manifest) {
-            const info = loadXmlIntoMujoco(ev.mjcf_xml);
+            const info = loadXmlIntoMujoco(ev.mjcf_xml, -85, ev.manifest.pick_station_xy_mm[1]);
             set({
               wasmReady: true,
               wasmVersion: info.version,
               mjcfXml: ev.mjcf_xml,
               manifest: ev.manifest,
+              railRangeMm: ev.manifest.rail_range_mm,
               slots: ev.manifest.slots.map((sl) => ({ ...sl, state: "in_crib" })),
               phase: "planning",
             });
           } else if (ev.type === "lab_stage" && ev.stage_xy_mm) {
-            set({
+            set((s) => ({
               phase: "building",
               activeSlotIndex: ev.slot_index ?? 0,
-              stageCmdMm: ev.stage_xy_mm,
+              stageCmdMm: ev.stage_xy_mm!,
+              railCmdXMm: ev.rail_x_mm ?? s.railCmdXMm,
+              carriageCmdYMm: ev.carriage_y_mm ?? s.carriageCmdYMm,
               statusMessage: ev.message ?? "",
-            });
+            }));
           } else if (ev.type === "lab_arm" && ev.element_id && ev.arm_q_rad) {
             const eid = ev.element_id;
             const pState = ev.part_state ?? "carried";
+            const isAdjust = (ev.phase ?? "").startsWith("adjust");
             set((s) => ({
-              phase: "building",
+              phase: isAdjust ? "aligning" : "building",
               activeSlotIndex: ev.slot_index ?? s.activeSlotIndex,
+              railCmdXMm: ev.rail_x_mm ?? s.railCmdXMm,
+              carriageCmdYMm: ev.carriage_y_mm ?? s.carriageCmdYMm,
               armCmdRad: ev.arm_q_rad!,
               gripperM: ev.gripper_m ?? 0.008,
               carriedElementId: pState === "carried" ? eid : null,
+              adjustingElementId: isAdjust ? eid : null,
+              selectedMmsElementId: isAdjust ? eid : s.selectedMmsElementId,
               slots: s.slots.map((sl) => (sl.element_id === eid ? { ...sl, state: pState } : sl)),
               statusMessage: ev.message ?? "",
             }));
@@ -766,6 +911,10 @@ export const useLab = create<LabState>((set, get) => ({
             set((s) => ({
               phase: "aligning",
               selectedMmsElementId: ev.element_id || s.selectedMmsElementId,
+              adjustingElementId: ev.element_id || s.adjustingElementId,
+              railCmdXMm: ev.rail_x_mm ?? s.railCmdXMm,
+              carriageCmdYMm: ev.carriage_y_mm ?? s.carriageCmdYMm,
+              armCmdRad: ev.arm_q_rad ?? s.armCmdRad,
               mmsPosMm: gc.pos_mm,
               mmsPosUm: gc.pos_um,
               mmsRotorDeg: gc.rotor_deg,
@@ -801,6 +950,7 @@ export const useLab = create<LabState>((set, get) => ({
   sendGcode: async (commands: string[], elementId?: string) => {
     const targetEl = elementId || get().selectedMmsElementId || "FC1";
     const unitId = `MMS-${targetEl}`;
+    get().focusElementWithRobot(targetEl);
     try {
       const resp = await fetch("/api/lab/gcode", {
         method: "POST",
@@ -918,22 +1068,26 @@ export const useLab = create<LabState>((set, get) => ({
     const st = get();
     if (!st.enabled) return;
 
-    if (mjModule && mjModel && mjData) {
+    const pickY0 = st.manifest?.pick_station_xy_mm[1] ?? 450;
+
+    if (mjModule && mjModel && mjData && mjModel.nu >= 18) {
       const ctrl = mjData.ctrl as Float64Array;
       const qpos = mjData.qpos as Float64Array;
       ctrl[0] = st.stageCmdMm[0] * 0.001;
       ctrl[1] = st.stageCmdMm[1] * 0.001;
+      ctrl[2] = st.railCmdXMm * 0.001;
+      ctrl[3] = (st.carriageCmdYMm - pickY0) * 0.001;
       for (let i = 0; i < 6; i++) {
-        ctrl[2 + i] = st.armCmdRad[i];
+        ctrl[4 + i] = st.armCmdRad[i];
       }
-      ctrl[8] = st.gripperM;
-      ctrl[9] = st.gripperM;
-      ctrl[10] = (st.mmsRotorDeg[0] - 42) * DEG2RAD;
-      ctrl[11] = (st.mmsRotorDeg[1] - 42) * DEG2RAD;
-      ctrl[12] = (st.mmsRotorDeg[2] - 42) * DEG2RAD;
-      ctrl[13] = st.mmsPosMm[0] * 0.001;
-      ctrl[14] = st.mmsPosMm[1] * 0.001;
-      ctrl[15] = st.mmsPosMm[2] * 0.001;
+      ctrl[10] = st.gripperM;
+      ctrl[11] = st.gripperM;
+      ctrl[12] = (st.mmsRotorDeg[0] - 42) * DEG2RAD;
+      ctrl[13] = (st.mmsRotorDeg[1] - 42) * DEG2RAD;
+      ctrl[14] = (st.mmsRotorDeg[2] - 42) * DEG2RAD;
+      ctrl[15] = st.mmsPosMm[0] * 0.001;
+      ctrl[16] = st.mmsPosMm[1] * 0.001;
+      ctrl[17] = st.mmsPosMm[2] * 0.001;
 
       const substeps = Math.max(1, Math.min(6, Math.round(dt / 0.004)));
       for (let k = 0; k < substeps; k++) {
@@ -943,23 +1097,28 @@ export const useLab = create<LabState>((set, get) => ({
       const nowMs = performance.now();
       if (nowMs - lastReactSyncMs < 45) return;
       const simStage: [number, number] = [qpos[0] * 1000, qpos[1] * 1000];
+      const simRailX = qpos[2] * 1000;
+      const simCarriageY = pickY0 + qpos[3] * 1000;
       const simArm: [number, number, number, number, number, number] = [
-        qpos[2],
-        qpos[3],
         qpos[4],
         qpos[5],
         qpos[6],
         qpos[7],
+        qpos[8],
+        qpos[9],
       ];
       const stageDelta = Math.hypot(simStage[0] - st.stageSimMm[0], simStage[1] - st.stageSimMm[1]);
+      const railDelta = Math.hypot(simRailX - st.railSimXMm, simCarriageY - st.carriageSimYMm);
       let armDelta = 0;
       for (let i = 0; i < 6; i++) armDelta = Math.max(armDelta, Math.abs(simArm[i] - st.armSimRad[i]));
-      if (stageDelta > 0.15 || armDelta > 0.0025) {
+      if (stageDelta > 0.15 || railDelta > 0.2 || armDelta > 0.0025) {
         lastReactSyncMs = nowMs;
         set({
           simTimeS: mjData.time,
           stepCount: st.stepCount + substeps,
           stageSimMm: simStage,
+          railSimXMm: simRailX,
+          carriageSimYMm: simCarriageY,
           armSimRad: simArm,
         });
       }
@@ -971,16 +1130,21 @@ export const useLab = create<LabState>((set, get) => ({
         st.stageSimMm[0] + (st.stageCmdMm[0] - st.stageSimMm[0]) * alpha,
         st.stageSimMm[1] + (st.stageCmdMm[1] - st.stageSimMm[1]) * alpha,
       ];
+      const nextRailX = st.railSimXMm + (st.railCmdXMm - st.railSimXMm) * alpha;
+      const nextCy = st.carriageSimYMm + (st.carriageCmdYMm - st.carriageSimYMm) * alpha;
       const nextArm = st.armSimRad.map((v, i) => v + (st.armCmdRad[i] - v) * alpha) as [number, number, number, number, number, number];
       const stageDelta = Math.hypot(nextStage[0] - st.stageSimMm[0], nextStage[1] - st.stageSimMm[1]);
+      const railDelta = Math.hypot(nextRailX - st.railSimXMm, nextCy - st.carriageSimYMm);
       let armDelta = 0;
       for (let i = 0; i < 6; i++) armDelta = Math.max(armDelta, Math.abs(nextArm[i] - st.armSimRad[i]));
-      if (stageDelta > 0.15 || armDelta > 0.0025) {
+      if (stageDelta > 0.15 || railDelta > 0.2 || armDelta > 0.0025) {
         lastReactSyncMs = nowMs;
         set({
           simTimeS: st.simTimeS + dt,
           stepCount: st.stepCount + 1,
           stageSimMm: nextStage,
+          railSimXMm: nextRailX,
+          carriageSimYMm: nextCy,
           armSimRad: nextArm,
         });
       }

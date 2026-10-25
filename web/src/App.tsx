@@ -74,7 +74,12 @@ function TopBar({ examples, onPick }: { examples: ExampleInfo[]; onPick: (n: str
         onClick={() => {
           const next = !labEnabled;
           setLabEnabled(next);
-          if (next) setLeftTab("lab");
+          if (next) {
+            setLeftTab("lab");
+            if (design?.name !== "sr_ion_apparatus" && examples.some((x) => x.name === "sr_ion_apparatus")) {
+              onPick("sr_ion_apparatus");
+            }
+          }
         }}
         disabled={!design}
         title="Toggle Autonomous Robotics Lab (MuJoCo WASM + 6-DOF Arm + X/Y Crib Stage + 0x23/MicroManipulatorStepper)"
@@ -195,7 +200,9 @@ export default function App() {
     api.listExamples().then((ex) => {
       setExamples(ex);
       if (!useStore.getState().design) {
-        const first = ex.find((x) => !x.name.startsWith("mock:")) ?? ex[0];
+        const wantLab = new URLSearchParams(window.location.search).get("lab") === "1";
+        const preferred = wantLab ? ex.find((x) => x.name === "sr_ion_apparatus") : undefined;
+        const first = preferred ?? ex.find((x) => !x.name.startsWith("mock:")) ?? ex[0];
         if (first) pick(first.name);
       }
     });
