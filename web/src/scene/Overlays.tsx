@@ -3,6 +3,7 @@ import { Box, ChevronDown, Clapperboard, Columns2, FastForward, Gauge, ChevronUp
 import { useStore } from "../store";
 import { useDemo } from "../demoStore";
 import { CLOCK_STAGES, usePipeline } from "../pipeline";
+import { useLab } from "../labStore";
 import { domRefs, useView, type Preset } from "./viewStore";
 import { bandName } from "../lib/color";
 import { useWlColor } from "../lib/theme";
@@ -275,8 +276,11 @@ export function LogicStrip() {
 
 /** playback speed, skip, alignment tour and director mode */
 function DemoControls() {
-  const speed = useDemo((d) => d.speed);
-  const setSpeed = useDemo((d) => d.setSpeed);
+  const demoSpeed = useDemo((d) => d.speed);
+  const setDemoSpeed = useDemo((d) => d.setSpeed);
+  const labEnabled = useLab((l) => l.enabled);
+  const labSpeed = useLab((l) => l.playbackSpeed);
+  const setLabSpeed = useLab((l) => l.setPlaybackSpeed);
   const director = useDemo((d) => d.director);
   const setDirector = useDemo((d) => d.setDirector);
   const tuning = useDemo((d) => d.tune.active);
@@ -290,11 +294,25 @@ function DemoControls() {
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, []);
+  const speedOpts = labEnabled ? [1, 2, 3, 5] : [0.5, 1, 2];
+  const activeSpeed = labEnabled ? labSpeed : demoSpeed;
   return (
     <>
       <div className="speed" role="radiogroup" aria-label="Playback speed">
-        {[0.5, 1, 2].map((v) => (
-          <button key={v} className={`tb-btn sp${speed === v ? " active" : ""}`} onClick={() => setSpeed(v)} role="radio" aria-checked={speed === v} data-tip={`Playback ${v}×`}>{v}×</button>
+        {speedOpts.map((v) => (
+          <button
+            key={v}
+            className={`tb-btn sp${activeSpeed === v ? " active" : ""}`}
+            onClick={() => {
+              if (labEnabled) setLabSpeed(v);
+              else setDemoSpeed(v);
+            }}
+            role="radio"
+            aria-checked={activeSpeed === v}
+            data-tip={`Playback ${v}×`}
+          >
+            {v}×
+          </button>
         ))}
       </div>
       <button className="tb-btn" onClick={() => useDemo.getState().skip()} data-tip="Skip animation" aria-label="Skip animation"><FastForward size={15} strokeWidth={1.6} /></button>

@@ -826,10 +826,13 @@ export const useLab = create<LabState>((set, get) => ({
     };
 
     const sleepScaled = async (baseMs: number) => {
-      const waitMs = Math.max(2, baseMs / Math.max(1, get().playbackSpeed));
-      const { promise, resolve } = Promise.withResolvers<void>();
-      window.setTimeout(resolve, waitMs);
-      await promise;
+      let elapsedScaled = 0;
+      while (elapsedScaled < baseMs && !ac.signal.aborted) {
+        const { promise, resolve } = Promise.withResolvers<void>();
+        window.setTimeout(resolve, 16);
+        await promise;
+        elapsedScaled += 16 * Math.max(1, get().playbackSpeed);
+      }
     };
 
     set((s) => ({
@@ -919,7 +922,7 @@ export const useLab = create<LabState>((set, get) => ({
               "#38bdf8",
               `Slot #${ev.slot_index ?? 0} (${ev.element_id ?? ""}) indexed -> stage (${ev.stage_xy_mm[0].toFixed(0)}, ${ev.stage_xy_mm[1].toFixed(0)}) mm`,
             );
-            await sleepScaled(26);
+            await sleepScaled(110);
           } else if (ev.type === "lab_arm" && ev.element_id && ev.arm_q_rad) {
             const eid = ev.element_id;
             const pState = ev.part_state ?? "carried";
@@ -944,7 +947,7 @@ export const useLab = create<LabState>((set, get) => ({
                 `${ev.phase.toUpperCase()} ${eid} @ Gantry (${(ev.rail_x_mm ?? 0).toFixed(0)}, ${(ev.carriage_y_mm ?? 0).toFixed(0)}) mm`,
               );
             }
-            await sleepScaled(22);
+            await sleepScaled(115);
           } else if (ev.type === "lab_place" && ev.design && ev.trace && ev.report) {
             const placedMap: Record<string, true> = {};
             for (const pid of ev.placed_ids ?? []) placedMap[pid] = true;
@@ -959,7 +962,7 @@ export const useLab = create<LabState>((set, get) => ({
               "#34d399",
               `Mounted ${ev.element_id ?? ""} (${(ev.placed_ids ?? []).length}/${ev.total_parts ?? 0}) · rays=${ev.trace.segments.length}`,
             );
-            await sleepScaled(18);
+            await sleepScaled(40);
           } else if (ev.type === "lab_mms" && ev.gcode) {
             const gc = ev.gcode;
             const entry: GcodeLogEntry = {
@@ -1169,13 +1172,22 @@ export const useLab = create<LabState>((set, get) => ({
       ctrl[16] = st.mmsPosMm[1] * 0.001;
       ctrl[17] = st.mmsPosMm[2] * 0.001;
 
-      const substeps = Math.max(1, Math.min(18, Math.round((dt * st.playbackSpeed) / 0.004)));
+      const substeps = Math.max(1, Math.min(24, Math.round((dt * st.playbackSpeed * 1.8) / 0.004)));
       for (let k = 0; k < substeps; k++) {
         mjModule.mj_step(mjModel, mjData);
       }
+      // Blend qpos toward commanded targets scaled by playbackSpeed so 1x..5x is visually immediate on the 1.2m gantry
+      const trackAlpha = Math.min(1, dt * 10 * st.playbackSpeed);
+      qpos[0] += (ctrl[0] - qpos[0]) * trackAlpha;
+      qpos[1] += (ctrl[1] - qpos[1]) * trackAlpha;
+      qpos[2] += (ctrl[2] - qpos[2]) * trackAlpha;
+      qpos[3] += (ctrl[3] - qpos[3]) * trackAlpha;
+      for (let i = 0; i < 6; i++) {
+        qpos[4 + i] += (ctrl[4 + i] - qpos[4 + i]) * trackAlpha;
+      }
 
       const nowMs = performance.now();
-      if (nowMs - lastReactSyncMs < 45) return;
+      if (nowMs - lastReactSyncMs < 28) return;
       const simStage: [number, number] = [qpos[0] * 1000, qpos[1] * 1000];
       const simRailX = qpos[2] * 1000;
       const simCarriageY = pickY0 + qpos[3] * 1000;
