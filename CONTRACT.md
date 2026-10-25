@@ -1,4 +1,4 @@
-# Beamline — build contract
+# BEAMTEAM — build contract
 
 Hackathon project: Gemini (`gemini-4-argon`) agents design tabletop laser-optics setups from a goal
 or reproduce them from a paper figure; a Python tracer simulates & verifies the beam line; a three.js

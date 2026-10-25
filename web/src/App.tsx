@@ -49,7 +49,7 @@ function TopBar({ examples, onPick }: { examples: ExampleInfo[]; onPick: (n: str
   const setExportOpen = useStore((s) => s.setExportOpen);
   return (
     <header className="topbar">
-      <div className="brand"><BrandMark /> Beamline <small>optical layout design &amp; verification</small></div>
+      <div className="brand"><BrandMark /> BEAMTEAM <small>optical layout design &amp; verification</small></div>
       <div className="sep" />
       <div className="design-name">
         <b>{design?.name ?? "—"}</b>
@@ -61,7 +61,7 @@ function TopBar({ examples, onPick }: { examples: ExampleInfo[]; onPick: (n: str
         <option value="__custom" disabled>Custom / agent result</option>
         {examples.map((x) => <option key={x.name} value={x.name}>{x.title || x.name}</option>)}
       </select>
-      <span className={`pill${mock ? " warn" : ""}`} title={mock ? "Backend unreachable or ?mock=1: using the in-browser tracer and mock agent" : "Connected to the Beamline backend"}>
+      <span className={`pill${mock ? " warn" : ""}`} title={mock ? "Backend unreachable or ?mock=1: using the in-browser tracer and mock agent" : "Connected to the BEAMTEAM backend"}>
         <span className="dot" /> {mock ? "Offline mock" : "Backend"}
       </span>
       <button className="btn" onClick={() => setExportOpen(true)} disabled={!design}><FileCode2 size={14} /> Export PyOpticL</button>

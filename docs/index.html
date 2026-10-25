@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Beamline: Paper Figure to Verified Optics Bench</title>
-<meta name="description" content="Beamline is a multi-agent Gemini system that reproduces laser-optics setups from paper figures (or designs them from a goal), verifies them with a deterministic physics tracer, and exports a build kit.">
-<meta property="og:title" content="Beamline: from a published figure to a buildable, verified laser-optics bench">
+<title>BEAMTEAM: Paper Figure to Verified Optics Bench</title>
+<meta name="description" content="BEAMTEAM is a multi-agent Gemini system that reproduces laser-optics setups from paper figures (or designs them from a goal), verifies them with a deterministic physics tracer, and exports a build kit.">
+<meta property="og:title" content="BEAMTEAM: from a published figure to a buildable, verified laser-optics bench">
 <meta property="og:description" content="LLMs propose, the physics disposes. Paper search to build-document PDF in 1:37.">
 <meta property="og:image" content="assets/img/cover_gemini-nano-banana-2.1_1.webp">
 <meta name="color-scheme" content="light dark">
@@ -19,13 +19,13 @@
 
 <header class="hero wrap">
   <div class="venue">Hackathon project &middot; 25 October 2026</div>
-  <h1 class="title"><span class="name">Beamline</span>From a Published Figure to a Buildable, Verified Laser-Optics Bench</h1>
+  <h1 class="title"><span class="name">BEAMTEAM</span>From a Published Figure to a Buildable, Verified Laser-Optics Bench</h1>
   <p class="subtitle">Gemini agents read the paper; a deterministic physics tracer checks every beam. The LLMs propose, the physics disposes.</p>
 
-  <!-- EDIT ME: replace "Beamline Team" with the author list, e.g.
+  <!-- EDIT ME: replace "BEAMTEAM" with the author list, e.g.
        <a href="https://...">First Author</a><sup>1</sup>, <a href="https://...">Second Author</a><sup>1</sup>
        and fill in the affiliation line below. -->
-  <p class="authors">Beamline Team</p>
+  <p class="authors">BEAMTEAM</p>
   <p class="affil">Built in one day at a hackathon &middot; code written with Claude Code under the team's direction</p>
 
   <nav class="pills" aria-label="Project links">
@@ -51,8 +51,8 @@
 
 <figure class="teaser" id="teaser">
   <div class="teaser-frame">
-    <img id="teaser-poster" class="poster" width="1600" height="900" src="assets/img/video_poster.webp" alt="Frame from the Beamline demo video">
-    <video id="teaser-video" hidden muted autoplay loop playsinline preload="metadata" poster="assets/img/video_poster.webp" aria-label="Muted teaser loop of the Beamline demo"></video>
+    <img id="teaser-poster" class="poster" width="1600" height="900" src="assets/img/video_poster.webp" alt="Frame from the BEAMTEAM demo video">
+    <video id="teaser-video" hidden muted autoplay loop playsinline preload="metadata" poster="assets/img/video_poster.webp" aria-label="Muted teaser loop of the BEAMTEAM demo"></video>
     <div class="badge">
       <button type="button" data-video class="disabled" aria-disabled="true">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
@@ -60,16 +60,16 @@
       <span id="soon">Demo video coming soon</span>
     </div>
   </div>
-  <figcaption>Muted loop of the 60-second Beamline demo. Press <b>Watch with narration</b> for the full version with sound and captions (narration by Gemini TTS). Before the video loads, the poster is a frame taken at 30 s.</figcaption>
+  <figcaption>Muted loop of the 60-second BEAMTEAM demo. Press <b>Watch with narration</b> for the full version with sound and captions (narration by Gemini TTS). Before the video loads, the poster is a frame taken at 30 s.</figcaption>
 </figure>
 
 <main class="wrap">
 
-<p class="tldr"><b>TL;DR</b>&nbsp; Type a topic, pick a figure from an arXiv paper, and Beamline turns it into a laser-optics bench in under three minutes. Vision and synthesizer agents (Gemini <code>gemini-4-argon</code>) propose the layout. A deterministic Gaussian-beam/Jones tracer verifies every beam. The output is aligned, rendered and exported as a build kit: BOM, printable keyed baseplate and an assembly PDF.</p>
+<p class="tldr"><b>TL;DR</b>&nbsp; Type a topic, pick a figure from an arXiv paper, and BEAMTEAM turns it into a laser-optics bench in under three minutes. Vision and synthesizer agents (Gemini <code>gemini-4-argon</code>) propose the layout. A deterministic Gaussian-beam/Jones tracer verifies every beam. The output is aligned, rendered and exported as a build kit: BOM, printable keyed baseplate and an assembly PDF.</p>
 
 <section id="abstract" class="abstract">
   <h2>Abstract</h2>
-  <p>Laying out a tabletop laser-optics bench for an atomic or quantum physics experiment is weeks of careful manual work, and the designs that labs publish are usually just schematic figures. <b>Beamline</b> is a multi-agent system that designs these setups from a natural-language goal, or reproduces them from a figure in a paper. Three vision agents read the figure in parallel. A consensus vote with millimetre scaling turns their readings into a component/beam graph. Two synthesizer agents then build a design in a JSON intermediate representation.</p>
+  <p>Laying out a tabletop laser-optics bench for an atomic or quantum physics experiment is weeks of careful manual work, and the designs that labs publish are usually just schematic figures. <b>BEAMTEAM</b> is a multi-agent system that designs these setups from a natural-language goal, or reproduces them from a figure in a paper. Three vision agents read the figure in parallel. A consensus vote with millimetre scaling turns their readings into a component/beam graph. Two synthesizer agents then build a design in a JSON intermediate representation.</p>
   <p>Every design is checked by a deterministic physics tracer. It models Gaussian beams (ABCD/<i>q</i>), Jones polarization, power, AOM orders, fiber mode overlap and clipping. A verifier flags stray beams (laser safety), collisions, unplaced parts and unmet targets. A deterministic autofix and an LLM repair agent close the loop under a hard deadline. Verified designs are aligned by a deterministic tuner, rendered as journal covers and published as a Typst build document and build kit. The kit includes a bill of materials with part numbers, watertight keyed baseplate STLs, and a script for the <a href="https://github.com/UMassIonTrappers/PyOpticL">PyOpticL</a> code-to-CAD library.</p>
   <p>Live, paper search to build-document PDF took <b>1:37</b> against a 3:00 budget. Three live figure-to-design runs on optical tweezers took 55–74 s and all passed. Grounding the model in real PyOpticL designs cut hallucinated API references from <b>95 % to 0 %</b>. A 121-optic apparatus traces and verifies in about 6 ms. We also report where it fails: on 8 open-access figures, 4/8 reproductions pass verification but only 3/8 are physically faithful.</p>
 </section>
@@ -198,7 +198,7 @@
 
   <figure class="paperfig">
     <img width="1600" height="785" src="assets/fig/gallery.webp" alt="Six-panel overview: a paper figure, the fly-in, the traced apparatus, the agent console, cover renders and printable baseplate tiles." loading="lazy" data-zoom>
-    <figcaption><b>Figure 8. Beamline outputs.</b> (a) An open-access setup figure: dual-trap optical tweezers, Ashraf &amp; Pullarkat, arXiv:2411.16256, CC BY 4.0. (b) The fly-in. (c) The 121-element, 7-module Sr<sup>+</sup> apparatus traced (134 beam segments, verify 99.2, PASS). (d) The agent console streaming tokens from parallel agents. (e) Journal-cover renders: faithful (gemini-3.1-flash-image) and cinematic (gemini-nano-banana-2.1). (f) The build kit's printable keyed baseplate tiles.</figcaption>
+    <figcaption><b>Figure 8. BEAMTEAM outputs.</b> (a) An open-access setup figure: dual-trap optical tweezers, Ashraf &amp; Pullarkat, arXiv:2411.16256, CC BY 4.0. (b) The fly-in. (c) The 121-element, 7-module Sr<sup>+</sup> apparatus traced (134 beam segments, verify 99.2, PASS). (d) The agent console streaming tokens from parallel agents. (e) Journal-cover renders: faithful (gemini-3.1-flash-image) and cinematic (gemini-nano-banana-2.1). (f) The build kit's printable keyed baseplate tiles.</figcaption>
   </figure>
 
   <p class="gallery-h">In the app</p>
@@ -220,7 +220,7 @@
     <figure><button type="button"><img width="896" height="1200" src="assets/img/cover_gemini-3.1-flash-image_2.webp" alt="Annotated render showing a FAIL verdict and a stray beam" loading="lazy"></button><figcaption>Annotated render: the verifier flags a 3.2 mW stray beam (FAIL).</figcaption></figure>
     <figure><button type="button"><img width="896" height="1200" src="assets/img/cover_half_adder_faithful.webp" alt="Faithful render of the all-optical half adder" loading="lazy"></button><figcaption>Half adder, faithful.</figcaption></figure>
     <figure><button type="button"><img width="896" height="1200" src="assets/img/cover_half_adder_cinematic.webp" alt="Cinematic render of the all-optical half adder" loading="lazy"></button><figcaption>Half adder, cinematic.</figcaption></figure>
-    <figure><button type="button"><img width="1600" height="852" src="assets/img/shot_cover_art.webp" alt="Cover art panel in the app" loading="lazy"></button><figcaption>Cover-art panel with the BEAMLINE masthead.</figcaption></figure>
+    <figure><button type="button"><img width="1600" height="852" src="assets/img/shot_cover_art.webp" alt="Cover art panel in the app" loading="lazy"></button><figcaption>Cover-art panel with the BEAMTEAM masthead.</figcaption></figure>
   </div>
 
   <p class="gallery-h">Generated build documents (Typst PDF)</p>
@@ -238,7 +238,7 @@
   <h2>Built on PyOpticL &amp; open figures</h2>
   <div class="credit-box">
     <img width="1040" height="395" src="assets/img/rb_sas_fig2a.webp" alt="PyOpticL paper Figure 2a: Rb saturated absorption spectroscopy layout" loading="lazy" data-zoom>
-    <p><b><a href="https://github.com/UMassIonTrappers/PyOpticL">PyOpticL</a></b> (Myers et al., <i>Quantum</i> 2026; UMass Ion Trappers) is the code-to-CAD optics concept and library that Beamline's exporter targets, and our examples are modelled on its designs. It is referenced, not vendored. Left: PyOpticL paper Fig. 2a (Rb saturated absorption spectroscopy, CC BY 4.0), which we used as a test input. Thank you to the PyOpticL authors. Beamline would not exist without their work.</p>
+    <p><b><a href="https://github.com/UMassIonTrappers/PyOpticL">PyOpticL</a></b> (Myers et al., <i>Quantum</i> 2026; UMass Ion Trappers) is the code-to-CAD optics concept and library that BEAMTEAM's exporter targets, and our examples are modelled on its designs. It is referenced, not vendored. Left: PyOpticL paper Fig. 2a (Rb saturated absorption spectroscopy, CC BY 4.0), which we used as a test input. Thank you to the PyOpticL authors. BEAMTEAM would not exist without their work.</p>
   </div>
 
   <p>The benchmark inputs are open-access published figures, credited below as listed in <a href="https://github.com/elevenarms/beamline/blob/main/demo/figures/catalog.json"><code>demo/figures/catalog.json</code></a>. They keep their original licenses. Figures from other arXiv papers, such as Gieseler et al., arXiv:2004.05246, are fetched live at runtime and are not redistributed.</p>
@@ -296,10 +296,10 @@
   <h2>BibTeX</h2>
   <div class="bib">
     <button type="button" id="copy-bib">Copy</button>
-<pre id="bibtex">@misc{beamline2026,
-  title        = {Beamline: From a Published Figure to a Buildable,
+<pre id="bibtex">@misc{beamteam2026,
+  title        = {BEAMTEAM: From a Published Figure to a Buildable,
                   Verified Laser-Optics Bench},
-  author       = {{Beamline Team}},
+  author       = {{BEAMTEAM}},
   year         = {2026},
   howpublished = {\url{https://github.com/elevenarms/beamline}},
   note         = {Hackathon project}
@@ -321,7 +321,7 @@
 
 <footer>
   <div class="wrap">
-    <p>Beamline &middot; MIT-licensed code: <a href="https://github.com/elevenarms/beamline">github.com/elevenarms/beamline</a>. Third-party figures keep their original licenses.</p>
+    <p>BEAMTEAM &middot; MIT-licensed code: <a href="https://github.com/elevenarms/beamline">github.com/elevenarms/beamline</a>. Third-party figures keep their original licenses.</p>
     <p>Prices in generated BOMs are estimates. This is not a substitute for a laser-safety review.</p>
     <p>Page layout inspired by classic academic project pages.</p>
   </div>

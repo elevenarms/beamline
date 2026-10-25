@@ -163,7 +163,7 @@ function fallbackDoc(d: Design, cover: string | null, citation: string, tunes: T
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.name)} build document</title>
 <style>body{font:13px/1.5 "IBM Plex Sans",system-ui,sans-serif;color:#1b1f24;margin:32px;max-width:760px}h1{font:700 30px "Times New Roman",serif;margin:0}h2{font-size:14px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #ccc;padding-bottom:3px;margin-top:24px}
 table{border-collapse:collapse;width:100%;font-size:12px}td,th{border-bottom:1px solid #e3e3e3;padding:3px 6px;text-align:left}img{max-width:100%;border:1px solid #ddd}.muted{color:#666}</style></head><body>
-<h1>BEAMLINE · build document</h1><div class="muted">${esc(d.name)} · ${new Date().toLocaleString()}</div>
+<h1>BEAMTEAM · build document</h1><div class="muted">${esc(d.name)} · ${new Date().toLocaleString()}</div>
 ${citation ? `<p class="muted">Reproduced from: ${esc(citation)}</p>` : ""}
 ${cover ? `<img src="${cover}" alt="cover">` : ""}
 <h2>Summary</h2><p>${esc(d.description ?? "")}</p><p>Delivered ${(metrics.delivered_mw ?? 0).toFixed(2)} mW of ${(metrics.input_mw ?? 0).toFixed(1)} mW input.</p>
