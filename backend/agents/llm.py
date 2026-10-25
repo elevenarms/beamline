@@ -172,32 +172,115 @@ async def _emit_call(cur, rec: dict, call_id: str) -> None:
         pass
 
 
-async def _call_stream(cfg: dict, contents, cur) -> tuple[str, str, Any, float | None]:
-    """Streaming call; forwards thought summaries. Returns (text, finish, usage, ttft_s)."""
+_CTRL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
+TOKENS_FLUSH_S = float(os.environ.get("BEAMLINE_TOKENS_FLUSH_S", "0.12"))
+TOKENS_FLUSH_CHARS = int(os.environ.get("BEAMLINE_TOKENS_FLUSH_CHARS", "160"))
+
+
+class _TokenStreamer:
+    """Forwards raw streamed text as `tokens` events, batched per call (every ~120 ms or 160 chars)."""
+
+    def __init__(self, cur, call_id: str):
+        self.cur, self.call_id = cur, call_id
+        self.buf = {"output": "", "thought": ""}
+        self.chars = {"output": 0, "thought": 0}
+        self.usage_tokens: int | None = None
+        self.t_first: float | None = None
+        self.last_flush = time.perf_counter()
+        self._task: asyncio.Task | None = None
+        self._lock = asyncio.Lock()
+
+    def start(self) -> None:
+        if self.cur is not None:
+            self._task = asyncio.create_task(self._ticker())
+
+    async def _ticker(self) -> None:
+        try:
+            while True:
+                await asyncio.sleep(TOKENS_FLUSH_S)
+                if time.perf_counter() - self.last_flush >= TOKENS_FLUSH_S:
+                    await self.flush()
+        except asyncio.CancelledError:
+            pass
+
+    async def add(self, kind: str, text: str, usage_tokens: int | None) -> None:
+        if self.cur is None:
+            return
+        if self.t_first is None:
+            self.t_first = time.perf_counter()
+        if usage_tokens:
+            self.usage_tokens = usage_tokens
+        text = _CTRL.sub("", text)
+        self.buf[kind] += text
+        self.chars[kind] += len(text)
+        if len(self.buf[kind]) >= TOKENS_FLUSH_CHARS:
+            await self.flush()
+
+    def _n_tokens(self) -> int:
+        return self.usage_tokens if self.usage_tokens else self.chars["output"] // 4
+
+    async def flush(self) -> None:
+        if self.cur is None:
+            return
+        async with self._lock:
+            self.last_flush = time.perf_counter()
+            for kind in ("thought", "output"):
+                text = self.buf[kind]
+                if not text:
+                    continue
+                self.buf[kind] = ""
+                n = self._n_tokens()
+                dt = (time.perf_counter() - self.t_first) if self.t_first else 0.0
+                tps = round(n / dt, 1) if dt > 0.05 and n else None
+                tracker, agent_id = self.cur
+                try:
+                    await tracker.emit({"type": "tokens", "agent_id": agent_id, "call_id": self.call_id,
+                                        "kind": kind, "text": text, "n_tokens_so_far": n, "tps": tps})
+                except Exception:  # noqa: BLE001
+                    pass
+
+    async def close(self) -> None:
+        if self._task:
+            self._task.cancel()
+            await asyncio.gather(self._task, return_exceptions=True)
+        await self.flush()
+
+
+async def _call_stream(cfg: dict, contents, cur, call_id: str = "") -> tuple[str, str, Any, float | None]:
+    """Streaming call; forwards raw `tokens` deltas and cleaned `thought` summaries.
+    Returns (text, finish, usage, ttft_s)."""
     t0 = time.perf_counter()
     ttft = None
     texts: list[str] = []
     finish, usage = "", None
     batcher = _ThoughtBatcher(cur)
+    tokens = _TokenStreamer(cur, call_id)
     stream = await client().aio.models.generate_content_stream(
         model=MODEL, contents=contents, config=types.GenerateContentConfig(**cfg))
-    async for chunk in stream:
-        if ttft is None:
-            ttft = time.perf_counter() - t0
-        if chunk.usage_metadata is not None:
-            usage = chunk.usage_metadata
-        cand = (chunk.candidates or [None])[0]
-        if cand is None:
-            continue
-        if cand.finish_reason:
-            finish = str(cand.finish_reason)
-        for p in (cand.content.parts if cand.content and cand.content.parts else []):
-            if not p.text:
+    tokens.start()
+    try:
+        async for chunk in stream:
+            if ttft is None:
+                ttft = time.perf_counter() - t0
+            if chunk.usage_metadata is not None:
+                usage = chunk.usage_metadata
+            n_out = getattr(chunk.usage_metadata, "candidates_token_count", None) if chunk.usage_metadata else None
+            cand = (chunk.candidates or [None])[0]
+            if cand is None:
                 continue
-            if getattr(p, "thought", False):
-                await batcher.add(p.text)
-            else:
-                texts.append(p.text)
+            if cand.finish_reason:
+                finish = str(cand.finish_reason)
+            for p in (cand.content.parts if cand.content and cand.content.parts else []):
+                if not p.text:
+                    continue
+                if getattr(p, "thought", False):
+                    await tokens.add("thought", p.text, n_out)
+                    await batcher.add(p.text)
+                else:
+                    texts.append(p.text)
+                    await tokens.add("output", p.text, n_out)
+    finally:
+        await tokens.close()
     await batcher.flush()
     return "".join(texts), finish, usage, ttft
 
@@ -254,7 +337,7 @@ async def generate(
         t0 = time.perf_counter()
         try:
             if use_stream:
-                text, finish, u, ttft = await _call_stream(cfg, contents, cur)
+                text, finish, u, ttft = await _call_stream(cfg, contents, cur, call_id)
             else:
                 text, finish, u, ttft = await _call_once(cfg, contents)
         except Exception as e:  # noqa: BLE001

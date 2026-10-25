@@ -197,7 +197,7 @@ def report_summary(rep: VerifyReport) -> str:
     return "\n".join(out)
 
 
-POLISH_MIN_S = 20.0
+POLISH_MIN_S = 28.0
 ERROR_OVERRUN_S = 25.0   # failing designs get this much extra time for repair   # only start a warnings-only polish round if this much budget is left
 
 

@@ -59,9 +59,12 @@ class AgentTracker:
             yield self
         except BaseException as e:  # noqa: BLE001 — includes CancelledError
             import asyncio
-            state = "cancelled" if isinstance(e, asyncio.CancelledError) else "error"
-            message = ("stopped early: enough results from the other agents" if state == "cancelled"
-                       else (str(e) or type(e).__name__)[:300])
+            if isinstance(e, asyncio.CancelledError):
+                state, message = "cancelled", "stopped early: enough results from the other agents"
+            elif isinstance(e, (asyncio.TimeoutError, TimeoutError)):
+                state, message = "cancelled", "stopped: time budget reached (keeping the best design so far)"
+            else:
+                state, message = "error", (str(e) or type(e).__name__)[:300]
             raise
         finally:
             CURRENT.reset(token)

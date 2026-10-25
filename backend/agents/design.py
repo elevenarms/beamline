@@ -38,7 +38,7 @@ class Plan(BaseModel):
 
 
 # Settings tuned for a ~90 s demo budget (see report in the final summary).
-PLAN_THINKING = "medium"
+PLAN_THINKING = "low"
 PLAN_TIMEOUT_S = 35.0
 CANDIDATE_THINKING = "low"
 STRAGGLER_GRACE_S = 15.0   # after the first candidate lands, wait at most this long for the rest

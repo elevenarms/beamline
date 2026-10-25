@@ -63,6 +63,7 @@ All agent pipelines also emit these fine-grained events (in addition to status/c
   `role` ∈ planner | designer | verifier | repair | vision | merge | synth | architect | module | matcher.
 - `{"type":"llm_call","agent_id":str,"call_id":str,"model":str,"thinking_level":str,"prompt_tokens":int,"output_tokens":int,"thought_tokens":int,"latency_ms":float,"ttft_ms":float|null,"finish_reason":str}`
 - `{"type":"thought","agent_id":str,"text":str}` — streamed thought-summary chunks (Gemini include_thoughts), trimmed to ≤400 chars per event.
+- `{"type":"tokens","agent_id":str,"call_id":str,"kind":"output"|"thought","text":str,"n_tokens_so_far":int|null,"tps":float|null}` — raw streamed model text (the JSON being generated, or raw thought text), batched per LLM call every ~120 ms or 160 chars; `call_id` matches the later `llm_call`; parallel calls interleave. `tps` = output tokens/s for that call so far.
 - `{"type":"tool","agent_id":str,"name":"trace|verify|merge|match|scale|autofix","summary":str,"elapsed_ms":float}` — deterministic tool runs.
 - `{"type":"iteration","agent_id":str,"seq":int,"label":str,"design":Design,"trace":TraceResult,"report":VerifyReport,"parent_seq":int|null,"diff":[Change]}`
   Every intermediate design (each candidate, each repair round, each merged module) in run order, so the UI can replay tuning.
